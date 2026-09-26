@@ -1,0 +1,14 @@
+{
+  "records": [
+    {
+      "source_path": "C:\\Users\\demo\\AppData\\Roaming\\Demo\\sessions\\9f9f9f9f-0000-4000-8000-000000000009.jsonl",
+      "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "imported_thread_id": "01a0e006-0000-7000-8000-000000000006",
+      "imported_at": 1788716214,
+      "source_modified_at": 1787220300000000000,
+      "connector_names": [],
+      "title": "Imported seed sorting"
+    }
+  ],
+  "detected_connector_records": []
+}

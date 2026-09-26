@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <title>MILO</title>
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <div class="titlebar">
+    <span class="wordmark" aria-label="MILO"></span>
+    <span class="titlebar-status" id="titlebar-status" aria-live="polite"></span>
+    <div class="window-actions">
+      <button type="button" data-window="minimize" aria-label="Minimize"><svg viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="7" width="8" height="2"/></svg></button>
+      <button type="button" data-window="maximize" aria-label="Maximize or restore"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1h8v8H1zM3 3v4h4V3z" fill-rule="evenodd"/></svg></button>
+      <button type="button" data-window="close" class="window-close" aria-label="Close MILO"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1h2v2H1zM3 3h2v2H3zM5 5h2v2H5zM7 7h2v2H7zM7 1h2v2H7zM5 3h2v2H5zM3 5h2v2H3zM1 7h2v2H1z"/></svg></button>
+    </div>
+  </div>
+
+  <main id="stage" class="stage">
+    <canvas id="world" tabindex="0" aria-label="Milo's world. A pixel map with Milo's camp, the watchtower, and plots for places still to come. Use the arrow keys to walk, or the place list to visit a spot." aria-describedby="world-help"></canvas>
+    <!-- Right after the map in tab order, so the greeting's buttons are reached before it fades. -->
+    <div id="bubble" class="bubble px" role="status" aria-live="polite" hidden></div>
+    <p id="world-help" class="sr-only">The place list below mirrors the map. Each place opens a panel on the right.</p>
+    <div id="world-fallback" class="world-fallback" hidden>
+      <div class="fallback-milo" aria-hidden="true"></div>
+    </div>
+
+    <section id="crew" class="crew-strip" aria-label="Your crew"></section>
+
+    <nav id="places" class="places" aria-label="Places">
+      <button type="button" class="places-toggle px" id="places-toggle" aria-expanded="false" aria-controls="place-list">Places</button>
+      <ul id="place-list" class="place-list px"></ul>
+    </nav>
+
+    <div id="hover-tip" class="hover-tip" aria-hidden="true" hidden></div>
+
+    <aside id="panel" class="panel px" aria-labelledby="panel-title" hidden>
+      <header class="panel-head">
+        <h2 id="panel-title" tabindex="-1"></h2>
+        <button type="button" class="panel-close" data-action="close-panel" aria-label="Close panel"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1h2v2H1zM3 3h2v2H3zM5 5h2v2H5zM7 7h2v2H7zM7 1h2v2H7zM5 3h2v2H5zM3 5h2v2H3zM1 7h2v2H1z"/></svg></button>
+      </header>
+      <div id="panel-body" class="panel-body"></div>
+    </aside>
+  </main>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "pid": 4194303,
+  "sessionId": "bbbbbbbb-0000-4000-8000-000000000002",
+  "cwd": "Z:\\Demo",
+  "startedAt": 1790175540000,
+  "procStart": "133000000000000000",
+  "version": "2.9.0",
+  "peerProtocol": 1,
+  "peerFeatures": [
+    "demo"
+  ],
+  "kind": "interactive",
+  "entrypoint": "claude-desktop",
+  "hostSessionId": "host-demo-0001",
+  "pidDomain": "demo",
+  "messagingSocketPath": "\\\\.\\pipe\\demo-pipe",
+  "name": "Stale soil run",
+  "nameSince": 1790175570000,
+  "updatedAt": 1790175609000,
+  "status": "busy",
+  "statusUpdatedAt": 1790175600000
+}

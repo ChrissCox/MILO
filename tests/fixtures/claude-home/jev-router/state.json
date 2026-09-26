@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "since": "2026-09-20T10:00:00Z",
+  "sent_to": {
+    "tiny": 2,
+    "everyday": 9,
+    "large": 3,
+    "hardest": 0
+  },
+  "claude_handled": {
+    "jev_unsure": 1,
+    "follow_up": 0
+  },
+  "skipped_without_jev": {
+    "short_or_slash": 4,
+    "looked_like_secret": 0
+  },
+  "went_silent": 0,
+  "jev_calls": 14,
+  "input_tokens": 5200,
+  "cost_usd": 0.00041
+}
