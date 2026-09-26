@@ -1,0 +1,17 @@
+{
+  "name": "milo",
+  "version": "0.1.0",
+  "description": "MILO: Monitor and Interface Layer for Operations. A calm pixel world where Milo watches over your AI crew.",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/watch.test.js tests/core.test.js tests/world.test.js",
+    "test:ui": "node tests/ui.mjs"
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "playwright-core": "1.63.0"
+  }
+}
