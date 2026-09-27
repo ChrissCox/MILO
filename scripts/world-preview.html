@@ -73,7 +73,7 @@
       onHover: (info) => {
         if (!info) { tip.style.display = 'none'; return; }
         const place = PLACES.find((p) => p.id === info.id);
-        tip.textContent = info.kind === 'place' ? (place ? place.name : info.id) : info.id;
+        tip.textContent = info.label || (info.kind === 'place' ? (place ? place.name : info.id) : info.id);
         tip.style.display = 'block';
         tip.style.left = `${info.x + 14}px`;
         tip.style.top = `${info.y + 10}px`;

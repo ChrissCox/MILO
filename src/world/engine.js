@@ -6,19 +6,37 @@
 //   options.scale   fixes the CSS pixels per art pixel (2-4) instead of picking one
 //   world.renderMap(scale, { time }) returns a canvas of the whole map (previews)
 //   world.scale     the CSS pixels per art pixel in use
+// Step 2 adds plots (CONTRACT-STEP2.md): world.setPlots(state.plots) shows each plot empty, as a
+// building site (animated through four stages while designing) or built from its blueprint by
+// src/world/kit.js; world.celebrate(plotId) brings the scaffold down over the new building with
+// a few drifting leaves; crew { state: 'designing', plotId } work at that plot; world.plotLabel(id)
+// names a plot or its building, and hover events carry that label. Crew never walk through Milo:
+// when a crew walk is about to cross his tile (a plot's one-tile gate) he steps aside and back.
 // Size the canvas with CSS; the engine sets its backing store to CSS size x DPR.
 // Motion is on only when options.motion() is not false and the system does not
 // ask for reduced motion; otherwise nothing animates and frames draw on change.
 
-import { TILE, MAP, PLACES, TERRAIN, isWalkable, findPath, placeAt, placeById, hash2, naturalAt } from './map.js';
-import { SPRITES, PALETTE, HELPER_TINTS, rgbaOf, buildAtlas, stamp as stampGrid } from './sprites.js';
+import { TILE, MAP, PLACES, PLOT_IDS, TERRAIN, isWalkable, findPath, placeAt, placeById, plotById, buildableArea, hash2, naturalAt } from './map.js';
+import { SPRITES, PALETTE, HELPER_TINTS, rgbaOf, buildAtlas, rowsToImageData, stamp as stampGrid } from './sprites.js';
+import { drawBuilding, drawConstruction, drawEmptyPlot, drawRedesign } from './kit.js';
 
 const MAP_W = MAP.width * TILE;
 const MAP_H = MAP.height * TILE;
 const FEET = 13; // feet sit 13 px into a tile
 const MILO_SPEED = 80; // px per second
 const CREW_SPEED = 46;
+// Making way: a plot's gate is one tile wide and Milo waits on it, so when a crew member's walk
+// goes through his tile he steps aside this long before they'd reach him, and back once they're by.
+// A crew member never walks through Milo; it waits (at most YIELD_MAX_MS) for him to move.
+const MAKE_WAY_LEAD_MS = 1200;
+const STEP_BACK_PAUSE_MS = 400;
+const YIELD_MAX_MS = 2500;
 const FRAME_MS = 1000 / 30;
+// A tile's feet point in world px, and back (crew spots sit a few px off the tile's feet point).
+const tileFeet = (p) => ({ x: p.x * TILE + 8, y: p.y * TILE + FEET });
+const feetTile = (p) => ({ x: Math.floor(p.x / TILE), y: Math.floor((p.y - FEET + 8) / TILE) });
+// Two feet points close enough that the sprites would stand on top of each other.
+const closeBy = (a, b, reach = TILE) => Math.abs(a.x - b.x) < reach && Math.abs(a.y - b.y) < reach;
 const CAMERA_LOOK_UP = 36; // world px above Milo's feet that the camera centres on
 const ROOMY_VIEW = { w: 26, h: 16 }; // tiles the view keeps before it zooms to 4x
 
@@ -240,28 +258,7 @@ export function paintGround(data) {
     }
   }
 
-  // Plot markings: corner stakes and a dashed string line.
-  for (const plot of Object.values(MAP.plots)) {
-    const x0 = plot.x0 * TILE + 3;
-    const y0 = plot.y0 * TILE + 3;
-    const x1 = (plot.x1 + 1) * TILE - 4;
-    const y1 = (plot.y1 + 1) * TILE - 4;
-    for (let x = x0; x <= x1; x += 1) {
-      if ((x - x0) % 4 < 2) {
-        putPixel(data, x, y0, 'c');
-        putPixel(data, x, y1, 'c');
-      }
-    }
-    for (let y = y0; y <= y1; y += 1) {
-      if ((y - y0) % 4 < 2) {
-        putPixel(data, x0, y, 'c');
-        putPixel(data, x1, y, 'c');
-      }
-    }
-    const stake = SPRITES.stake[0];
-    for (const [sx, sy] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) stampSprite(data, stake, sx - 1, sy - 4);
-  }
-
+  // Plots are drawn by the engine from their state (empty, building site or built), not baked.
   for (const [name, px, py] of MAP.decals || []) stampSprite(data, SPRITES[name][0], px, py);
 
   // Lily pads on the pond, pebbles and flowers on the grass.
@@ -356,10 +353,130 @@ for (let bits = 0; bits < 16; bits += 1) {
 const SHADOWS = {
   tree: [22, 6, -2], 'tree.blossom': [22, 6, -2], pine: [14, 5, -1], bush: [14, 4, -1], 'bush.berry': [14, 4, -1],
   rock: [14, 4, -1], stump: [14, 4, -1], cabin: [46, 6, -1], tent: [30, 5, -1], tower: [44, 7, -2], crate: [14, 4, -1],
-  barrel: [12, 4, -1], scaffold: [30, 5, -1], desk: [18, 4, -1], workbench: [18, 4, -1], easel: [14, 4, -1],
-  'stump.table': [20, 4, -1], woodpile: [22, 4, -1], garden: [30, 3, 0], lantern: [8, 3, -1], 'lamp.post': [8, 3, -1], 'log.bench': [38, 4, -1], campfire: [16, 4, -3],
-  planks: [16, 3, -1], boat: [30, 4, 1], flag: [6, 2, -1],
+  barrel: [12, 4, -1], woodpile: [22, 4, -1], garden: [30, 3, 0], lantern: [8, 3, -1], 'lamp.post': [8, 3, -1], 'log.bench': [38, 4, -1], campfire: [16, 4, -3],
+  planks: [16, 3, -1], boat: [30, 4, 1], flag: [6, 2, -1], 'crew.bench': [62, 4, -1],
 };
+
+// ---------- plots (pure helpers) ----------
+
+const PLOT_STATUSES = new Set(['empty', 'designing', 'built']);
+// How fast a building site goes up (stakes, frame, scaffold, nearly done). Milo's kit answers at
+// once; Claude Code and Codex take half a minute or more, so their sites go up at that pace and
+// reach "nearly done" about when the plans usually land. The shell's panel uses the same pace.
+export const SITE_PACE = Object.freeze({ kit: 2400, crew: 11_000 });
+const REVEAL_MS = 1500;
+const LEAVES_MS = 2600;
+const SHOWCASE_MS = 30_000; // how long a new building stays clear of Milo's speech bubbles
+
+// Kit drawing options for a plot: its buildable size and which way its gate faces.
+export function plotOptions(plotId) {
+  const area = buildableArea(plotId);
+  if (!area) return null;
+  return { w: area.w, h: area.h, gate: MAP.plots[plotId] && MAP.plots[plotId].gate };
+}
+
+function stableKey(value) {
+  if (Array.isArray(value)) return `[${value.map(stableKey).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map((k) => `${k}:${stableKey(value[k])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+
+// What a plot's state asks the world to show. A building being redesigned stays standing, with a
+// light scaffold round it, until the new plans land.
+export function plotLook(plot) {
+  const p = plot && typeof plot === 'object' ? plot : {};
+  const status = PLOT_STATUSES.has(p.status) ? p.status : 'empty';
+  const blueprint = p.blueprint && typeof p.blueprint === 'object' ? p.blueprint : null;
+  const name = blueprint ? (typeof p.name === 'string' && p.name.trim()) || (typeof blueprint.name === 'string' && blueprint.name.trim()) || 'New building' : '';
+  if (status === 'built' && blueprint) return { status: 'built', blueprint, name, key: `built:${stableKey(blueprint)}` };
+  if (status === 'designing' && blueprint) return { status: 'designing', redesign: true, blueprint, name, key: `redesign:${stableKey(blueprint)}` };
+  if (status === 'designing') return { status: 'designing', key: 'designing' };
+  return { status: 'empty', key: 'empty' };
+}
+
+/**
+ * The tiles a crew member walks through to a new spot. Plots are fenced, so a member who got to its
+ * design spot inside one (`leaving`, `arrived`) walks out through the gate first; one still on
+ * its way in turns round where it stands (never through a fence, never in and back out). Going to
+ * design (`into`): to the plot's gate, then just inside.
+ */
+export function crewRoute({ from, to, leaving = null, arrived = true, into = null }) {
+  const out = leaving && arrived ? [leaving.inside, leaving.door] : [];
+  const start = leaving && arrived ? leaving.door : from;
+  const tiles = [...out, ...findPath(start, into ? into.door : to)];
+  if (into) tiles.push(into.inside);
+  return tiles;
+}
+
+/**
+ * Where Milo steps to let crew by: the nearest walkable tile, at most `maxSteps` away, that is off
+ * every crew `route` still to be walked, reached without going through a `busy` tile (where crew
+ * stand now). Among the nearest it takes the one with the fewest route tiles round it, so nobody
+ * brushes past him; a route tile just north counts most, since crew passing there walk behind
+ * him and his head hides their legs (one passing just south only touches his feet). A plot's gate
+ * is a one-tile gap in its fence, so from the gate that is a tile beside the road just outside.
+ * → { to, path } (path excludes `from`, ends at `to`) or null.
+ */
+export function makeWay(from, { route = [], busy = [], maxSteps = 4 } = {}) {
+  const key = (p) => `${p.x},${p.y}`;
+  const onRoute = new Set(route.map(key));
+  const taken = new Set(busy.map(key));
+  const start = { x: from.x, y: from.y };
+  const parent = new Map([[key(start), null]]);
+  const crowd = (p) => {
+    let n = 0;
+    for (let dy = -1; dy <= 1; dy += 1) {
+      for (let dx = -1; dx <= 1; dx += 1) {
+        if ((dx || dy) && onRoute.has(`${p.x + dx},${p.y + dy}`)) n += dx === 0 && dy === -1 ? 4 : 1;
+      }
+    }
+    return n;
+  };
+  let frontier = [start];
+  for (let step = 1; step <= maxSteps && frontier.length > 0; step += 1) {
+    const next = [];
+    const found = [];
+    for (const cell of frontier) {
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const tile = { x: cell.x + dx, y: cell.y + dy };
+        const k = key(tile);
+        if (parent.has(k) || taken.has(k) || !isWalkable(tile.x, tile.y)) continue;
+        parent.set(k, cell);
+        next.push(tile);
+        if (!onRoute.has(k)) found.push(tile);
+      }
+    }
+    if (found.length > 0) {
+      const to = found.reduce((best, tile) => (crowd(tile) < crowd(best) ? tile : best));
+      const path = [];
+      for (let cell = to; cell && key(cell) !== key(start); cell = parent.get(key(cell))) path.unshift(cell);
+      return { to, path };
+    }
+    frontier = next;
+  }
+  return null;
+}
+
+// Kit art is pure and a little slow to draw, so drawings are kept per blueprint and plot size.
+const KIT_CACHE = new Map();
+function kitArt(kind, plotId, arg) {
+  const key = `${kind}|${plotId}|${kind === 'built' || kind === 'redesign' ? stableKey(arg) : arg}`;
+  if (KIT_CACHE.has(key)) return KIT_CACHE.get(key);
+  const options = plotOptions(plotId);
+  let art;
+  try {
+    if (kind === 'built') art = drawBuilding(arg, options);
+    else if (kind === 'redesign') art = drawRedesign(arg, options);
+    else if (kind === 'site') art = drawConstruction(options, arg);
+    else art = drawEmptyPlot(options);
+  } catch (error) {
+    console.error(error);
+    art = drawEmptyPlot(options);
+  }
+  if (KIT_CACHE.size > 60) KIT_CACHE.delete(KIT_CACHE.keys().next().value);
+  KIT_CACHE.set(key, art);
+  return art;
+}
 
 function unionRect(rects) {
   if (!rects.length) return null;
@@ -532,7 +649,7 @@ export function createWorld(canvas, {
 
   // Props.
   const props = MAP.objects.map(placeObject);
-  const perchStump = props.find((o) => o.kind === 'stump' && o.place === 'library');
+  const perchStump = props.find((o) => o.kind === 'stump' && o.place === 'plot-birch');
   const tower = props.find((o) => o.kind === 'tower');
   const campfire = props.find((o) => o.kind === 'campfire');
   const cabin = props.find((o) => o.kind === 'cabin');
@@ -554,6 +671,9 @@ export function createWorld(canvas, {
     walk: null,
     stride: 0,
     queuedDir: null,
+    // While Milo has stepped aside to let crew through: { home, dir, clearSince, returning }.
+    // `home` is the tile he goes back to (and what the camera, Enter and the saved tile keep).
+    aside: null,
   };
   const held = new Set();
   const crew = new Map();
@@ -620,10 +740,14 @@ export function createWorld(canvas, {
     const left = insets.left * unit;
     const freeW = Math.max(viewW / 3, viewW - left - insets.right * unit);
     const freeH = Math.max(viewH / 3, viewH - top - insets.bottom * unit);
-    let x = milo.x - left - freeW / 2;
+    // Stepping aside for the crew is a moment's courtesy: the view stays on the spot he'll return to.
+    const focus = milo.aside ? tileFeet(milo.aside.home) : milo;
+    let x = focus.x - left - freeW / 2;
     // Tall things stand north of their feet (3/4 view), so look a little above Milo.
-    let y = milo.y - CAMERA_LOOK_UP - top - freeH / 2;
-    x = viewW >= MAP_W ? (MAP_W - viewW) / 2 : Math.max(0, Math.min(MAP_W - viewW, x));
+    let y = focus.y - CAMERA_LOOK_UP - top - freeH / 2;
+    // The right edge may run past the map by as much as the open panel covers, so Milo can walk
+    // to the east edge without ending up under the panel. The top and left stay on the map.
+    x = viewW >= MAP_W ? (MAP_W - viewW) / 2 : Math.max(0, Math.min(MAP_W - viewW + insets.right * unit, x));
     y = viewH >= MAP_H ? (MAP_H - viewH) / 2 : Math.max(0, Math.min(MAP_H - viewH, y));
     return { x, y };
   }
@@ -642,6 +766,129 @@ export function createWorld(canvas, {
     if (Math.abs(target.y - cam.y) < 0.3) cam.y = target.y;
   }
 
+  // ---------- plots ----------
+
+  // A grid of palette keys as a canvas ('x' stays translucent, so shadows fall on the ground).
+  const canvasCache = new WeakMap();
+  function rowsCanvas(rows) {
+    if (canvasCache.has(rows)) return canvasCache.get(rows);
+    const c = makeCanvas(rows[0].length, rows.length);
+    const cctx = c.getContext('2d');
+    cctx.putImageData(rowsToImageData(rows, (w, h) => cctx.createImageData(w, h)), 0, 0);
+    canvasCache.set(rows, c);
+    return c;
+  }
+
+  // Leaves the kit's pixels in only where a hash says so: step 0 keeps all, step n-1 almost none.
+  function dissolveCanvases(rows, steps) {
+    return Array.from({ length: steps }, (_, i) => rowsCanvas(rows.map((row, y) => [...row]
+      .map((ch, x) => (ch !== '.' && hash2(x, y, 211) >= i / steps ? ch : '.')).join(''))));
+  }
+
+  const plotViews = new Map(); // plotId -> { look, x, y, since, art? }
+  const reveals = new Map(); // plotId -> { at, leaves }
+  const celebrated = new Map(); // plotId -> when celebrate() ran, so bubbles keep off the new building
+
+  function setPlots(input) {
+    const plots = input && typeof input === 'object' ? input : {};
+    for (const id of PLOT_IDS) {
+      const look = plotLook(plots[id]);
+      const area = buildableArea(id);
+      const prev = plotViews.get(id);
+      if (prev && prev.look.key === look.key) {
+        prev.look = look;
+        continue;
+      }
+      const view = { look, x: area.x * TILE, y: area.y * TILE, w: area.w * TILE, h: area.h * TILE, since: now() };
+      if (look.status === 'built') view.art = kitArt('built', id, look.blueprint);
+      else if (look.redesign) view.art = kitArt('redesign', id, look.blueprint);
+      else if (look.status === 'empty') view.art = kitArt('empty', id);
+      else view.art = null;
+      // What was showing while the plans were drawn up, so the reveal dissolves that very picture.
+      if (prev && prev.look.status === 'designing' && look.status === 'built') {
+        view.from = prev.art ? { art: prev.art } : { stage: siteStage(id, prev, now()) };
+      }
+      plotViews.set(id, view);
+      const reveal = reveals.get(id);
+      if (reveal && look.status === 'built' && reveal.at === null) reveal.at = now();
+      if (reveal && look.status === 'empty') reveals.delete(id); // cleared before the plans came back
+      if (look.status === 'empty') celebrated.delete(id);
+    }
+    requestDraw();
+  }
+
+  // The scaffold comes down over the finished building and a few leaves drift by.
+  // Works whichever of setPlots and celebrate arrives first; instant when motion is off.
+  function celebrate(plotId) {
+    const view = plotViews.get(plotId);
+    if (!plotById(plotId)) return;
+    celebrated.set(plotId, now());
+    if (!motionOn() || paused) {
+      reveals.delete(plotId);
+      requestDraw();
+      return;
+    }
+    let site;
+    if (view && view.look.status === 'designing') site = view.art || kitArt('site', plotId, siteStage(plotId, view, now()));
+    else if (view && view.from) site = view.from.art || kitArt('site', plotId, view.from.stage);
+    else site = kitArt('site', plotId, 3);
+    const leaves = Array.from({ length: 7 }, (_, i) => ({
+      x: 0.15 + hash2(i, plotId.length, 223) * 0.7,
+      y: 0.1 + hash2(i, 3, 227) * 0.45,
+      delay: hash2(i, 5, 229) * 700,
+      sway: hash2(i, 7, 233) * 6.28,
+      key: i % 3 === 0 ? 'l' : i % 3 === 1 ? 'q' : 'k',
+    }));
+    reveals.set(plotId, {
+      at: view && view.look.status === 'built' ? now() : null,
+      sprite: dissolveCanvases(site.sprite, 8),
+      ground: dissolveCanvases(site.ground, 8),
+      leaves,
+    });
+    ensureLoop();
+  }
+
+  function plotLabel(id) {
+    const place = placeById(id);
+    const view = plotViews.get(id);
+    if (!place || place.kind !== 'plot') return place ? place.name : id;
+    if (!view || view.look.status === 'empty') return `${place.name} · empty plot`;
+    if (view.look.redesign) return `${view.look.name} · being redesigned`;
+    if (view.look.status === 'designing') return `${place.name} · being designed`;
+    return view.look.name;
+  }
+
+  // How far a building site has got: at the crew's pace while Claude Code or Codex is designing
+  // there, at the kit's otherwise.
+  function siteStage(id, view, t) {
+    const designer = [...crew.values()].some((member) => member.state === 'designing' && member.plotId === id);
+    const step = designer ? SITE_PACE.crew : SITE_PACE.kit;
+    return Math.min(3, Math.floor(Math.max(0, t - view.since) / step));
+  }
+
+  // The art to show for a plot right now: { art, frame, reveal }.
+  function plotFrame(id, view, t) {
+    if (view.look.status === 'designing' && !view.art) {
+      const stage = t === null ? 2 : siteStage(id, view, t);
+      return { art: kitArt('site', id, stage), frame: 0 };
+    }
+    const frames = view.art.frames.length;
+    const frame = frames > 1 && t !== null ? Math.floor((t + view.x * 7) / 900) % frames : 0;
+    return { art: view.art, frame };
+  }
+
+  function revealStep(id, t) {
+    const reveal = reveals.get(id);
+    if (!reveal || reveal.at === null) return null;
+    // A static repaint can pass a time from before the reveal started; hold it at its first step.
+    const age = t === null ? Infinity : Math.max(0, t - reveal.at);
+    if (age >= LEAVES_MS) {
+      reveals.delete(id);
+      return null;
+    }
+    return { reveal, age, step: Math.floor((age / REVEAL_MS) * 8) };
+  }
+
   // ---------- crew ----------
 
   function artFor(id) {
@@ -654,6 +901,7 @@ export function createWorld(canvas, {
 
   function slotPosition(kind, slot) {
     if (kind === 'work') return { x: slot.x * TILE + 8, y: (slot.y + 2) * TILE - 9 };
+    if (kind === 'design') return { x: slot.x * TILE + 8, y: slot.y * TILE + FEET - 1 };
     if (kind === 'campfire') {
       if (slot.seat === 'bench') return { x: slot.x * TILE + 8 + (slot.dx || 0), y: (slot.y + 1) * TILE - 3 };
       return { x: slot.x * TILE + 8, y: (slot.y + 1) * TILE - 7 };
@@ -680,10 +928,15 @@ export function createWorld(canvas, {
     const counters = { work: 0, waiting: 0, campfire: 0 };
     const seen = new Set();
     for (const item of people) {
-      const kind = item.state === 'working' ? 'work' : item.state === 'needs-you' ? 'waiting' : item.state === 'done' || item.state === 'idle' ? 'campfire' : null;
-      const slots = kind ? MAP.slots[kind] : null;
-      const slot = slots ? slots[counters[kind]] : null;
-      if (kind) counters[kind] += 1;
+      const designing = item.state === 'designing' && !!MAP.slots.design[item.plotId];
+      let kind = item.state === 'working' || item.state === 'designing' ? 'work' : item.state === 'needs-you' ? 'waiting' : item.state === 'done' || item.state === 'idle' ? 'campfire' : null;
+      if (designing) kind = 'design';
+      let slot = null;
+      if (kind === 'design') slot = MAP.slots.design[item.plotId];
+      else if (kind) {
+        slot = MAP.slots[kind][counters[kind]] || null;
+        counters[kind] += 1;
+      }
       if (!slot) continue;
       seen.add(item.id);
       const target = slotPosition(kind, slot);
@@ -691,6 +944,7 @@ export function createWorld(canvas, {
       if (!existing) {
         crew.set(item.id, {
           id: item.id, art: artFor(item.id), state: item.state, label: item.label || item.id, count: item.count || 0,
+          plotId: item.state === 'designing' ? item.plotId : null, holdUntil: 0,
           kind, slot, x: target.x, y: target.y, target, path: [], phase: hash2(item.id.length, item.id.charCodeAt(0), 5) * 3000,
         });
         continue;
@@ -698,14 +952,23 @@ export function createWorld(canvas, {
       existing.state = item.state;
       existing.label = item.label || item.id;
       existing.count = item.count || 0;
+      existing.plotId = item.state === 'designing' ? item.plotId : null;
       if (existing.kind !== kind || existing.slot !== slot) {
+        const leaving = existing.kind === 'design' ? existing.slot : null;
+        const arrived = existing.path.length === 0;
         existing.kind = kind;
         existing.slot = slot;
         existing.target = target;
+        existing.holdUntil = 0;
+        existing.waitingSince = 0;
+        existing.waiting = false;
         if (motionOn() && !paused) {
+          // Plots are fenced: crew go in and out through the gate.
           const from = { x: Math.floor(existing.x / TILE), y: Math.floor(existing.y / TILE) };
-          existing.path = findPath(from, { x: slot.x, y: slot.y }).map((p) => ({ x: p.x * TILE + 8, y: p.y * TILE + FEET }));
-          existing.path.push(target);
+          const route = crewRoute({ from, to: { x: slot.x, y: slot.y }, leaving, arrived, into: kind === 'design' ? slot : null });
+          existing.path = [...route.map(tileFeet), target];
+          // A designer who finished stays for the reveal, then heads off.
+          if (leaving && arrived) existing.holdUntil = now() + REVEAL_MS;
         } else {
           existing.x = target.x;
           existing.y = target.y;
@@ -717,12 +980,27 @@ export function createWorld(canvas, {
     requestDraw();
   }
 
+  // Crew never walk through Milo: one whose next step is his spot waits for him to step aside (he
+  // does, see updateMakingWay), and only if he can't in YIELD_MAX_MS does it go on by.
+  function waitsForMilo(member, next, t) {
+    const inTheWay = closeBy(next, milo) && !closeBy(member, milo);
+    if (!inTheWay) {
+      member.waiting = false;
+      return false;
+    }
+    if (!member.waitingSince) member.waitingSince = t;
+    member.waiting = t - member.waitingSince < YIELD_MAX_MS;
+    return member.waiting;
+  }
+
   function updateCrew(dt) {
+    const t = now();
     for (const member of crew.values()) {
-      if (member.path.length === 0) continue;
+      if (member.path.length === 0 || member.holdUntil > t) continue;
       let budget = (CREW_SPEED * dt) / 1000;
       while (budget > 0 && member.path.length > 0) {
         const next = member.path[0];
+        if (waitsForMilo(member, next, t)) break;
         const dx = next.x - member.x;
         const dy = next.y - member.y;
         const d = Math.abs(dx) + Math.abs(dy);
@@ -730,6 +1008,7 @@ export function createWorld(canvas, {
           member.x = next.x;
           member.y = next.y;
           member.path.shift();
+          member.waitingSince = 0;
           budget -= d;
         } else {
           // move along the larger axis first so walks stay grid-like
@@ -748,6 +1027,7 @@ export function createWorld(canvas, {
     milo.walk = null;
     if (!walk) return;
     if (arrived && walk.face) milo.dir = walk.face;
+    if (walk.quiet && milo.aside && milo.aside.returning) milo.aside = null;
     walk.resolve();
     if (arrived && walk.placeId) {
       try {
@@ -761,6 +1041,8 @@ export function createWorld(canvas, {
   function setTile(tile) {
     if (tile.x === milo.tile.x && tile.y === milo.tile.y) return;
     milo.tile = { x: tile.x, y: tile.y };
+    // Stepping aside for the crew and back isn't a move of Milo's own: his spot stays where it was.
+    if (milo.walk && milo.walk.quiet) return;
     try {
       onMiloMove({ x: tile.x, y: tile.y });
     } catch (error) {
@@ -791,7 +1073,15 @@ export function createWorld(canvas, {
     finishWalk(true);
   }
 
+  // Chris's own moves (and the shell's) win over stepping aside: Milo doesn't go back afterwards.
+  function leaveAside() {
+    if (!milo.aside) return;
+    milo.aside = null;
+    if (milo.walk) milo.walk.quiet = false;
+  }
+
   function startWalk(dest, { placeId = null, face = null } = {}) {
+    leaveAside();
     if (milo.walk) finishWalk(false);
     marker = null;
     return new Promise((resolve) => {
@@ -826,6 +1116,7 @@ export function createWorld(canvas, {
   // Milo steps out of his tent and walks to where he was last (startTile), or home.
   function entrance() {
     if (disposed) return Promise.resolve();
+    leaveAside();
     if (milo.walk) finishWalk(false);
     const door = MAP.tentDoor;
     const dest = startAt;
@@ -885,12 +1176,90 @@ export function createWorld(canvas, {
     if (walk.path.length === 0) finishWalk(true);
   }
 
+  // ---------- making way for the crew ----------
+
+  // How long (ms) until a crew member's walk brings it onto `spot` (feet, world px), or Infinity.
+  function crewEta(member, spot, t) {
+    if (member.path.length === 0) return Infinity;
+    const wait = Math.max(0, member.holdUntil - t);
+    if (closeBy(member, spot)) return wait;
+    let at = member;
+    let distance = 0;
+    for (const point of member.path) {
+      distance += Math.abs(point.x - at.x) + Math.abs(point.y - at.y);
+      at = point;
+      if (closeBy(point, spot)) return wait + (distance / CREW_SPEED) * 1000;
+    }
+    return Infinity;
+  }
+
+  function faceFrom(from, to) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (dx !== 0 && Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? 'right' : 'left';
+    return dy > 0 ? 'down' : 'up';
+  }
+
+  // Milo stays where he stepped to (someone settled on his spot): that is his spot now.
+  function settleAside() {
+    milo.aside = null;
+    try {
+      onMiloMove({ x: milo.tile.x, y: milo.tile.y });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  let wayTriedAt = -Infinity;
+
+  // While Milo stands still: if a crew member's walk is about to go through his tile (a plot's
+  // one-tile gate, where he waits while the crew designs), he steps aside off every crew route,
+  // facing the way they pass; once they're by, he steps back and faces the way he did before.
+  function updateMakingWay() {
+    if (milo.walk || held.size > 0) return;
+    const t = now();
+    const members = [...crew.values()];
+    if (members.some((member) => crewEta(member, milo, t) <= MAKE_WAY_LEAD_MS)) {
+      if (t - wayTriedAt < 250) return;
+      wayTriedAt = t;
+      const route = members.flatMap((member) => member.path.map(feetTile));
+      const busy = members.flatMap((member) => [feetTile(member), ...member.path.slice(0, 1).map(feetTile)]);
+      const way = makeWay(milo.tile, { route, busy });
+      if (!way) return; // nowhere to step: the crew waits a moment, then goes by
+      if (!milo.aside) milo.aside = { home: { ...milo.tile }, dir: milo.dir, clearSince: null, returning: false };
+      milo.aside.clearSince = null;
+      milo.walk = { path: way.path, resolve() {}, placeId: null, face: faceFrom(way.to, milo.aside.home), quiet: true };
+      return;
+    }
+    const aside = milo.aside;
+    if (!aside) return;
+    const back = findPath(milo.tile, aside.home);
+    const spots = back.map(tileFeet);
+    // Someone came to rest on his spot, or on the way back to it: he stays where he is.
+    const settled = members.some((member) => member.path.length === 0 && spots.some((spot) => closeBy(member, spot)));
+    if (back.length === 0 || settled) {
+      settleAside();
+      return;
+    }
+    const passing = members.some((member) => member.path.length > 0
+      && spots.some((spot) => closeBy(member, spot, TILE * 1.5) || member.path.some((point) => closeBy(point, spot))));
+    if (passing) {
+      aside.clearSince = null;
+      return;
+    }
+    if (aside.clearSince === null) aside.clearSince = t;
+    if (t - aside.clearSince < STEP_BACK_PAUSE_MS) return;
+    aside.returning = true;
+    milo.walk = { path: back, resolve() {}, placeId: null, face: aside.dir, quiet: true };
+  }
+
   function neighbour(dir) {
     const d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[dir];
     return { x: milo.tile.x + d[0], y: milo.tile.y + d[1] };
   }
 
   function keyStep(dir) {
+    leaveAside();
     if (milo.walk && milo.walk.keyboard) {
       milo.queuedDir = dir;
       return;
@@ -900,6 +1269,7 @@ export function createWorld(canvas, {
       milo.walk.path = milo.walk.path.slice(0, 1);
       milo.walk.keyboard = true;
       milo.walk.placeId = null;
+      milo.walk.face = null;
       milo.queuedDir = dir;
       return;
     }
@@ -925,7 +1295,7 @@ export function createWorld(canvas, {
   // ---------- hit testing ----------
 
   // Buildings count as solid shapes; smaller props need a pixel within reach.
-  const SOLID_HITS = new Set(['tower', 'cabin', 'tent', 'scaffold', 'boat']);
+  const SOLID_HITS = new Set(['tower', 'cabin', 'tent', 'boat']);
   function opaqueAt(name, frame, px, py, reach = 2) {
     if (SOLID_HITS.has(name)) return true;
     const rows = gridFor(name, frame);
@@ -967,6 +1337,10 @@ export function createWorld(canvas, {
     for (const id of ['jev', 'whisper']) if (inRect(perchRect(id))) return { kind: 'crew', id };
     const front = props.filter((o) => o.place && ax >= o.sx && ay >= o.sy && ax < o.sx + o.sw && ay < o.sy + o.sh).sort((a, b) => b.baseY - a.baseY);
     for (const o of front) if (opaqueAt(o.sprite, 0, Math.floor(ax - o.sx), Math.floor(ay - o.sy))) return { kind: 'place', id: o.place };
+    // A plot answers anywhere on its buildable ground, and on whatever stands there.
+    for (const [id, view] of plotViews) {
+      if (ax >= view.x && ay >= view.y && ax < view.x + view.w && ay < view.y + view.h) return { kind: 'place', id };
+    }
     const tx = Math.floor(ax / TILE);
     const ty = Math.floor(ay / TILE);
     const place = placeAt(tx, ty);
@@ -1015,7 +1389,8 @@ export function createWorld(canvas, {
     hoverTarget = hit;
     if (hit) {
       try {
-        onHover({ kind: hit.kind, id: hit.id, x: cssX, y: cssY });
+        const label = hit.kind === 'place' ? plotLabel(hit.id) : crew.get(hit.id)?.label || hit.id;
+        onHover({ kind: hit.kind, id: hit.id, x: cssX, y: cssY, label });
       } catch (error) {
         console.error(error);
       }
@@ -1058,7 +1433,8 @@ export function createWorld(canvas, {
       return;
     }
     if (event.key === 'Enter' || event.key === ' ') {
-      const place = PLACES.find((p) => p.door.x === milo.tile.x && p.door.y === milo.tile.y);
+      const at = milo.aside ? milo.aside.home : milo.tile;
+      const place = PLACES.find((p) => p.door.x === at.x && p.door.y === at.y);
       if (place) {
         event.preventDefault();
         try {
@@ -1115,13 +1491,15 @@ export function createWorld(canvas, {
   }
 
   function crewDrawInfo(member, t) {
-    const walking = member.path.length > 0;
+    // On its way but standing still while it stays for a reveal or waits for Milo to step aside.
+    const onTheWay = member.path.length > 0;
+    const walking = onTheWay && !member.waiting && !(t !== null && member.holdUntil > t);
     let name = `${member.art}.stand`;
     let frame = 0;
     let bob = 0;
     if (walking) {
       bob = t !== null && Math.floor(t / 150) % 2 === 0 ? -1 : 0;
-    } else if (member.kind === 'work') {
+    } else if (!onTheWay && (member.kind === 'work' || member.kind === 'design')) {
       name = `${member.art}.work`;
       frame = t === null ? 0 : Math.floor((t + member.phase) / 320) % 2;
     } else if (t !== null) {
@@ -1150,6 +1528,12 @@ export function createWorld(canvas, {
     target.imageSmoothingEnabled = false;
     target.fillStyle = PALETTE.L.hex;
     target.fillRect(0, 0, vw + 1, vh + 1);
+    // Past the east edge (only ever under or beside an open panel): more of the meadow's grass.
+    const east = Math.floor(MAP_W - cx);
+    if (east < vw + 1) {
+      target.fillStyle = PALETTE.g.hex;
+      target.fillRect(Math.max(0, east), 0, vw + 1 - Math.max(0, east), vh + 1);
+    }
     target.save();
     target.translate(-cx, -cy);
     const sx = Math.max(0, cx);
@@ -1167,6 +1551,17 @@ export function createWorld(canvas, {
         const phase = (t + s.phase) % s.period;
         if (phase < s.period * 0.3) target.fillRect(s.x + (phase < s.period * 0.15 ? 0 : 1), s.y, s.len, 1);
       }
+    }
+
+    // plots: yard art and shadows lie flat on the ground
+    const plotDraws = [];
+    for (const [id, view] of plotViews) {
+      if (!visible(view.x, view.y, view.w, view.h)) continue;
+      const shown = plotFrame(id, view, t);
+      const step = revealStep(id, t);
+      plotDraws.push({ id, view, shown, step });
+      target.drawImage(rowsCanvas(shown.art.ground), view.x, view.y);
+      if (step && step.step < 8) target.drawImage(step.reveal.ground[step.step], view.x, view.y);
     }
 
     // shadows
@@ -1223,14 +1618,47 @@ export function createWorld(canvas, {
       const frame = t !== null && ((t + 700) % 5200) < 200 ? 1 : 0;
       drawables.push({ y: perchStump.baseY + 1, x: pos.x, draw: () => drawSprite(target, 'whisper.idle', frame, pos.x, pos.y) });
     }
+    for (const { view, shown, step } of plotDraws) {
+      const art = shown.art;
+      drawables.push({
+        y: view.y + art.anchor.y + 0.25,
+        x: view.x + art.anchor.x,
+        draw: () => {
+          target.drawImage(rowsCanvas(art.frames[shown.frame]), view.x, view.y);
+          if (step && step.step < 8) target.drawImage(step.reveal.sprite[step.step], view.x, view.y);
+        },
+      });
+    }
     const mi = miloDrawInfo(t);
     drawables.push({ y: milo.y + 0.5, x: milo.x, draw: () => drawSprite(target, mi.name, mi.frame, mi.x, mi.y) });
     drawables.sort((a, b) => a.y - b.y || a.x - b.x);
     for (const d of drawables) d.draw();
 
-    // a slow curl of smoke from the cabin chimney
+    // a slow curl of smoke from the cabin chimney, and from any chimney built since
     if (t !== null) {
       if (cabin) drawSmoke(target, cabin.sx + 36, cabin.sy - 2, t, 1300);
+      for (const { view, shown } of plotDraws) {
+        const smoke = shown.art.smoke;
+        if (smoke) drawSmoke(target, view.x + smoke.x - 2, view.y + smoke.y - 2, t, view.x * 3);
+      }
+    }
+
+    // leaves drift down from a building that has just gone up
+    for (const { view, step } of plotDraws) {
+      if (!step) continue;
+      for (const leaf of step.reveal.leaves) {
+        const age = step.age - leaf.delay;
+        if (age < 0 || age > LEAVES_MS - leaf.delay) continue;
+        const k = age / 1000;
+        const x = view.x + leaf.x * view.w + k * 9 + Math.sin(k * 3 + leaf.sway) * 3;
+        const y = view.y + leaf.y * view.h + k * 13;
+        const fade = Math.min(1, (LEAVES_MS - leaf.delay - age) / 500);
+        target.globalAlpha = 0.9 * fade;
+        target.fillStyle = PALETTE[leaf.key].hex;
+        target.fillRect(Math.round(x), Math.round(y), 2, 1);
+        target.fillRect(Math.round(x) + (Math.sin(k * 3 + leaf.sway) > 0 ? 1 : 0), Math.round(y) + 1, 1, 1);
+        target.globalAlpha = 1;
+      }
     }
 
     // needs-you bubbles
@@ -1314,6 +1742,7 @@ export function createWorld(canvas, {
     lastTime = time;
     updateMilo(dt);
     updateCrew(dt);
+    updateMakingWay();
     updateCamera(dt);
     draw(time);
   }
@@ -1356,6 +1785,18 @@ export function createWorld(canvas, {
         member.x = member.target.x;
         member.y = member.target.y;
         member.path = [];
+      }
+      member.waiting = false;
+    }
+    // Stepped aside for the crew: with everyone in place, back on his spot (unless it's taken).
+    const aside = milo.aside;
+    if (aside) {
+      if ([...crew.values()].some((member) => closeBy(member, tileFeet(aside.home)))) settleAside();
+      else {
+        milo.aside = null;
+        ({ x: milo.x, y: milo.y } = tileFeet(aside.home));
+        milo.tile = { ...aside.home };
+        milo.dir = aside.dir;
       }
     }
     marker = null;
@@ -1418,7 +1859,8 @@ export function createWorld(canvas, {
   }
 
   // What a speech bubble should never cover, as CSS px rects within the canvas: Milo, every crew
-  // member drawn in the world, and the campfire circle where resting crew sit.
+  // member drawn in the world, the campfire circle where resting crew sit, and (kind 'plot') a
+  // plot while it is a building site, during its reveal, and for a while after it was built.
   function keepClear() {
     const cx = Math.round(cam.x);
     const cy = Math.round(cam.y);
@@ -1430,6 +1872,15 @@ export function createWorld(canvas, {
     for (const id of ['jev', 'whisper']) {
       const rect = perchRect(id);
       if (rect) rects.push(toScreen(rect, 'crew', id));
+    }
+    // A plot going up, coming down from its scaffold, or just built: that's what Chris is watching.
+    for (const [id, view] of plotViews) {
+      const at = celebrated.get(id);
+      const fresh = at !== undefined && now() - at < SHOWCASE_MS;
+      if (!fresh && at !== undefined) celebrated.delete(id);
+      if (view.look.status === 'designing' || reveals.has(id) || fresh) {
+        rects.push(toScreen({ x: view.x, y: view.y, w: view.w, h: view.h }, 'plot', id));
+      }
     }
     return rects;
   }
@@ -1458,11 +1909,15 @@ export function createWorld(canvas, {
   canvas.addEventListener('blur', onBlur);
   doc.addEventListener('visibilitychange', onVisibility);
   win.addEventListener('resize', resize);
+  setPlots({}); // every plot starts empty until the shell says otherwise
   resize();
   ensureLoop();
 
   return {
     setCrew,
+    setPlots,
+    celebrate,
+    plotLabel,
     walkTo,
     entrance,
     miloScreenPos,

@@ -35,6 +35,9 @@ const isMainURL = url => sameFileURL(url, MAIN_URL);
 const PRELOAD = path.join(__dirname, 'preload.cjs');
 const ICON = path.join(ROOT, 'assets', 'milo.ico');
 const IS_TEST = process.env.MILO_TEST === '1';
+// In tests the world must keep moving even when other windows cover MILO's, so the checks
+// don't depend on what else is on screen. Real launches still pause when covered or minimized.
+if (IS_TEST) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 const MAX_STATE_BYTES = 2 * 1024 * 1024;
 const SCAN_INTERVAL_MS = 10_000;
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close']);
@@ -69,10 +72,46 @@ let lastSnapshot = null;
 let lastSnapshotKey = '';
 const liveNotifications = new Set();
 
+// The architect (src/architect) asks Chris's crew to design buildings. It runs only here, in the
+// main process; the renderer never touches the network or spawns anything.
+let architectModule = null;
+let architectError = null;
+let architectReady = Promise.resolve();
+let mapModule = null;
+let architect = null;
+let flight = null;
+const DESIGNER_MODES = new Set(['auto', 'claude', 'codex', 'kit']);
+const FLIGHT_LIMIT_MS = 330_000;
+// How long a cancel waits for the crew process to let go: a little longer than crew.js gives a
+// stopped process tree (3 s), so its temp folder is gone before Chris can ask again or MILO quits.
+const CANCEL_WAIT_MS = 4500;
+const CREW_IDS = new Set(['claude', 'codex']);
+const FALLBACK_CODES = new Set(['missing', 'auth', 'agents', 'invalid', 'failed', 'timeout', 'spawn']);
+const PLOTS = {
+  'plot-meadow': { name: 'Long meadow', legacy: 'workshop' },
+  'plot-rise': { name: 'Sunny rise', legacy: 'clip-studio' },
+  'plot-birch': { name: 'Birch hollow', legacy: 'library' },
+  'plot-pond': { name: 'Pondside plot', legacy: 'game-table' },
+  'plot-orchard': { name: 'Old orchard', legacy: 'building-site' },
+};
+// Milo's own buildings, which no idea should copy.
+const MILO_BUILDINGS = ["Milo's camp", 'Watchtower'];
+const MESSAGES = {
+  busy: 'Milo is already asking the crew.',
+  unavailable: "Milo's drafting kit isn't unpacked yet.",
+  failed: "Milo couldn't hear back from the crew just now.",
+  cancelled: 'Milo stopped asking.',
+  plot: "Milo can't find that plot.",
+  idea: 'Milo needs an idea to design from.',
+};
+
 // Test hooks, readable through Playwright's application.evaluate().
 if (IS_TEST) {
   globalThis.__miloNotifications = [];
+  // Every notify request with the window's focus at that moment, so tests don't race focus changes.
+  globalThis.__miloNotifyDecisions = [];
   globalThis.__miloBlockedRequests = [];
+  globalThis.__miloArchitectCalls = [];
 }
 
 function report(error) {
@@ -100,9 +139,10 @@ const fallbackModel = {
       milo: { name: 'Milo', tile: null },
       lastSeenAt: null,
       lastGreetedDay: null,
-      settings: { motion: true, notifications: true, greeting: true },
+      settings: { motion: true, notifications: true, greeting: true, designer: 'auto' },
       skills: {},
       panel: null,
+      plots: {},
     };
   },
   normalizeState(input) {
@@ -321,9 +361,11 @@ function cleanText(value, limit) {
 function notify(payload) {
   if (!payload || typeof payload !== 'object') return false;
   if (savedState?.settings?.notifications === false) return false;
-  if (!isLive(mainWindow) || mainWindow.isFocused()) return false;
   const title = cleanText(payload.title, 80);
   const body = cleanText(payload.body, 200);
+  const focused = isLive(mainWindow) && mainWindow.isFocused();
+  if (IS_TEST) globalThis.__miloNotifyDecisions.push({ title, focused, at: Date.now() });
+  if (!isLive(mainWindow) || focused) return false;
   if (!title) return false;
   if (IS_TEST) {
     globalThis.__miloNotifications.push({ title, body, at: Date.now() });
@@ -338,6 +380,245 @@ function notify(payload) {
   toast.on('failed', release);
   toast.show();
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// The architect: ideas and designs for Chris's plots.
+//
+// Only what the step 2 privacy rule allows ever reaches it from here: the question or idea Chris
+// typed or picked, the plot's name and size, and the names of the buildings (and ideas) on the
+// plots. The architect adds his project folder names and skill names itself. No session data,
+// transcript, snippet or anything from ~/.codex goes in.
+
+async function loadArchitect() {
+  try {
+    mapModule = await import(pathToFileURL(path.join(ROOT, 'src', 'world', 'map.js')).href);
+  } catch (error) {
+    mapModule = null;
+    report(`Map unavailable to the architect, using plot defaults: ${error.message}`);
+  }
+  try {
+    architectModule = await import(pathToFileURL(path.join(ROOT, 'src', 'architect', 'index.js')).href);
+    if (typeof architectModule.createArchitect !== 'function') throw new Error('createArchitect is missing.');
+    // The architect reads MILO_ARCHITECT (auto, claude, codex, kit, or fake for tests),
+    // MILO_CLAUDE_HOME and MILO_PROJECTS_DIR itself.
+    architect = architectModule.createArchitect();
+    architectError = null;
+  } catch (error) {
+    architectModule = null;
+    architect = null;
+    architectError = MESSAGES.unavailable;
+    report(`Architect unavailable: ${error.message}`);
+  }
+  // A crash or a hard stop can leave a crew call's temp folder behind; tidy MILO's own old ones.
+  try {
+    const crew = await import(pathToFileURL(path.join(ROOT, 'src', 'architect', 'crew.js')).href);
+    crew.sweepCrewTempDirs?.({ olderThanMs: FLIGHT_LIMIT_MS }).catch(report);
+  } catch (error) {
+    report(`Temp folder sweep skipped: ${error.message}`);
+  }
+}
+
+// The Designer setting at camp, passed with every call. (MILO_ARCHITECT=kit still wins: nothing is sent.)
+function designerSetting() {
+  const designer = savedState?.settings?.designer;
+  return DESIGNER_MODES.has(designer) ? designer : 'auto';
+}
+
+const isPlotId = id => typeof id === 'string' && Object.hasOwn(PLOTS, id);
+
+function areaOf(value) {
+  if (!value || typeof value !== 'object') return null;
+  const w = Math.floor(Number(value.w));
+  const h = Math.floor(Number(value.h));
+  return w > 0 && h > 0 && w <= 64 && h <= 64 ? { w, h } : null;
+}
+
+// { id, name, w, h }: the plot's buildable size in tiles, from the map when it knows it.
+function plotInfo(plotId) {
+  const known = PLOTS[plotId];
+  let place = null;
+  let size = null;
+  try {
+    place = mapModule?.placeById?.(plotId) || mapModule?.placeById?.(known.legacy) || null;
+  } catch { place = null; }
+  try {
+    size = areaOf(mapModule?.buildableArea?.(plotId));
+  } catch { size = null; }
+  if (!size && place?.area) {
+    const area = areaOf(place.area);
+    if (area) size = { w: Math.max(3, area.w - 2), h: Math.max(3, area.h - 2) };
+  }
+  const name = place && place.id === plotId && typeof place.name === 'string' && place.name ? place.name : known.name;
+  return { id: plotId, name, ...(size || { w: 7, h: 5 }) };
+}
+
+const savedPlot = plotId => {
+  const plot = savedState?.plots?.[plotId];
+  return plot && typeof plot === 'object' ? plot : null;
+};
+
+function buildingNameOf(plot) {
+  if (typeof model?.buildingName === 'function') return model.buildingName(plot);
+  if (!plot || plot.status !== 'built') return '';
+  return cleanText(plot.name || plot.blueprint?.name, 28);
+}
+
+// Names of the buildings already standing: Milo's own, then Chris's (minus the plot being redesigned).
+function builtNames(exceptPlotId = null) {
+  const plots = savedState?.plots && typeof savedState.plots === 'object' ? savedState.plots : {};
+  const names = Object.entries(plots)
+    .filter(([id]) => id !== exceptPlotId)
+    .map(([, plot]) => buildingNameOf(plot))
+    .filter(Boolean);
+  return [...MILO_BUILDINGS, ...names];
+}
+
+function cleanSuggestionList(value) {
+  if (typeof model?.cleanSuggestions === 'function') return model.cleanSuggestions(value);
+  return Array.isArray(value) ? value.slice(0, 3) : [];
+}
+
+function cleanIdea(value) {
+  if (typeof model?.cleanSuggestion === 'function') return model.cleanSuggestion(value);
+  return value && typeof value === 'object' && typeof value.title === 'string' && value.title.trim() ? value : null;
+}
+
+const cleanBy = value => (['claude', 'codex', 'kit'].includes(value) ? value : 'kit');
+// Why Milo drew it himself, as the architect's enums only (the renderer words it).
+function cleanFallback(value) {
+  if (!value || typeof value !== 'object' || !FALLBACK_CODES.has(value.code)) return null;
+  return { by: CREW_IDS.has(value.by) ? value.by : null, code: value.code };
+}
+const cleanSkipped = value => (Array.isArray(value) ? [...new Set(value.filter(id => CREW_IDS.has(id)))] : []);
+
+// Tells the renderer who has the brief right now, each time the architect asks a crew member.
+function tellAsking(id) {
+  if (!CREW_IDS.has(id) || !isLive(mainWindow) || mainWindow.webContents.isLoadingMainFrame()) return;
+  mainWindow.webContents.send('milo:architect-asking', id);
+}
+const cleanSuggestBy = value => (['claude', 'codex', 'local', 'kit'].includes(value) ? value : 'local');
+const failure = (code, error) => ({ ok: false, code, error: error || MESSAGES[code] || MESSAGES.failed });
+
+function recordCall(entry) {
+  if (IS_TEST) globalThis.__miloArchitectCalls.push(JSON.parse(JSON.stringify({ ...entry, at: Date.now() })));
+}
+
+// One request to the crew at a time, across ideas and designs.
+async function runFlight(kind, plotId, work) {
+  await architectReady;
+  if (flight) return failure('busy');
+  if (!architect) return failure('unavailable', architectError);
+  let settle;
+  const current = { kind, plotId, cancelled: false, done: new Promise(resolve => { settle = resolve; }) };
+  flight = current;
+  let watchdog = null;
+  try {
+    const limit = new Promise((_, reject) => {
+      watchdog = setTimeout(() => {
+        try { architect.cancel(); } catch (error) { report(error); }
+        reject(new Error('The crew took too long.'));
+      }, FLIGHT_LIMIT_MS);
+    });
+    const result = await Promise.race([Promise.resolve().then(() => work(architect)), limit]);
+    if (current.cancelled) return failure('cancelled');
+    return result;
+  } catch (error) {
+    if (current.cancelled || error?.code === 'cancelled') return failure('cancelled');
+    if (error?.code === 'busy') return failure('busy');
+    // A redesign the crew couldn't finish: the building stays, and the reason goes to Chris.
+    if (error?.code === 'crew-failed') {
+      return { ...failure('crew', cleanText(error.message, 160) || MESSAGES.failed), fallback: cleanFallback(error.fallback) };
+    }
+    report(`Architect ${kind} failed: ${error?.message || error}`);
+    return failure('failed');
+  } finally {
+    clearTimeout(watchdog);
+    if (flight === current) flight = null;
+    settle();
+  }
+}
+
+async function architectStatus({ refresh = false } = {}) {
+  await architectReady;
+  const setting = designerSetting();
+  const base = { available: false, setting, mode: architect?.mode || null, busy: flight ? { kind: flight.kind, plotId: flight.plotId } : null };
+  if (!architect) return { ...base, designer: 'kit', crew: [], error: architectError || MESSAGES.unavailable };
+  try {
+    const status = await architect.status({ designer: setting, refresh: refresh === true });
+    const crew = Array.isArray(status?.crew) ? status.crew.filter(member => member && typeof member === 'object').map(member => ({
+      id: member.id === 'codex' ? 'codex' : 'claude',
+      found: member.found === true,
+      ready: member.ready === true,
+      detail: cleanText(member.detail, 160),
+    })) : [];
+    return { ...base, available: true, designer: cleanBy(status?.designer), fallsBack: status?.fallsBack === true, crew };
+  } catch (error) {
+    report(`Architect status failed: ${error.message}`);
+    return { ...base, available: true, designer: 'kit', crew: [], error: MESSAGES.failed };
+  }
+}
+
+async function architectLocal(plotId) {
+  await architectReady;
+  if (!isPlotId(plotId)) return failure('plot');
+  if (!architect) return failure('unavailable', architectError);
+  try {
+    const suggestions = cleanSuggestionList(await architect.localSuggestions(plotInfo(plotId), builtNames()));
+    return { ok: true, suggestions, by: 'local' };
+  } catch (error) {
+    report(`Local ideas failed: ${error.message}`);
+    return failure('failed', "Milo's notebook of ideas is stuck shut.");
+  }
+}
+
+function architectSuggest(plotId, question) {
+  if (!isPlotId(plotId)) return Promise.resolve(failure('plot'));
+  const asked = cleanText(question, 110);
+  return runFlight('suggest', plotId, async crew => {
+    // The ideas on the plot now, so the fresh three are different ones.
+    const exclude = (savedPlot(plotId)?.suggestions || []).map(idea => cleanText(idea?.title, 28)).filter(Boolean);
+    const request = { plot: plotInfo(plotId), question: asked, built: builtNames(), exclude, designer: designerSetting() };
+    recordCall({ kind: 'suggest', mode: crew.mode || null, ...request });
+    const result = await crew.suggest({ ...request, onAsk: tellAsking });
+    const suggestions = cleanSuggestionList(result?.suggestions);
+    if (!suggestions.length) return failure('failed');
+    return {
+      ok: true, suggestions, by: cleanSuggestBy(result?.by), note: cleanText(result?.note, 160),
+      fallback: cleanFallback(result?.fallback), skipped: cleanSkipped(result?.skipped),
+    };
+  });
+}
+
+function architectDesign(plotId, idea, tweak) {
+  if (!isPlotId(plotId)) return Promise.resolve(failure('plot'));
+  const clean = cleanIdea(idea);
+  if (!clean) return Promise.resolve(failure('idea'));
+  const change = cleanText(tweak, 110);
+  return runFlight('design', plotId, async crew => {
+    const request = { plot: plotInfo(plotId), idea: clean, tweak: change, built: builtNames(plotId), designer: designerSetting() };
+    // A redesign starts from the plans already standing there (the crew's own earlier answer).
+    const standing = savedPlot(plotId);
+    if (standing?.status === 'built' && standing.blueprint) request.previous = standing.blueprint;
+    recordCall({ kind: 'design', mode: crew.mode || null, ...request });
+    const result = await crew.design({ ...request, onAsk: tellAsking });
+    const blueprint = typeof model?.checkBlueprint === 'function' ? model.checkBlueprint(result?.blueprint) : result?.blueprint;
+    if (!blueprint) return failure('failed');
+    return {
+      ok: true, blueprint, by: cleanBy(result?.by), note: cleanText(result?.note, 160),
+      fallback: cleanFallback(result?.fallback), skipped: cleanSkipped(result?.skipped),
+    };
+  });
+}
+
+// Stops the crew call and waits (briefly) until the request has let go, so Chris can ask again at once.
+async function architectCancel() {
+  const current = flight;
+  if (!current) return { ok: true, cancelled: false };
+  current.cancelled = true;
+  try { architect?.cancel(); } catch (error) { report(error); }
+  await Promise.race([current.done, new Promise(resolve => setTimeout(resolve, CANCEL_WAIT_MS))]);
+  return { ok: true, cancelled: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -361,6 +642,26 @@ function installIPC() {
   ipcMain.handle('milo:notify', (event, payload) => {
     if (!trustedSender(event)) return false;
     return notify(payload);
+  });
+  ipcMain.handle('milo:architect-status', async (event, options) => {
+    if (!trustedSender(event)) return null;
+    return architectStatus({ refresh: options?.refresh === true });
+  });
+  ipcMain.handle('milo:architect-local', (event, plotId) => {
+    if (!trustedSender(event)) return failure('unavailable', "This window can't ask the crew.");
+    return architectLocal(plotId);
+  });
+  ipcMain.handle('milo:architect-suggest', (event, plotId, question) => {
+    if (!trustedSender(event)) return failure('unavailable', "This window can't ask the crew.");
+    return architectSuggest(plotId, question);
+  });
+  ipcMain.handle('milo:architect-design', (event, plotId, idea, tweak) => {
+    if (!trustedSender(event)) return failure('unavailable', "This window can't ask the crew.");
+    return architectDesign(plotId, idea, tweak);
+  });
+  ipcMain.handle('milo:architect-cancel', event => {
+    if (!trustedSender(event)) return { ok: false, cancelled: false };
+    return architectCancel();
   });
   ipcMain.on('milo:window-action', (event, action) => {
     if (!trustedSender(event) || !isLive(mainWindow) || !WINDOW_ACTIONS.has(action)) return;
@@ -402,6 +703,7 @@ function createMainWindow() {
       webSecurity: true,
       allowRunningInsecureContent: false,
       spellcheck: false,
+      backgroundThrottling: !IS_TEST,
     },
   });
   mainWindow = window;
@@ -461,6 +763,8 @@ if (!ownsInstance) {
     quitting = true;
     // The renderer marks the moment Chris last looked and flushes its saves,
     // then the main-process write queue drains. A stuck renderer gets 3 s.
+    // A crew call still running is stopped and waited for (briefly), so its process tree and
+    // temp folder are gone before MILO is.
     (async () => {
       try {
         await waitForRendererClose();
@@ -469,6 +773,7 @@ if (!ownsInstance) {
         report(error);
       } finally {
         stopScanning();
+        try { await architectCancel(); } catch (error) { report(error); }
         allowQuit = true;
         app.quit();
       }
@@ -495,6 +800,7 @@ if (!ownsInstance) {
       },
     );
     watcherReady = loadWatcher();
+    architectReady = loadArchitect();
     installIPC();
     Menu.setApplicationMenu(null);
     createMainWindow();

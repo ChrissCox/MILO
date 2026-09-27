@@ -417,6 +417,185 @@ svg { display: block; }
 .switch[aria-checked="true"] { background: var(--green); justify-content: flex-start; color: var(--ink); }
 .switch[aria-checked="true"] .switch-knob { left: 37px; }
 
+/* Plots: chatting with Milo at an empty plot, a building site, then the building. */
+.plot-view { display: block; }
+.plot-art {
+  margin: 0 0 12px;
+  padding: 10px 8px;
+  display: flex;
+  justify-content: center;
+  background: #aad48f; /* the world's grass */
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink);
+  margin-left: 2px;
+  margin-right: 2px;
+}
+.plot-canvas { display: block; image-rendering: pixelated; max-width: 100%; }
+
+.milo-says {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  padding: 8px 10px 9px;
+  margin-bottom: 12px;
+  background: var(--cream-2);
+  box-shadow: inset 3px 0 0 0 var(--green);
+}
+.milo-says .face { width: 16px; height: 16px; margin-top: 1px; }
+.milo-says p { font-size: 13px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+
+.plot-note {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  background: var(--cream-3);
+  padding: 8px 10px;
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+div.plot-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+div.plot-note .px-btn { flex: none; }
+
+.ideas { display: grid; gap: 10px; margin-bottom: 4px; }
+.idea { padding: 9px 11px 10px 12px; background: var(--cream-2); min-width: 0; }
+.idea-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.idea-title { font-size: 13.5px; font-weight: 700; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
+.idea-head .px-btn { flex: none; padding: 4px 10px; font-size: 12px; }
+.idea-pitch { font-size: 12.5px; line-height: 1.4; color: var(--ink-soft); margin-top: 5px; overflow-wrap: anywhere; }
+.idea-why { font-size: 11.5px; line-height: 1.4; color: var(--muted); margin-top: 5px; padding-left: 8px; box-shadow: inset 2px 0 0 0 var(--line); overflow-wrap: anywhere; }
+
+.px-btn:disabled, .px-btn[disabled] { cursor: default; color: var(--muted); background: var(--cream-3); transform: none; }
+.px-btn.primary:disabled { background: var(--cream-3); }
+
+.ask, .rename, .redesign { margin-top: 14px; }
+/* Room below a form (or the progress row) brought into view, so its buttons and their drop edge show whole. */
+.ask, .rename, .redesign, .confirm, .progress { scroll-margin: 12px 0 16px; }
+.ask-label { display: block; font-size: 12px; font-weight: 650; color: var(--ink); margin-bottom: 6px; }
+.px-input {
+  display: block;
+  width: calc(100% - 4px);
+  margin: 0 2px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--cream);
+  border: 0;
+  border-radius: 0;
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), inset 0 2px 0 0 var(--cream-3);
+}
+.px-input::placeholder { color: var(--muted); opacity: 1; }
+.px-input:focus { outline: none; }
+.px-input:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+.px-input:disabled { background: var(--cream-2); color: var(--muted); }
+.ask-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; margin-left: 2px; }
+.ask-hint { font-size: 11.5px; color: var(--ink-soft); margin-top: 8px; }
+.ask-hint:empty { display: none; }
+/* Redesign: rethink the level tree too (off by default: only the look changes). */
+.rethink { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 10px; align-items: start; margin: 12px 2px 0; font-size: 12.5px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.rethink > span { display: flex; flex-direction: column; min-width: 0; }
+.rethink-hint { font-size: 11.5px; font-weight: 400; color: var(--muted); line-height: 1.35; }
+.rethink input { appearance: none; width: 14px; height: 14px; margin: 2px 0 0; background: var(--cream); box-shadow: 0 0 0 2px var(--ink); cursor: pointer; }
+.rethink input:checked { background: var(--green-deep); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 3px var(--cream); }
+.rethink input:focus { outline: none; }
+.rethink input:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+.shares-note { font-size: 11.5px; color: var(--muted); line-height: 1.4; margin-top: 16px; padding-top: 10px; border-top: 2px dotted var(--line); }
+
+.progress {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 8px 10px 8px 12px;
+  background: var(--green-soft);
+}
+.progress:focus { outline: none; }
+.progress:focus-visible { outline: 2px dashed var(--focus); outline-offset: 3px; }
+.progress-text { font-size: 13px; font-weight: 600; color: var(--ink); }
+.progress-dots { display: flex; gap: 4px; }
+.progress-dots i { width: 6px; height: 6px; background: var(--green-deep); opacity: 0.35; animation: milo-think 1.8s ease-in-out infinite; }
+.progress-dots i:nth-child(2) { animation-delay: 0.3s; }
+.progress-dots i:nth-child(3) { animation-delay: 0.6s; }
+@keyframes milo-think { 0%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
+
+.building-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 9px; }
+.link-btn { flex: none; font-size: 12px; font-weight: 600; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
+.link-btn:hover { color: var(--ink); }
+.building-tagline { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1.35; overflow-wrap: anywhere; }
+.building-purpose { font-size: 12.5px; color: var(--ink-soft); margin-top: 7px; line-height: 1.45; overflow-wrap: anywhere; }
+.building-meta { font-size: 11.5px; color: var(--muted); min-width: 0; }
+
+.level-tree, .designer { margin-top: 16px; }
+.level-tree h3, .designer h3 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+.tree-note { font-size: 11.5px; color: var(--muted); margin-bottom: 9px; }
+.plan-levels { display: grid; gap: 8px; }
+.plan-level { padding: 8px 10px 9px; background: var(--cream-2); box-shadow: inset 3px 0 0 0 var(--idle); }
+.plan-head { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 9px; }
+.plan-num {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--cream);
+  box-shadow: 0 0 0 2px var(--ink);
+  margin-left: 2px;
+}
+.plan-title { font-size: 13px; font-weight: 650; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
+.plan-summary { font-size: 12px; color: var(--ink-soft); line-height: 1.4; margin-top: 4px; padding-left: 29px; overflow-wrap: anywhere; }
+.plan-proof { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 7px; align-items: start; font-size: 11.5px; line-height: 1.4; color: var(--muted); margin-top: 5px; padding-left: 29px; overflow-wrap: anywhere; }
+.plan-proof .tick { fill: currentColor; margin-top: 1px; }
+
+.building-actions { margin-top: 16px; padding-top: 4px; border-top: 2px dotted var(--line); }
+.confirm { margin-top: 12px; padding: 10px 12px 12px; background: #f8edd2; }
+.confirm-title { font-size: 13.5px; font-weight: 700; }
+.confirm-body { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.4; }
+
+/* Designer setting at camp */
+.designer-options { display: grid; gap: 6px; margin-top: 8px; }
+.designer-option {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 7px 10px 8px;
+  background: var(--cream-2);
+  cursor: pointer;
+}
+.designer-option:has(input:checked) { background: var(--green-soft); }
+.designer-option input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin: 2px 0 0;
+  background: var(--cream);
+  box-shadow: 0 0 0 2px var(--ink);
+  cursor: pointer;
+}
+.designer-option input:checked { background: var(--green-deep); box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 3px var(--cream); }
+.designer-option input:focus { outline: none; }
+.designer-option input:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+.designer-text { display: flex; flex-direction: column; min-width: 0; }
+.designer-name { font-size: 13px; font-weight: 650; }
+.designer-hint { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.crew-ready { display: grid; gap: 6px; margin-top: 10px; }
+.crew-ready li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 12px; color: var(--ink-soft); line-height: 1.35; }
+.crew-ready .face { width: 16px; height: 16px; }
+.crew-ready strong { font-weight: 650; color: var(--ink); }
+.crew-ready li[data-ready="false"] .face { opacity: 0.55; }
+
+[data-state="designing"] .dot { background: var(--working); }
+
 /* Motion off: nothing slides or fades. */
 .still *, .still *::before, .still *::after { transition: none !important; animation: none !important; }
 @media (prefers-reduced-motion: reduce) {

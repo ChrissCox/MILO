@@ -303,3 +303,85 @@ export function alertText(event) {
       return { title: 'Milo has an update', body: 'Take a look when you’re ready.' };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Buildings.
+
+const DESIGNER_NAMES = { claude: 'Claude Code', codex: 'Codex' };
+const BUILT_NAME_MAX = 28;
+
+/** Who a designer id is, in words: 'Claude Code', 'Codex', or 'Milo' for his own kit. */
+export function designerName(id) {
+  return DESIGNER_NAMES[id] || 'Milo';
+}
+
+/** 'Clip studio' → 'The Clip studio'. Names that already carry their own article or owner keep them. */
+function withArticle(name) {
+  if (/^(the|a|an)\s/i.test(name) || /^\S+['’]s\s/.test(name)) return name.charAt(0).toUpperCase() + name.slice(1);
+  return `The ${name}`;
+}
+
+const CREW = new Set(['claude', 'codex']);
+
+/**
+ * Why the crew didn't come through, from the architect's { by, code }: "Codex isn’t signed in",
+ * "Codex’s answer was hard to read", "Codex didn’t answer". `asked` names who, when `by` doesn't.
+ * `me`: Milo says it himself ("I couldn’t reach the crew").
+ */
+function reasonWords(fallback, asked, me) {
+  const by = isRecord(fallback) && CREW.has(fallback.by) ? fallback.by : null;
+  const who = designerName(by || asked);
+  switch (isRecord(fallback) ? fallback.code : undefined) {
+    case 'auth': return by ? `${who} isn’t signed in` : 'The crew isn’t signed in';
+    case 'missing': return by ? `${who} isn’t on this PC` : `${me ? 'I' : 'Milo'} couldn’t reach the crew`;
+    case 'agents': return 'Codex would also send the AGENTS.md in your .codex folder';
+    case 'invalid': return `${who}’s answer was hard to read`;
+    default: return `${who} didn’t answer`;
+  }
+}
+
+/**
+ * Milo's announcement when a design lands and the building goes up.
+ * `plot` is a plot state (status, name, blueprint, designedBy). `asked` is who Milo asked to design
+ * it ('claude' | 'codex' | 'kit'); when the crew didn't come through and Milo drew it with his own
+ * kit, the words say why, kindly (`fallback`: the architect's { by, code }). `skipped`: crew members
+ * Automatic mode moved past (not signed in). `placeName` is the plot's name ('Long meadow').
+ * `redesign`: a new look for a building that was there; `levels` 'kept' | 'changed' says what
+ * happened to its level tree.
+ * Returns { title, body, says }: `body` for a desktop note (about Milo), `says` in Milo's own voice.
+ */
+export function builtText(plot, { asked = null, placeName = '', fallback = null, skipped = [], redesign = false, levels = null } = {}) {
+  const data = isRecord(plot) ? plot : {};
+  const blueprint = isRecord(data.blueprint) ? data.blueprint : {};
+  const raw = [data.name, blueprint.name].find((value) => typeof value === 'string' && value.replace(/\s+/g, ' ').trim());
+  const name = raw ? truncate(raw.replace(/\s+/g, ' ').trim(), BUILT_NAME_MAX) : '';
+  const by = typeof data.designedBy === 'string' ? data.designedBy : 'kit';
+  const where = typeof placeName === 'string' ? placeName.replace(/\s+/g, ' ').trim() : '';
+  const title = redesign
+    ? (name ? `${withArticle(name)} has its new look` : 'The new look is up')
+    : (name ? `${withArticle(name)} is built` : 'A new building is up');
+  const passedOver = (Array.isArray(skipped) ? skipped : []).find((id) => CREW.has(id) && id !== by);
+
+  let body;
+  let says;
+  if (by === 'kit' && (CREW.has(asked) || (isRecord(fallback) && CREW.has(fallback.by)))) {
+    body = `${reasonWords(fallback, asked, false)}, so Milo drew this one himself.`;
+    says = `${reasonWords(fallback, asked, true)}, so I drew this one myself.`;
+  } else if (by === 'claude' || by === 'codex') {
+    const plans = redesign ? 'the new plans' : 'the plans';
+    body = where && !redesign ? `${designerName(by)} drew up ${plans} for ${truncate(where, 30)}.` : `${designerName(by)} drew up ${plans}.`;
+    if (passedOver) body = `${designerName(passedOver)} isn’t signed in, so ${body}`;
+    says = body;
+  } else {
+    body = where && !redesign ? `Milo drew up the plans for ${truncate(where, 30)}.` : `Milo drew up ${redesign ? 'the new plans' : 'the plans'} himself.`;
+    says = where && !redesign ? `I drew up the plans for ${truncate(where, 30)}.` : `I drew up ${redesign ? 'the new plans' : 'the plans'} myself.`;
+  }
+  if (redesign && levels === 'kept') {
+    body = `${body} Its level tree stays as it was.`;
+    says = `${says} Its level tree stays as it was.`;
+  } else if (redesign && levels === 'changed') {
+    body = `${body} Its level tree changed too.`;
+    says = `${says} Its level tree changed too.`;
+  }
+  return { title, body, says };
+}

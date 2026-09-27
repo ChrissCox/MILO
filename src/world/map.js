@@ -2,12 +2,14 @@
 // functions, safe to import in Node (no DOM).
 //
 // Layout (tiles, x right, y down; the map is 64 x 44):
-//   north-west  Building site (10-18, 3-9)       north  Watchtower (28-35, 3-10)
-//   north-east  Clip studio (45-53, 3-9)
-//   west        Library (7-15, 15-23)            centre Milo's camp (24-39, 13-24)
-//   east        Workshop row (41-55, 15-20)
-//   south-west  Game table (9-17, 27-33)         pond (18-24, 23-28)
+//   north-west  Old orchard plot (10-18, 3-9)    north  Watchtower (28-35, 3-10)
+//   north-east  Sunny rise plot (45-53, 3-9)
+//   west        Birch hollow plot (8-15, 16-22)  centre Milo's camp (24-39, 13-24)
+//   east        Long meadow plot (41-55, 15-20)
+//   south-west  Pondside plot (10-17, 27-32)     pond (18-24, 23-28)
 //   south-east  Harbor under fog, by the sea (44-59, 31-43)
+// Plots are fenced and empty until Chris builds something there (src/world/kit.js draws what
+// stands on them). The crew's workbench sits just south-east of the camp fire.
 // One-tile sandy roads join everything: an upper road (y 12), the camp's east and
 // west roads (y 21), a south road (x 31) and a lower road (y 30).
 
@@ -47,6 +49,7 @@ const smoothstep = (t) => {
 export const PLACES = [
   {
     id: 'camp',
+    kind: 'camp',
     name: "Milo's camp",
     blurb: "Home base. Milo keeps the fire going, and the crew rests here when they're done.",
     built: true,
@@ -56,6 +59,7 @@ export const PLACES = [
   },
   {
     id: 'watchtower',
+    kind: 'watchtower',
     name: 'Watchtower',
     blurb: 'Where Milo keeps an eye on your agent sessions.',
     built: true,
@@ -64,52 +68,63 @@ export const PLACES = [
     area: { x: 28, y: 3, w: 8, h: 8 },
   },
   {
-    id: 'workshop',
-    name: 'Workshop row',
-    blurb: "Crew who are working gather at these benches. Later it's where agent runs get dispatched.",
+    id: 'plot-meadow',
+    kind: 'plot',
+    name: 'Long meadow',
+    blurb: 'A long, open plot along the east road, with room for something wide.',
     built: false,
     fogged: false,
     door: { x: 48, y: 20 },
     area: { x: 41, y: 15, w: 15, h: 6 },
+    buildable: { x: 42, y: 16, w: 13, h: 4 },
   },
   {
-    id: 'clip-studio',
-    name: 'Clip studio',
-    blurb: 'An easel on an empty plot. One day it cuts and captions stream clips.',
+    id: 'plot-rise',
+    kind: 'plot',
+    name: 'Sunny rise',
+    blurb: 'A bright plot up on the rise, among the north-east trees.',
     built: false,
     fogged: false,
     door: { x: 49, y: 9 },
     area: { x: 45, y: 3, w: 9, h: 7 },
+    buildable: { x: 46, y: 4, w: 7, h: 5 },
   },
   {
-    id: 'library',
-    name: 'Library',
-    blurb: 'A quiet plot for project memory: decisions, notes and what was tried.',
+    id: 'plot-birch',
+    kind: 'plot',
+    name: 'Birch hollow',
+    blurb: 'A quiet plot in the hollow west of the camp.',
     built: false,
     fogged: false,
     door: { x: 15, y: 21 },
     area: { x: 8, y: 16, w: 8, h: 7 },
+    buildable: { x: 9, y: 17, w: 6, h: 5 },
   },
   {
-    id: 'game-table',
-    name: 'Game table',
-    blurb: 'A stump table waiting for dice. Campaign prep will live here.',
+    id: 'plot-pond',
+    kind: 'plot',
+    name: 'Pondside plot',
+    blurb: 'A small plot by the pond, just off the lower road.',
     built: false,
     fogged: false,
     door: { x: 17, y: 30 },
     area: { x: 10, y: 27, w: 8, h: 6 },
+    buildable: { x: 11, y: 28, w: 6, h: 4 },
   },
   {
-    id: 'building-site',
-    name: 'Building site',
-    blurb: 'The first beams are up. New apps get scaffolded here.',
+    id: 'plot-orchard',
+    kind: 'plot',
+    name: 'Old orchard',
+    blurb: 'A plot among the old trees in the north-west.',
     built: false,
     fogged: false,
     door: { x: 14, y: 9 },
     area: { x: 10, y: 3, w: 9, h: 7 },
+    buildable: { x: 11, y: 4, w: 7, h: 5 },
   },
   {
     id: 'harbor',
+    kind: 'fog',
     name: 'Harbor',
     blurb: 'Schedules and deadlines come in by boat. Connect a calendar to clear the fog.',
     built: false,
@@ -119,10 +134,46 @@ export const PLACES = [
   },
 ];
 
+/** Plot ids in map order. */
+export const PLOT_IDS = PLACES.filter((place) => place.kind === 'plot').map((place) => place.id);
+
+/** Step 1 place ids that became plots, for reading older saved state. */
+export const LEGACY_PLACE_IDS = Object.freeze({
+  workshop: 'plot-meadow',
+  'clip-studio': 'plot-rise',
+  library: 'plot-birch',
+  'game-table': 'plot-pond',
+  'building-site': 'plot-orchard',
+});
+
 const PLACE_BY_ID = Object.fromEntries(PLACES.map((place) => [place.id, place]));
 
 export function placeById(id) {
   return PLACE_BY_ID[id] || null;
+}
+
+export function plotById(id) {
+  const place = PLACE_BY_ID[id];
+  return place && place.kind === 'plot' ? place : null;
+}
+
+/** The part of a plot a building can use, in tiles: inside the fence, clear of the gate. */
+export function buildableArea(plotId) {
+  const plot = plotById(plotId);
+  return plot ? { ...plot.buildable } : null;
+}
+
+/**
+ * Where a plot's gate is, relative to its buildable area, for the kit:
+ * { side: 'bottom' | 'left' | 'right', at } with `at` in px along that side.
+ */
+export function plotGate(plotId) {
+  const plot = plotById(plotId);
+  if (!plot) return null;
+  const { buildable: b, door } = plot;
+  if (door.x >= b.x + b.w) return { side: 'right', at: (door.y - b.y) * TILE + 8 };
+  if (door.x < b.x) return { side: 'left', at: (door.y - b.y) * TILE + 8 };
+  return { side: 'bottom', at: (door.x - b.x) * TILE + 8 };
 }
 
 // ---------- water shapes (analytic, so shores are smooth at pixel level) ----------
@@ -179,10 +230,11 @@ for (let y = 0; y < H; y += 1) {
 // Roads, one tile wide.
 fill(31, 10, 31, 16, TERRAIN.PATH); // north road to the watchtower
 fill(14, 12, 49, 12, TERRAIN.PATH); // upper road
-fill(14, 9, 14, 11, TERRAIN.PATH); // building-site gate
-fill(49, 9, 49, 11, TERRAIN.PATH); // clip-studio gate
-fill(15, 21, 26, 21, TERRAIN.PATH); // west road to the library
-fill(37, 21, 54, 21, TERRAIN.PATH); // east road along the workshop row
+fill(14, 9, 14, 11, TERRAIN.PATH); // old orchard gate
+fill(49, 9, 49, 11, TERRAIN.PATH); // sunny rise gate
+fill(15, 21, 26, 21, TERRAIN.PATH); // west road to birch hollow
+fill(37, 21, 54, 21, TERRAIN.PATH); // east road along the long meadow
+put(48, 20, TERRAIN.PATH); // the long meadow's way in
 fill(31, 23, 31, 30, TERRAIN.PATH); // south road
 fill(17, 30, 50, 30, TERRAIN.PATH); // lower road
 fill(50, 30, 50, 33, TERRAIN.PATH); // harbor spur
@@ -201,16 +253,6 @@ for (const [y, x0, x1] of CLEARING) fill(x0, y, x1, y, TERRAIN.PATH);
 fill(26, 17, 26, 18, TERRAIN.PATH); // cabin door
 put(27, 18, TERRAIN.PATH);
 fill(36, 17, 36, 18, TERRAIN.PATH); // tent door
-
-// Plot footprints: cleared soil, staked out, inside each fenced plot.
-const PLOTS = {
-  'building-site': { x0: 12, y0: 5, x1: 16, y1: 7 },
-  'clip-studio': { x0: 47, y0: 5, x1: 51, y1: 7 },
-  library: { x0: 10, y0: 18, x1: 12, y1: 20 },
-  'game-table': { x0: 12, y0: 29, x1: 14, y1: 31 },
-  workshop: { x0: 42, y0: 17, x1: 54, y1: 19 },
-};
-for (const plot of Object.values(PLOTS)) fill(plot.x0, plot.y0, plot.x1, plot.y1, TERRAIN.SOIL);
 
 // Dock out over the water.
 fill(50, 34, 50, 40, TERRAIN.DOCK);
@@ -252,7 +294,7 @@ fenceRect(10, 3, 18, 9, [[14, 9]]);
 fenceRect(45, 3, 53, 9, [[49, 9]]);
 fenceRect(8, 16, 15, 22, [[15, 21]]);
 fenceRect(10, 27, 17, 32, [[17, 30]]);
-// Workshop row: back and sides only; the front opens onto the road.
+// Long meadow: back and sides only; the front opens onto the road.
 for (let x = 41; x <= 55; x += 1) fenceTiles.add(key(x, 15));
 for (let y = 16; y <= 19; y += 1) {
   fenceTiles.add(key(41, y));
@@ -289,44 +331,19 @@ add('barrel', 37, 18, { place: 'camp', dx: 4, dy: -3 });
 // Watchtower
 add('tower', 30, 8, { w: 3, h: 2, place: 'watchtower' });
 
-// Building site
-add('scaffold', 12, 6, { w: 2, h: 2, place: 'building-site' });
-add('planks', 15, 7, { place: 'building-site' });
-add('crate', 16, 5, { place: 'building-site' });
-add('barrel', 17, 6, { place: 'building-site' });
-add('sign.building-site', 13, 10, { place: 'building-site' });
-
-// Clip studio
-add('easel', 49, 6, { place: 'clip-studio' });
-add('stool', 49, 7, { place: 'clip-studio', blocks: false, dy: -3 });
-add('crate', 51, 5, { place: 'clip-studio', dx: 4 });
-add('sign.clip-studio', 48, 10, { place: 'clip-studio' });
-
-// Library
-add('crate', 10, 19, { place: 'library' });
-add('crate', 10, 19, { place: 'library', dy: -5, dx: 5, blocks: false });
-add('barrel', 12, 20, { place: 'library' });
-add('sign.library', 16, 22, { place: 'library' });
-add('stump', 16, 19, { place: 'library' }); // Whisper's perch
-
-// Game table
-add('stump.table', 12, 30, { w: 2, place: 'game-table' });
-add('stool', 12, 30, { place: 'game-table', dx: -9, dy: 1, blocks: false });
-add('stool', 13, 30, { place: 'game-table', dx: 9, dy: 1, blocks: false });
-add('sign.game-table', 18, 29, { place: 'game-table' });
-
-// Workshop row: four stations with crew standing behind them.
-const STATIONS = [
-  { x: 43, kind: 'desk' },
-  { x: 46, kind: 'workbench' },
-  { x: 49, kind: 'desk' },
-  { x: 52, kind: 'workbench' },
-];
-for (const station of STATIONS) {
-  add(station.kind, station.x, 18, { place: 'workshop' });
-  blocked.add(key(station.x, 17));
+// Plots: nothing stands on them until something is built (the engine draws each one from
+// its state). Milo and the crew stay out; a plot is visited at its gate.
+for (const place of PLACES) {
+  if (place.kind !== 'plot') continue;
+  const b = place.buildable;
+  for (let y = b.y; y < b.y + b.h; y += 1) for (let x = b.x; x < b.x + b.w; x += 1) blocked.add(key(x, y));
 }
-add('sign.workshop', 42, 20, { place: 'workshop', dy: 2 });
+add('stump', 16, 19, { place: 'plot-birch' }); // Whisper's perch, just outside birch hollow
+
+// The crew's workbench, south-east of the fire: crew who are working stand behind it.
+const BENCH = { x: 35, y: 23, w: 4 };
+add('crew.bench', BENCH.x, BENCH.y, { w: BENCH.w, place: 'camp' });
+for (let x = BENCH.x; x < BENCH.x + BENCH.w; x += 1) blocked.add(key(x, BENCH.y - 1));
 
 // Harbor (fogged)
 add('crate', 46, 33, { place: 'harbor' });
@@ -462,15 +479,29 @@ for (const [kind, x, y] of SCATTER) {
 
 // ---------- exported map ----------
 
+// Just inside a plot's gate, on the building site's front edge, beside the path. `inside` is
+// the first tile past the gate and `door` the gate itself: crew walk in and out that way.
+function designSpot(place) {
+  const b = place.buildable;
+  const door = { ...place.door };
+  const row = Math.max(b.y, Math.min(b.y + b.h - 1, door.y));
+  if (door.x >= b.x + b.w) return { plotId: place.id, x: b.x + b.w - 2, y: row, door, inside: { x: b.x + b.w - 1, y: row } };
+  if (door.x < b.x) return { plotId: place.id, x: b.x + 1, y: row, door, inside: { x: b.x, y: row } };
+  return { plotId: place.id, x: Math.max(b.x, door.x - 2), y: b.y + b.h - 1, door, inside: { x: door.x, y: b.y + b.h - 1 } };
+}
+
 export const MAP = {
   width: W,
   height: H,
   tiles: cells.map((row) => row.join('')),
   objects,
-  plots: PLOTS,
+  // Buildable areas by plot id, in tiles, with the gate the kit should face.
+  plots: Object.fromEntries(PLACES.filter((p) => p.kind === 'plot').map((p) => [p.id, { ...p.buildable, gate: plotGate(p.id) }])),
   slots: {
-    // Crew stand behind the Workshop row stations.
-    work: STATIONS.map((station) => ({ x: station.x, y: 17, station: station.kind })),
+    // Crew who are working stand behind the workbench beside the camp.
+    work: Array.from({ length: BENCH.w }, (_, i) => ({ x: BENCH.x + i, y: BENCH.y - 1, station: 'bench' })),
+    // Where a crew member stands while designing a building for a plot: inside the gate.
+    design: Object.fromEntries(PLACES.filter((p) => p.kind === 'plot').map((p) => [p.id, designSpot(p)])),
     // Seats: three on the log bench just north of the fire, two stumps beside it.
     campfire: [
       { x: 31, y: 19, seat: 'bench', dx: 0 },

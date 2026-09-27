@@ -1,11 +1,15 @@
-// Module B (Core) tests: state model, recap, greeting, live alerts, skills.
+// Core tests: state model (with step 2 plots), recap, greeting, live alerts, skills, built text.
 // Run: node --test tests/core.test.js
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createState, normalizeState, markSeen, dayKey, toTime, looksLikeSavedState, DEFAULT_SETTINGS } from '../src/model.js';
-import { buildRecap, greeting, diffSnapshots, alertText, agentName, truncate, AWAY_THRESHOLD_MS } from '../src/recap.js';
-import { SKILLS, evaluateSkills, skillForPlace } from '../src/skills.js';
+import {
+  createState, normalizeState, markSeen, dayKey, toTime, looksLikeSavedState, DEFAULT_SETTINGS,
+  PLOT_IDS, LEGACY_PLACE_IDS, canonicalPlaceId, emptyPlot, cleanSuggestion, cleanSuggestions, ideaFromText, checkBlueprint,
+  plotOf, buildingName, builtNames, setSuggestions, startDesign, finishDesign, stopDesign, renamePlot, clearPlot,
+} from '../src/model.js';
+import { buildRecap, greeting, diffSnapshots, alertText, agentName, truncate, AWAY_THRESHOLD_MS, builtText, designerName } from '../src/recap.js';
+import { SKILLS, evaluateSkills, skillForPlace, hasLevelTree } from '../src/skills.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -25,7 +29,7 @@ function session(over = {}) {
 }
 
 // Words that are allowed to be capitalised mid-sentence.
-const PROPER = new Set(['Claude', 'Codex', 'Milo', 'MILO', 'Chris', 'GitHub', 'PRs', 'CI', 'PC', 'I', 'I\u2019m', 'Sam']);
+const PROPER = new Set(['Claude', 'Code', 'Codex', 'Milo', 'MILO', 'Chris', 'GitHub', 'PRs', 'CI', 'PC', 'I', 'I\u2019m', 'Sam']);
 
 /** Calm copy: sentence case, no exclamation marks, no please/successfully, no emoji, no straight double quotes. */
 function assertCalm(text, where = '') {
@@ -55,6 +59,8 @@ function deepFreeze(value) {
 
 /* ------------------------------------------------------------------ model.js */
 
+const EMPTY_PLOT = { status: 'empty', suggestions: [], asked: null, idea: null, blueprint: null, designedBy: null, builtAt: null, name: null };
+
 test('createState has the contract shape and calm defaults', () => {
   const state = createState(NOW);
   assert.deepEqual(state, {
@@ -63,10 +69,14 @@ test('createState has the contract shape and calm defaults', () => {
     milo: { name: 'Milo', tile: null },
     lastSeenAt: null,
     lastGreetedDay: null,
-    settings: { motion: true, notifications: true, greeting: true },
+    settings: { motion: true, notifications: true, greeting: true, designer: 'auto' },
     skills: {},
     panel: null,
+    plots: {
+      'plot-meadow': EMPTY_PLOT, 'plot-rise': EMPTY_PLOT, 'plot-birch': EMPTY_PLOT, 'plot-pond': EMPTY_PLOT, 'plot-orchard': EMPTY_PLOT,
+    },
   });
+  assert.notEqual(createState().plots['plot-meadow'], createState().plots['plot-meadow'], 'plots are not shared between states');
   assert.notEqual(createState().settings, createState().settings, 'settings are not shared between states');
   assert.ok(Object.isFrozen(DEFAULT_SETTINGS));
 });
@@ -116,7 +126,7 @@ test('normalizeState repairs each field on its own', () => {
   assert.deepEqual(state.milo.tile, { x: 3, y: 8 });
   assert.equal(state.lastSeenAt, null);
   assert.equal(state.lastGreetedDay, null);
-  assert.deepEqual(state.settings, { motion: true, notifications: false, greeting: true });
+  assert.deepEqual(state.settings, { motion: true, notifications: false, greeting: true, designer: 'auto' });
   assert.deepEqual(state.skills, {});
   assert.equal(state.panel, null);
 });
@@ -162,7 +172,7 @@ test('normalizeState: settings and skills keep unknown keys, fix known ones', ()
       '': { level: 1 },
     },
   }, NOW);
-  assert.deepEqual(state.settings, { motion: false, notifications: true, greeting: true, sound: 'soft' });
+  assert.deepEqual(state.settings, { motion: false, notifications: true, greeting: true, sound: 'soft', designer: 'auto' });
   assert.deepEqual(state.skills, {
     watchkeeping: { level: 2, provenAt: null, note: 'kept' },
     dispatch: { level: 3, provenAt: null },
@@ -595,19 +605,20 @@ test('diffSnapshots events feed alertText end to end', () => {
 
 /* ---------------------------------------------------------------- skills.js */
 
-test('SKILLS lists the six skills with the contract places and levels', () => {
+test('SKILLS lists the six skills: watchkeeping at the watchtower, the rest at camp', () => {
+  // Step 2: plots belong to Chris's buildings, so skills no longer live at them.
   assert.deepEqual(SKILLS.map((s) => [s.id, s.place]), [
-    ['watchkeeping', 'watchtower'], ['dispatch', 'workshop'], ['timekeeping', 'harbor'],
-    ['lore', 'library'], ['voice', 'camp'], ['tinkering', 'building-site'],
+    ['watchkeeping', 'watchtower'], ['dispatch', 'camp'], ['timekeeping', 'camp'],
+    ['lore', 'camp'], ['voice', 'camp'], ['tinkering', 'camp'],
   ]);
   const titles = Object.fromEntries(SKILLS.map((s) => [s.id, s.levels.map((l) => l.title)]));
   assert.deepEqual(titles, {
     watchkeeping: ['Reads your agent sessions', 'Live status and task alerts', 'Watches GitHub PRs and CI', 'Notices an agent stuck in a loop'],
-    dispatch: ['Launches one agent run', 'Runs agents side by side', 'Second agent reviews the first', 'Chains research, build, test'],
+    dispatch: ['Sends one task to the crew', 'Runs agents side by side', 'Second agent reviews the first', 'Chains research, build, test'],
     timekeeping: ['Reads your calendar', 'Deadline warnings', 'Agent runs on a timetable', 'Morning briefing'],
     lore: ['Remembers decisions per project', 'Recall across projects'],
     voice: ['Push to talk', 'Spoken briefings'],
-    tinkering: ['Scaffolds a new app', 'Writes its level tree'],
+    tinkering: ['Designs a building from your idea', 'Scaffolds its project folder', 'Builds level 1 with the crew'],
   });
   for (const skill of SKILLS) {
     assertCalm(skill.name, `${skill.id} name`);
@@ -619,8 +630,10 @@ test('SKILLS lists the six skills with the contract places and levels', () => {
     });
   }
   assert.ok(Object.isFrozen(SKILLS) && Object.isFrozen(SKILLS[0].levels[0]), 'skill data is read-only');
-  assert.equal(skillForPlace('harbor').id, 'timekeeping');
-  assert.equal(skillForPlace('clip-studio'), null);
+  assert.equal(skillForPlace('watchtower').id, 'watchkeeping');
+  assert.equal(skillForPlace('camp'), null, 'camp keeps several skills, none of them its own');
+  assert.equal(skillForPlace('harbor'), null);
+  assert.equal(skillForPlace('plot-rise'), null);
 });
 
 const snapshotWith = (sources) => ({ scannedAt: NOW, sessions: [], tools: [], sources });
@@ -662,4 +675,320 @@ test('evaluateSkills proves watchkeeping L2 from a live source, in order', () =>
   assert.equal(liveOnly.watchkeeping.level, 0, 'levels are earned in order');
   const truthyNotTrue = evaluateSkills(snapshotWith({ claude: { ok: 'yes', live: 1 } }));
   assert.equal(truthyNotTrue.watchkeeping.level, 0, 'proofs need real booleans');
+});
+
+/* ------------------------------------------------------------ step 2: plots */
+
+const EMBLEM = [
+  '............', '..oooooooo..', '.occcccccco.', '.ocrrccuuco.', '.ocrrccuuco.', '.occcccccco.',
+  '.oceeeeeeco.', '.oceeeeeeco.', '.occcccccco.', '..oooooooo..', '....o..o....', '...oo..oo...',
+];
+function blueprint(over = {}) {
+  return {
+    version: 1,
+    name: 'Clip studio',
+    tagline: 'Where stream highlights get cut',
+    purpose: 'Turns your drawing streams into short clips.',
+    style: {
+      shape: 'workshop', walls: 'plank', wallColor: 'woodLight', roof: 'gable', roofColor: 'clay', trim: 'cream',
+      door: 'arched', windows: 'square', chimney: false, flag: 'blossom', awning: 'none',
+    },
+    emblem: [...EMBLEM],
+    props: [{ kind: 'easel', side: 'left' }, { kind: 'camera', side: 'right' }],
+    yard: 'flowers',
+    levels: [1, 2, 3, 4, 5].map((n) => ({ level: n, title: `Level ${n} feature`, summary: `What level ${n} does.`, proof: `A check for level ${n} passes.` })),
+    ...over,
+  };
+}
+const idea = (over = {}) => ({ id: 'local:clip-studio', title: 'Clip studio', pitch: 'Cuts your drawing streams into clips.', why: 'You stream drawing', source: 'local', ...over });
+const built = (over = {}) => ({ status: 'built', suggestions: [], asked: null, idea: idea(), blueprint: blueprint(), designedBy: 'codex', builtAt: NOW, name: null, ...over });
+
+test('plot ids and old step 1 ids', () => {
+  assert.deepEqual(PLOT_IDS, ['plot-meadow', 'plot-rise', 'plot-birch', 'plot-pond', 'plot-orchard']);
+  assert.deepEqual(LEGACY_PLACE_IDS, {
+    workshop: 'plot-meadow', 'clip-studio': 'plot-rise', library: 'plot-birch', 'game-table': 'plot-pond', 'building-site': 'plot-orchard',
+  });
+  assert.equal(canonicalPlaceId('workshop'), 'plot-meadow');
+  assert.equal(canonicalPlaceId('camp'), 'camp');
+  assert.equal(canonicalPlaceId('constructor'), 'constructor', 'only own keys of the mapping count');
+  assert.deepEqual(emptyPlot(), EMPTY_PLOT);
+});
+
+test('normalizeState maps old place ids and fills every plot', () => {
+  const steps = { workshop: 'plot-meadow', 'clip-studio': 'plot-rise', library: 'plot-birch', 'game-table': 'plot-pond', 'building-site': 'plot-orchard' };
+  for (const [old, next] of Object.entries(steps)) assert.equal(normalizeState({ panel: old }, NOW).panel, next, old);
+  for (const kept of ['camp', 'watchtower', 'harbor', 'plot-rise']) assert.equal(normalizeState({ panel: kept }, NOW).panel, kept);
+  // A step 1 state has no plots at all.
+  const step1 = { version: 1, user: { name: 'Chris' }, milo: { name: 'Milo', tile: { x: 3, y: 4 } }, lastSeenAt: NOW - HOUR, lastGreetedDay: null, settings: { motion: true, notifications: true, greeting: true }, skills: {}, panel: 'library' };
+  const state = normalizeState(step1, NOW);
+  assert.deepEqual(Object.keys(state.plots), PLOT_IDS);
+  for (const id of PLOT_IDS) assert.deepEqual(state.plots[id], EMPTY_PLOT, id);
+  assert.equal(state.panel, 'plot-birch');
+  assert.equal(state.settings.designer, 'auto');
+  // Plots saved under an old id move to the new one, unless the new one is also there.
+  const moved = normalizeState({ plots: { library: built() } }, NOW);
+  assert.equal(moved.plots['plot-birch'].status, 'built');
+  assert.ok(!('library' in moved.plots));
+  const both = normalizeState({ plots: { 'plot-birch': { status: 'empty', asked: 'kept' }, library: built() } }, NOW);
+  assert.equal(both.plots['plot-birch'].asked, 'kept', 'the new id wins');
+  // Junk plot maps and entries become empty plots; other valid plot ids are kept, anything else dropped.
+  for (const junk of [null, 'x', 5, [], [built()]]) assert.deepEqual(normalizeState({ plots: junk }, NOW).plots, createState().plots);
+  const extra = normalizeState({ plots: { 'plot-hill': built(), 'Not a plot': built(), 'plot-rise': 7 } }, NOW);
+  assert.equal(extra.plots['plot-hill'].status, 'built');
+  assert.ok(!('Not a plot' in extra.plots));
+  assert.deepEqual(extra.plots['plot-rise'], EMPTY_PLOT);
+});
+
+test('normalizeState: the designer setting', () => {
+  for (const designer of ['auto', 'claude', 'codex', 'kit']) assert.equal(normalizeState({ settings: { designer } }).settings.designer, designer);
+  for (const junk of ['Codex', 'fake', '', 3, null, true]) assert.equal(normalizeState({ settings: { designer: junk } }).settings.designer, 'auto', String(junk));
+});
+
+test('normalizeState: a design interrupted by closing MILO', () => {
+  // A first design goes back to empty, keeping the idea so the panel can offer to try again.
+  const fresh = normalizeState({ plots: { 'plot-rise': { status: 'designing', idea: idea(), suggestions: [idea()] } } }, NOW).plots['plot-rise'];
+  assert.equal(fresh.status, 'empty');
+  assert.deepEqual(fresh.idea, idea());
+  assert.equal(fresh.blueprint, null);
+  assert.deepEqual(fresh.suggestions, [idea()]);
+  // A redesign goes back to the building that was already there.
+  const redesign = normalizeState({ plots: { 'plot-rise': { ...built(), status: 'designing', name: 'Stream cave' } } }, NOW).plots['plot-rise'];
+  assert.equal(redesign.status, 'built');
+  assert.equal(redesign.name, 'Stream cave');
+  assert.deepEqual(redesign.blueprint, blueprint());
+});
+
+test('normalizeState: built plots need a drawable blueprint, and stored blueprints are repaired', () => {
+  const ok = normalizeState({ plots: { 'plot-pond': built() } }, NOW).plots['plot-pond'];
+  assert.deepEqual(ok, built());
+  for (const bad of [null, 'plans', 42, [], {}, { name: '' }, blueprint({ levels: [] })]) {
+    const plot = normalizeState({ plots: { 'plot-pond': built({ blueprint: bad }) } }, NOW).plots['plot-pond'];
+    assert.equal(plot.status, 'empty', JSON.stringify(bad));
+    assert.equal(plot.blueprint, null);
+    assert.equal(plot.designedBy, null);
+    assert.equal(plot.builtAt, null);
+    assert.deepEqual(plot.idea, idea(), 'the idea stays so it can be built again');
+  }
+  const long = normalizeState({ plots: { 'plot-pond': built({ blueprint: blueprint({ name: 'A very long building name that runs on and on' }) }) } }, NOW).plots['plot-pond'];
+  assert.equal(long.status, 'built');
+  assert.ok(long.blueprint.name.length <= 28, 'the name is clamped');
+  assert.equal(checkBlueprint(blueprint()).name, 'Clip studio');
+  assert.equal(checkBlueprint('nope'), null);
+  // An empty plot never carries a building.
+  const stray = normalizeState({ plots: { 'plot-pond': { status: 'empty', blueprint: blueprint(), designedBy: 'codex', builtAt: NOW, name: 'X' } } }, NOW).plots['plot-pond'];
+  assert.deepEqual(stray, EMPTY_PLOT);
+});
+
+test('normalizeState: plot fields are cleaned one by one', () => {
+  const plot = normalizeState({
+    plots: {
+      'plot-meadow': built({
+        designedBy: 'jev', builtAt: 'yesterday', name: '  Stream   cave  ', asked: 'x'.repeat(300),
+        suggestions: [idea(), idea(), { title: '' }, 'x', idea({ id: 'b', title: 'Game table' }), idea({ id: 'c', title: 'Draft room' }), idea({ id: 'd', title: 'Fourth' })],
+        idea: { title: 'Clip studio', pitch: 'p'.repeat(200), why: 3, source: 'gemini', id: 'bad id with spaces that is far too long to be a proper id at all, really' },
+        note: 'kept',
+      }),
+    },
+  }, NOW).plots['plot-meadow'];
+  assert.equal(plot.designedBy, null);
+  assert.equal(plot.builtAt, null);
+  assert.equal(plot.name, 'Stream cave');
+  assert.equal(plot.asked.length, 110);
+  assert.deepEqual(plot.suggestions.map((s) => s.title), ['Clip studio', 'Game table', 'Draft room'], 'three at most, no duplicates');
+  assert.equal(plot.idea.pitch.length, 110);
+  assert.ok(plot.idea.pitch.endsWith('…'));
+  assert.equal(plot.idea.why, '');
+  assert.equal(plot.idea.source, 'local');
+  assert.equal(plot.idea.id, 'idea:clip-studio');
+  assert.equal(plot.note, 'kept', 'unknown plot fields stay');
+});
+
+test('normalizeState with plots stays idempotent and prototype-safe', () => {
+  const input = { panel: 'workshop', settings: { designer: 'codex' }, plots: { 'plot-rise': built({ name: 'Stream cave' }), library: { status: 'designing', idea: idea() } } };
+  const state = normalizeState(input, NOW);
+  assert.deepEqual(normalizeState(state, NOW), state);
+  assert.deepEqual(normalizeState(JSON.parse(JSON.stringify(state)), NOW), state);
+  const hostile = JSON.parse('{"plots":{"__proto__":{"status":"built"},"plot-rise":{"__proto__":{"polluted":true},"status":"empty"}}}');
+  const safe = normalizeState(hostile, NOW);
+  assert.equal(Object.getPrototypeOf(safe.plots), Object.prototype);
+  assert.ok(!Object.hasOwn(safe.plots, '__proto__'));
+  assert.equal(safe.plots['plot-rise'].polluted, undefined);
+  assert.equal({}.polluted, undefined);
+});
+
+test('suggestions and typed ideas are cleaned to the contract shape', () => {
+  assert.equal(cleanSuggestion(null), null);
+  assert.equal(cleanSuggestion({ title: '   ' }), null);
+  const long = cleanSuggestion({ title: 'An enormously long building title here', pitch: 'x'.repeat(300), why: 'y'.repeat(300), source: 'codex' });
+  assert.ok(long.title.length <= 28 && long.pitch.length <= 110 && long.why.length <= 110);
+  assert.equal(long.source, 'codex');
+  assert.deepEqual(cleanSuggestions([idea(), idea({ id: 'x', title: 'clip STUDIO' }), idea({ id: 'y', title: 'Library' })]).map((s) => s.id), ['local:clip-studio', 'y']);
+  assert.deepEqual(cleanSuggestions('x'), []);
+  const named = ideaFromText('Clip studio: turns my drawing streams into short clips');
+  assert.equal(named.title, 'Clip studio');
+  assert.equal(named.source, 'local');
+  assert.equal(named.why, 'Your own idea');
+  const sentence = ideaFromText('  a bakery   that tracks my sourdough starters and reminds me to feed them  ');
+  assert.ok(sentence.title.length > 0 && sentence.title.length <= 28);
+  assert.ok(sentence.pitch.length <= 110);
+  assert.match(sentence.pitch, /sourdough starters/);
+  assert.equal(ideaFromText('   '), null);
+  assert.equal(ideaFromText(42), null);
+});
+
+test('designing a building: start, finish, and the level tree', () => {
+  let state = setSuggestions(createState(), 'plot-rise', [idea(), idea({ id: 'b', title: 'Game table' }), idea({ id: 'c', title: 'Draft room' })]);
+  const before = state;
+  state = startDesign(state, 'plot-rise', idea());
+  assert.equal(before.plots['plot-rise'].status, 'empty', 'the state given is left alone');
+  assert.equal(plotOf(state, 'plot-rise').status, 'designing');
+  assert.deepEqual(plotOf(state, 'plot-rise').idea, idea());
+  state = finishDesign(state, 'plot-rise', { blueprint: blueprint(), by: 'codex' }, NOW);
+  const plot = plotOf(state, 'plot-rise');
+  assert.equal(plot.status, 'built');
+  assert.equal(plot.designedBy, 'codex');
+  assert.equal(plot.builtAt, NOW);
+  assert.equal(plot.name, null);
+  assert.equal(plot.blueprint.levels.length, 5);
+  assert.equal(buildingName(plot), 'Clip studio');
+  assert.deepEqual(builtNames(state), ['Clip studio']);
+  assert.deepEqual(normalizeState(state, NOW).plots['plot-rise'], plot, 'a finished design survives a save');
+  // Unknown designers read as Milo's kit; unusable plans never build.
+  assert.equal(plotOf(finishDesign(startDesign(createState(), 'plot-pond', idea()), 'plot-pond', { blueprint: blueprint(), by: 'gemini' }), 'plot-pond').designedBy, 'kit');
+  const smudged = finishDesign(startDesign(createState(), 'plot-pond', idea()), 'plot-pond', { blueprint: { name: 'x' }, by: 'codex' });
+  assert.equal(plotOf(smudged, 'plot-pond').status, 'empty');
+  assert.deepEqual(plotOf(smudged, 'plot-pond').idea, idea());
+});
+
+test('cancelling or failing a design goes back to what was there', () => {
+  const empty = stopDesign(startDesign(createState(), 'plot-pond', idea()), 'plot-pond');
+  assert.equal(plotOf(empty, 'plot-pond').status, 'empty');
+  assert.deepEqual(plotOf(empty, 'plot-pond').idea, idea(), 'a failure keeps the idea for Try again');
+  assert.equal(plotOf(stopDesign(startDesign(createState(), 'plot-pond', idea()), 'plot-pond', { keepIdea: false }), 'plot-pond').idea, null);
+  // A redesign that is cancelled leaves the building exactly as it was.
+  const standing = normalizeState({ plots: { 'plot-pond': built({ name: 'Stream cave' }) } }, NOW);
+  const back = stopDesign(startDesign(standing, 'plot-pond', null), 'plot-pond');
+  assert.deepEqual(plotOf(back, 'plot-pond'), plotOf(standing, 'plot-pond'));
+  // A redesign that lands keeps Chris's own name.
+  const redone = finishDesign(startDesign(standing, 'plot-pond', null), 'plot-pond', { blueprint: blueprint({ name: 'Cozy clip studio' }), by: 'claude' }, NOW + HOUR);
+  assert.equal(plotOf(redone, 'plot-pond').name, 'Stream cave');
+  assert.equal(plotOf(redone, 'plot-pond').blueprint.name, 'Cozy clip studio');
+  // A look-only redesign keeps the plan (name, tagline, purpose, level tree) and takes the new look.
+  const newLook = blueprint({
+    name: 'Cozy clip studio', tagline: 'A new line', purpose: 'Does something else.',
+    style: { ...blueprint().style, roofColor: 'lavender' },
+    levels: blueprint().levels.map((level) => ({ ...level, title: `New ${level.title}`.slice(0, 50) })),
+  });
+  const kept = plotOf(finishDesign(startDesign(standing, 'plot-pond', null), 'plot-pond', { blueprint: newLook, by: 'codex' }, NOW + HOUR, { keepPlan: true }), 'plot-pond');
+  const old = plotOf(standing, 'plot-pond').blueprint;
+  assert.equal(kept.blueprint.style.roofColor, 'lavender', 'the new look');
+  assert.deepEqual(kept.blueprint.levels, old.levels, 'the same level tree');
+  assert.deepEqual([kept.blueprint.name, kept.blueprint.tagline, kept.blueprint.purpose], [old.name, old.tagline, old.purpose]);
+  assert.equal(kept.designedBy, 'codex');
+  assert.equal(kept.name, 'Stream cave');
+  const rethought = plotOf(finishDesign(startDesign(standing, 'plot-pond', null), 'plot-pond', { blueprint: newLook, by: 'codex' }, NOW + HOUR), 'plot-pond');
+  assert.equal(rethought.blueprint.levels[0].title, newLook.levels[0].title, 'rethinking takes the new levels too');
+  const firstKeep = plotOf(finishDesign(startDesign(createState(), 'plot-pond', idea()), 'plot-pond', { blueprint: newLook, by: 'codex' }, NOW, { keepPlan: true }), 'plot-pond');
+  assert.equal(firstKeep.blueprint.name, 'Cozy clip studio', 'nothing to keep on a first design');
+  assert.equal(plotOf(redone, 'plot-pond').designedBy, 'claude');
+});
+
+test('renaming and clearing a building', () => {
+  let state = normalizeState({ plots: { 'plot-meadow': built(), 'plot-rise': built({ blueprint: blueprint({ name: 'Game table' }) }) } }, NOW);
+  state = renamePlot(state, 'plot-meadow', '  Stream   cave ');
+  assert.equal(plotOf(state, 'plot-meadow').name, 'Stream cave');
+  assert.equal(buildingName(plotOf(state, 'plot-meadow')), 'Stream cave');
+  assert.deepEqual(builtNames(state), ['Stream cave', 'Game table']);
+  assert.equal(plotOf(renamePlot(state, 'plot-meadow', '   '), 'plot-meadow').name, null, 'an empty name goes back to the blueprint');
+  assert.equal(plotOf(renamePlot(state, 'plot-meadow', 'Clip studio'), 'plot-meadow').name, null, 'the blueprint name needs no rename');
+  assert.equal(plotOf(renamePlot(state, 'plot-meadow', 'x'.repeat(60)), 'plot-meadow').name.length, 28);
+  assert.equal(plotOf(renamePlot(createState(), 'plot-pond', 'Nope'), 'plot-pond').name, null, 'an empty plot has nothing to rename');
+  const cleared = clearPlot(state, 'plot-meadow');
+  assert.deepEqual(plotOf(cleared, 'plot-meadow'), EMPTY_PLOT);
+  assert.equal(plotOf(cleared, 'plot-rise').status, 'built', 'other plots are untouched');
+  assert.deepEqual(builtNames(cleared), ['Game table']);
+  assert.equal(buildingName(EMPTY_PLOT), '');
+  assert.equal(buildingName(null), '');
+});
+
+/* ------------------------------------------------------- step 2: skills proofs */
+
+test('Tinkering and Dispatch level 1 are proven by buildings on the plots', () => {
+  const snap = snapshotWith({ claude: src(true, true) });
+  const at = (plots) => evaluateSkills(snap, normalizeState({ plots }, NOW));
+  assert.equal(evaluateSkills(snap).tinkering.level, 0, 'no state, no buildings');
+  assert.equal(evaluateSkills(snap, null).dispatch.level, 0);
+  assert.equal(at({}).tinkering.level, 0);
+  const byCodex = at({ 'plot-rise': built({ designedBy: 'codex' }) });
+  assert.deepEqual(byCodex.tinkering, { level: 1, next: { level: 2, title: 'Scaffolds its project folder' }, proven: [{ level: 1, title: 'Designs a building from your idea' }] });
+  assert.deepEqual(byCodex.dispatch, { level: 1, next: { level: 2, title: 'Runs agents side by side' }, proven: [{ level: 1, title: 'Sends one task to the crew' }] });
+  assert.equal(byCodex.watchkeeping.level, 2, 'the snapshot still proves watchkeeping');
+  assert.equal(at({ 'plot-rise': built({ designedBy: 'claude' }) }).dispatch.level, 1);
+  const byKit = at({ 'plot-rise': built({ designedBy: 'kit' }) });
+  assert.equal(byKit.tinkering.level, 1, 'Milo drew it himself: still a design from an idea');
+  assert.equal(byKit.dispatch.level, 0, 'but no task went to the crew');
+  // Only standing buildings with a whole level tree count. One being redesigned is still standing
+  // (it comes back as it was if the redesign stops), so the camp doesn't flicker to "Not yet".
+  const redesigning = evaluateSkills(snap, { plots: { 'plot-rise': { ...built({ designedBy: 'codex' }), status: 'designing' } } });
+  assert.equal(redesigning.tinkering.level, 1);
+  assert.equal(redesigning.dispatch.level, 1);
+  const firstDesign = evaluateSkills(snap, { plots: { 'plot-rise': { ...built(), status: 'designing', blueprint: null } } });
+  assert.equal(firstDesign.tinkering.level, 0, 'a first design going up is no building yet');
+  const shortTree = evaluateSkills(snap, { plots: { 'plot-rise': built({ blueprint: blueprint({ levels: blueprint().levels.slice(0, 4) }) }) } });
+  assert.equal(shortTree.tinkering.level, 0);
+  assert.equal(shortTree.dispatch.level, 0);
+  assert.equal(hasLevelTree(blueprint()), true);
+  for (const bad of [null, {}, blueprint({ emblem: EMBLEM.slice(1) }), blueprint({ name: '' }), blueprint({ levels: blueprint().levels.map((l) => ({ ...l, proof: '' })) })]) {
+    assert.equal(hasLevelTree(bad), false);
+  }
+  for (const junk of [null, 'x', { plots: 'x' }, { plots: { a: null, b: 'x' } }]) {
+    assert.doesNotThrow(() => evaluateSkills(snap, junk));
+    assert.equal(evaluateSkills(snap, junk).tinkering.level, 0);
+  }
+});
+
+/* ---------------------------------------------------------- step 2: builtText */
+
+test('builtText announces the building calmly', () => {
+  const plot = normalizeState({ plots: { 'plot-rise': built() } }, NOW).plots['plot-rise'];
+  assert.deepEqual(builtText(plot, { asked: 'codex', placeName: 'Sunny rise' }), {
+    title: 'The Clip studio is built', body: 'Codex drew up the plans for Sunny rise.', says: 'Codex drew up the plans for Sunny rise.',
+  });
+  assert.deepEqual(builtText({ ...plot, designedBy: 'claude' }), { title: 'The Clip studio is built', body: 'Claude Code drew up the plans.', says: 'Claude Code drew up the plans.' });
+  // A desktop note talks about Milo; Milo's own bubble and panel line say it in his voice.
+  assert.deepEqual(builtText({ ...plot, designedBy: 'kit' }, { asked: 'codex' }),
+    { title: 'The Clip studio is built', body: 'Codex didn’t answer, so Milo drew this one himself.', says: 'Codex didn’t answer, so I drew this one myself.' });
+  // The real reason, when the architect gives one.
+  const kitPlot = { ...plot, designedBy: 'kit' };
+  assert.equal(builtText(kitPlot, { asked: 'codex', fallback: { by: 'codex', code: 'auth' } }).says, 'Codex isn’t signed in, so I drew this one myself.');
+  assert.equal(builtText(kitPlot, { asked: 'codex', fallback: { by: 'codex', code: 'invalid' } }).body, 'Codex’s answer was hard to read, so Milo drew this one himself.');
+  assert.equal(builtText(kitPlot, { asked: 'claude', fallback: { by: null, code: 'auth' } }).says, 'The crew isn’t signed in, so I drew this one myself.');
+  assert.equal(builtText(kitPlot, { asked: 'claude', fallback: { by: null, code: 'missing' } }).says, 'I couldn’t reach the crew, so I drew this one myself.');
+  // Automatic mode moved on from Claude Code: say who drew it and why.
+  assert.equal(builtText({ ...plot, designedBy: 'codex' }, { asked: 'codex', skipped: ['claude'], placeName: 'Sunny rise' }).body,
+    'Claude Code isn’t signed in, so Codex drew up the plans for Sunny rise.');
+  // A redesign is a new look, not a new building.
+  const redone = builtText({ ...plot, designedBy: 'codex' }, { asked: 'codex', redesign: true, levels: 'kept', placeName: 'Sunny rise' });
+  assert.deepEqual(redone, { title: 'The Clip studio has its new look', body: 'Codex drew up the new plans. Its level tree stays as it was.', says: 'Codex drew up the new plans. Its level tree stays as it was.' });
+  assert.equal(builtText(kitPlot, { asked: 'kit', redesign: true, levels: 'changed' }).says, 'I drew up the new plans myself. Its level tree changed too.');
+  assert.equal(builtText({ ...plot, designedBy: 'kit' }, { asked: 'claude', placeName: 'Sunny rise' }).body, 'Claude Code didn’t answer, so Milo drew this one himself.');
+  assert.equal(builtText({ ...plot, designedBy: 'kit' }, { asked: 'kit', placeName: 'Sunny rise' }).body, 'Milo drew up the plans for Sunny rise.');
+  assert.equal(builtText({ ...plot, name: 'Stream cave' }).title, 'The Stream cave is built', 'Chris’s own name comes first');
+  assert.equal(builtText({ ...plot, name: 'The sorting office' }).title, 'The sorting office is built');
+  assert.equal(builtText({ ...plot, name: 'Chris’s draft room' }).title, 'Chris’s draft room is built');
+  assert.equal(builtText({ ...plot, name: 'x'.repeat(60) }).title.length, 'The  is built'.length + 28);
+  for (const junk of [null, undefined, 'x', {}, { blueprint: 'x' }]) {
+    const out = builtText(junk);
+    assert.equal(typeof out.title, 'string');
+    assert.equal(typeof out.body, 'string');
+    assert.ok(!/!/.test(out.title + out.body));
+  }
+  for (const by of ['claude', 'codex', 'kit']) {
+    const { title, body } = builtText({ ...plot, designedBy: by }, { asked: 'codex', placeName: 'the rise' });
+    assert.ok(!title.endsWith('.'), 'titles have no trailing period');
+    assertCalm(body, `${by} body`);
+  }
+  assert.equal(designerName('claude'), 'Claude Code');
+  assert.equal(designerName('codex'), 'Codex');
+  assert.equal(designerName('kit'), 'Milo');
 });

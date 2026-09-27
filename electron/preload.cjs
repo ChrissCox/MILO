@@ -11,6 +11,28 @@ function subscribe(channel, callback) {
   return () => ipcRenderer.removeListener(channel, listener);
 }
 
+const text = value => (typeof value === 'string' ? value : '');
+
+// Only the fields a Suggestion has, as plain strings, cross over to the main process.
+function ideaOf(value) {
+  if (typeof value === 'string') return { title: value, pitch: value, why: '', source: 'local', id: '' };
+  if (!value || typeof value !== 'object') return null;
+  return { id: text(value.id), title: text(value.title), pitch: text(value.pitch), why: text(value.why), source: text(value.source) };
+}
+
+const CREW = ['claude', 'codex'];
+
+const architect = Object.freeze({
+  // { refresh: true } asks the crew's sign-in checks again (the camp panel does, when it opens).
+  status: options => ipcRenderer.invoke('milo:architect-status', { refresh: Boolean(options && options.refresh) }),
+  localSuggestions: plotId => ipcRenderer.invoke('milo:architect-local', text(plotId)),
+  suggest: (plotId, question) => ipcRenderer.invoke('milo:architect-suggest', text(plotId), text(question)),
+  design: (plotId, idea, tweak) => ipcRenderer.invoke('milo:architect-design', text(plotId), ideaOf(idea), text(tweak)),
+  cancel: () => ipcRenderer.invoke('milo:architect-cancel'),
+  // Who has the brief right now ('claude' or 'codex'), each time the architect asks a crew member.
+  onAsking: callback => subscribe('milo:architect-asking', id => { if (CREW.includes(id)) callback(id); }),
+});
+
 contextBridge.exposeInMainWorld('milo', Object.freeze({
   loadState: () => ipcRenderer.invoke('milo:load-state'),
   saveState: state => ipcRenderer.invoke('milo:save-state', state),
@@ -27,4 +49,5 @@ contextBridge.exposeInMainWorld('milo', Object.freeze({
   },
   onBeforeClose: callback => subscribe('milo:before-close', callback),
   finishClose: () => ipcRenderer.send('milo:finish-close'),
+  architect,
 }));

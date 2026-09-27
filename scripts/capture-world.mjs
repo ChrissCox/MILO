@@ -6,26 +6,35 @@ import { mkdir, mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { demoPlots, BLUEPRINTS } from './capture-kit.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const results = path.join(repo, 'test-results');
 const previewUrl = pathToFileURL(path.join(repo, 'scripts', 'world-preview.html')).href;
 await mkdir(results, { recursive: true });
 
+// Scenes with `plots: 'demo'` get four built plots and one being designed (see capture-kit.mjs);
+// `designer` sends that crew member to the plot being designed.
 const SCENES = [
   { name: 'camp', query: 'at=camp' },
   { name: 'greeting', query: 'entrance=1&bubble=1', waitEntrance: true },
   { name: 'watchtower', query: 'at=watchtower' },
-  { name: 'workshop', query: 'at=workshop&crew=busy' },
-  { name: 'library', query: 'at=library' },
-  { name: 'game-table', query: 'at=game-table' },
-  { name: 'building-site', query: 'at=building-site' },
-  { name: 'clip-studio', query: 'at=clip-studio' },
+  { name: 'bench', query: 'at=camp&crew=busy' },
+  { name: 'meadow', query: 'at=plot-meadow' },
+  { name: 'rise', query: 'at=plot-rise' },
+  { name: 'birch', query: 'at=plot-birch' },
+  { name: 'pond', query: 'at=plot-pond' },
+  { name: 'orchard', query: 'at=plot-orchard' },
+  { name: 'designing', query: 'at=plot-pond&crew=rest', plots: 'demo', designer: 'codex' },
+  { name: 'reveal', query: 'at=plot-pond&crew=rest', plots: 'demo', designer: 'codex', reveal: 'Game table' },
+  { name: 'built', query: 'at=plot-rise', plots: 'demo' },
+  { name: 'built-meadow', query: 'at=plot-meadow', plots: 'demo' },
   { name: 'harbor', query: 'at=harbor' },
   { name: 'rest', query: 'at=camp&crew=rest' },
   { name: 'still', query: 'at=camp&motion=0' },
   { name: 'small', query: 'at=camp', size: [800, 600] },
   { name: 'overview', query: 'view=overview&ovscale=1', overview: true },
+  { name: 'overview-built', query: 'motion=0', plots: 'demo', overview: true },
 ];
 
 const only = process.argv.slice(2);
@@ -63,10 +72,31 @@ try {
       throw error;
     }
     if (scene.waitEntrance) await page.waitForFunction(() => window.__entered === true, null, { timeout: 15000 });
-    await page.waitForTimeout(scene.overview ? 200 : 900);
+    if (scene.plots === 'demo') {
+      await page.evaluate(({ plots, designer }) => {
+        window.__world.setPlots(plots);
+        if (designer) {
+          window.__world.setCrew([
+            { id: 'claude', state: 'done', label: 'Claude Code', count: 0 },
+            { id: designer, state: 'designing', plotId: 'plot-pond', label: 'Codex', count: 0 },
+            { id: 'whisper', state: 'idle', label: 'Whisper', count: 0 },
+          ]);
+        }
+      }, { plots: demoPlots(), designer: scene.designer || null });
+    }
+    await page.waitForTimeout(scene.overview ? 200 : scene.designer ? 11000 : 900);
+    if (scene.reveal) {
+      // The design lands: the plot is built, the scaffold comes down, Codex heads home.
+      await page.evaluate(({ plots, blueprint }) => {
+        window.__world.setPlots({ ...plots, 'plot-pond': { ...plots['plot-pond'], status: 'built', blueprint, designedBy: 'codex' } });
+        window.__world.celebrate('plot-pond');
+        window.__world.setCrew([{ id: 'claude', state: 'done', label: 'Claude Code', count: 0 }, { id: 'codex', state: 'done', label: 'Codex', count: 1 }]);
+      }, { plots: demoPlots(), blueprint: BLUEPRINTS.find((bp) => bp.name === scene.reveal) });
+      await page.waitForTimeout(650);
+    }
     const file = path.join(results, `world-${scene.name}.png`);
     if (scene.overview) {
-      const dataUrl = await page.evaluate(() => window.__overview);
+      const dataUrl = await page.evaluate(() => window.__overview || window.__world.renderMap(1, { time: 1200 }).toDataURL('image/png'));
       await writeFile(file, Buffer.from(dataUrl.split(',')[1], 'base64'));
     } else {
       await page.screenshot({ path: file });

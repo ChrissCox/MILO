@@ -1,5 +1,6 @@
 // End-to-end check of the MILO shell in real Electron, against isolated,
-// synthetic ~/.claude and ~/.codex homes. Nothing here touches Chris's data.
+// synthetic ~/.claude and ~/.codex homes, synthetic skills and projects, and the
+// architect's canned crew (MILO_ARCHITECT=fake). Nothing here touches Chris's data.
 //
 //   node tests/ui.mjs
 
@@ -24,8 +25,26 @@ const root = await mkdtemp(path.join(tmpdir(), 'milo-ui-'));
 const dataDirectory = path.join(root, 'data');
 const claudeHome = path.join(root, 'claude-home');
 const codexHome = path.join(root, 'codex-home');
+const projectsDir = path.join(root, 'projects');
 await mkdir(artifacts, { recursive: true });
 await mkdir(dataDirectory, { recursive: true });
+
+// What the architect may share: skill names and descriptions (from the synthetic ~/.claude/skills),
+// and project folder names. Made up here.
+const SKILLS = {
+  'video-expert': 'Become an expert in a field from videos and research, then write an expertise pack.',
+  'expert-pf2e-encounter-design': 'Pathfinder 2e encounter design and difficulty tuning for game nights.',
+  'expert-fantasy-football-drafting': 'Fantasy football player analysis and draft strategy.',
+  jev: 'Sort, triage, label or rank any pile of text with a quick decision model.',
+};
+async function seedSignals() {
+  for (const [name, description] of Object.entries(SKILLS)) {
+    await mkdir(path.join(claudeHome, 'skills', name), { recursive: true });
+    await writeFile(path.join(claudeHome, 'skills', name, 'SKILL.md'), ['---', `name: ${name}`, `description: ${description}`, '---', '', `# ${name}`, ''].join('\n'), 'utf8');
+  }
+  for (const name of ['Habitack', 'MILO', 'Sketchbook']) await mkdir(path.join(projectsDir, name), { recursive: true });
+}
+const PLOTS = ['plot-meadow', 'plot-rise', 'plot-birch', 'plot-pond', 'plot-orchard'];
 
 // Start from the watch module's synthetic homes when they exist, then add the
 // sessions this test drives. All text is made up.
@@ -122,6 +141,7 @@ async function finishLiveTurn(text) {
 }
 
 await seedHomes();
+await seedSignals();
 
 const environment = {
   ...process.env,
@@ -129,6 +149,9 @@ const environment = {
   MILO_DATA_DIR: dataDirectory,
   MILO_CLAUDE_HOME: claudeHome,
   MILO_CODEX_HOME: codexHome,
+  MILO_ARCHITECT: 'fake',
+  MILO_FAKE_DELAY_MS: '1500',
+  MILO_PROJECTS_DIR: projectsDir,
 };
 delete environment.ELECTRON_RUN_AS_NODE;
 
@@ -222,6 +245,29 @@ async function openPlace(id) {
   await panel(id).waitFor();
 }
 
+const plotView = (id, status) => page.locator(`#panel .plot-view[data-plot="${id}"]${status ? `[data-plot-status="${status}"]` : ''}`);
+const architectCalls = () => application.evaluate(() => globalThis.__miloArchitectCalls || []);
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Clicks through whatever Milo is saying (the last button is always the quiet one) until he's done.
+async function dismissBubbles(timeout = 6000) {
+  const deadline = Date.now() + timeout;
+  let quietSince = null;
+  while (Date.now() < deadline) {
+    if (await page.locator('#bubble').isVisible()) {
+      quietSince = null;
+      const buttons = page.locator('#bubble [data-bubble-action]');
+      const count = await buttons.count();
+      if (count) await buttons.nth(count - 1).click({ timeout: 1000 }).catch(() => {});
+      await page.waitForTimeout(150);
+    } else {
+      quietSince ??= Date.now();
+      if (Date.now() - quietSince > 900) return;
+      await page.waitForTimeout(100);
+    }
+  }
+}
+
 async function waitForScanWhere(test, description) {
   return poll(async () => {
     const snapshot = await scan();
@@ -239,7 +285,9 @@ try {
     assert.equal(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1);
     assert.equal(await page.evaluate(() => typeof require), 'undefined', 'No Node in the renderer');
     assert.deepEqual(await page.evaluate(() => Object.keys(window.milo).sort()),
-      ['finishClose', 'loadState', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction']);
+      ['architect', 'finishClose', 'loadState', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction']);
+    assert.deepEqual(await page.evaluate(() => Object.keys(window.milo.architect).sort()),
+      ['cancel', 'design', 'localSuggestions', 'onAsking', 'status', 'suggest']);
     const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
     assert.match(csp, /connect-src 'none'/);
     assert.match(csp, /script-src 'self'/);
@@ -364,10 +412,11 @@ try {
     assert.match(text, new RegExp(LIVE_TITLE));
     assert.doesNotMatch(text, /!/);
     await page.locator(`[data-group="recent"] [data-session-id="claude:${LIVE_ID}"]`).waitFor();
-    const focused = await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].isFocused());
-    const toasts = await application.evaluate(() => globalThis.__miloNotifications);
-    if (focused) assert.equal(toasts.length, 0, 'No desktop note while MILO has focus');
-    else assert.ok(toasts.some(toast => toast.title === 'Claude finished a task'), 'A desktop note goes out while MILO is in the background');
+    // Judge against the focus main saw when the alert arrived; the OS can move focus afterwards.
+    const decision = await poll(() => application.evaluate(() => globalThis.__miloNotifyDecisions.find(entry => entry.title === 'Claude finished a task')), 'the alert to reach main');
+    const toasts = await application.evaluate(() => globalThis.__miloNotifications.filter(toast => toast.title === 'Claude finished a task'));
+    if (decision.focused) assert.equal(toasts.length, 0, 'No desktop note while MILO has focus');
+    else assert.equal(toasts.length, 1, 'A desktop note goes out while MILO is in the background');
     await settle();
     await page.screenshot({ path: path.join(artifacts, 'finished-alert.png') });
     await alert.getByRole('button', { name: 'Got it', exact: true }).click();
@@ -428,12 +477,11 @@ try {
     await page.screenshot({ path: path.join(artifacts, 'camp.png') });
   });
 
-  await check('unbuilt places describe what they will become, and the harbor sits in fog', async () => {
-    await openPlace('workshop');
-    assert.match(await page.locator('#panel').textContent(), /Coming in a later step/);
-    assert.ok(await page.locator('#panel .skill[data-skill="dispatch"] .levels li').count() >= 4);
+  await check('the harbor sits in fog until a calendar is connected', async () => {
     await openPlace('harbor');
     assert.match(await page.locator('#panel').textContent(), /Connect a calendar to clear the fog\./);
+    assert.match(await page.locator('#panel').textContent(), /Coming in a later step/);
+    assert.ok(await page.locator('#panel .skill[data-skill="timekeeping"] .levels li').count() >= 4);
     await page.keyboard.press('Escape');
     await poll(async () => await page.locator('#panel').isHidden(), 'the panel to close');
     await savedState(value => value.panel === null);
@@ -442,7 +490,7 @@ try {
   await check('the place list stays tucked away after a panel opened from it closes', async () => {
     const listWidth = () => page.evaluate(() => document.querySelector('#place-list').getBoundingClientRect().width);
     await page.evaluate(() => document.activeElement?.blur());
-    await openPlace('library');
+    await openPlace('plot-birch');
     await page.locator('#panel .panel-close').click();
     await poll(async () => await page.locator('#panel').isHidden(), 'the panel to close');
     await page.waitForTimeout(300);
@@ -456,11 +504,15 @@ try {
   });
 
   await check('map tips never cover the crew strip or the Places button', async () => {
-    // From the game table, the library's plot sits just under the crew strip.
-    await openPlace('game-table');
+    // From the pondside plot, Birch hollow sits just under the crew strip. Motion is off while
+    // Milo gets there, so the camera lands at once however fast a background window gets frames.
+    await openPlace('camp');
+    await page.locator('[data-setting="motion"]').click();
+    await savedState(value => value.settings.motion === false);
+    await openPlace('plot-pond');
     await page.locator('#panel .panel-close').click();
     await poll(async () => await page.locator('#panel').isHidden(), 'the panel to close');
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(600);
     const boxes = await page.evaluate(() => {
       const box = selector => {
         const rect = document.querySelector(selector).getBoundingClientRect();
@@ -493,6 +545,369 @@ try {
     assert.ok(shown >= 5, `tips showed at ${shown} of ${points.length} sampled points`);
     assert.ok(underStrip >= 1, `some tips were for spots right under the crew strip (${underStrip})`);
     await page.mouse.move(640, 8);
+    await openPlace('camp');
+    await page.locator('[data-setting="motion"]').click();
+    await savedState(value => value.settings.motion === true);
+    await page.locator('#panel .panel-close').click();
+    await poll(async () => await page.locator('#panel').isHidden(), 'the panel to close');
+  });
+
+  await check('every plot starts empty with three ideas from Milo', async () => {
+    const listed = await page.locator('#place-list [data-place]').evaluateAll(nodes => nodes.map(node => [node.dataset.place, node.dataset.kind]));
+    assert.deepEqual(listed.filter(([, kind]) => kind === 'plot').map(([id]) => id), PLOTS);
+    assert.deepEqual(listed.filter(([, kind]) => kind !== 'plot').map(([id]) => id).sort(), ['camp', 'harbor', 'watchtower']);
+    for (const id of PLOTS) {
+      await openPlace(id);
+      await plotView(id, 'empty').waitFor();
+      await poll(async () => (await page.locator('#panel .idea').count()) === 3, `three ideas at ${id}`);
+      for (const card of await page.locator('#panel .idea').all()) {
+        assert.ok((await card.locator('.idea-title').textContent()).trim(), 'each idea has a name');
+        assert.ok((await card.locator('.idea-pitch').textContent()).trim(), 'and says what it would do');
+        assert.equal(await card.getByRole('button', { name: /^Build this/ }).count(), 1);
+      }
+      assert.match(await page.locator('#panel .milo-says').first().textContent(), /three ideas/);
+      assert.match(await page.locator('#panel .ask-label').textContent(), /^Ask Milo what should go here, or describe your own idea$/);
+      assert.equal(await page.locator('#panel').getByRole('button', { name: 'Ask for ideas', exact: true }).count(), 1);
+      assert.equal(await page.locator('#panel').getByRole('button', { name: 'Build my idea', exact: true }).count(), 1);
+      const shares = await page.locator('#panel [data-shares]').textContent();
+      assert.match(shares, /^Milo (asks|draws)/);
+      // Everything a brief carries is named, skill descriptions included.
+      if (/^Milo asks/.test(shares)) assert.match(shares, /this plot’s name and size, the names of your buildings and projects, and your skills’ names with the start of each description. Never your sessions/);
+      assert.equal((await page.locator(`#place-list [data-place="${id}"] .place-note`).textContent()).trim(), 'Empty plot');
+    }
+    const state = await savedState(value => PLOTS.every(id => value.plots?.[id]?.suggestions?.length === 3));
+    for (const id of PLOTS) assert.equal(state.plots[id].status, 'empty');
+    const picks = PLOTS.map(id => state.plots[id].suggestions.map(idea => idea.title).join(' | '));
+    assert.ok(new Set(picks).size > 1, `different plots get different picks: ${picks.join(' / ')}`);
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /!/);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'plot-empty.png') });
+  });
+
+  await check('asking Milo brings three new ideas, sharing only what the privacy rule allows', async () => {
+    await openPlace('plot-rise');
+    const before = await page.locator('#panel .idea-title').allTextContents();
+    const question = 'something for my drawing streams';
+    const input = page.locator('#panel [data-field="ask"]');
+    await input.fill(question);
+    await input.press('Enter');
+    const state = await savedState(value => value.plots?.['plot-rise']?.asked === question && value.plots['plot-rise'].suggestions.length === 3);
+    await poll(async () => /^You asked/.test(await page.locator('#panel .milo-says').first().textContent()), 'Milo to answer the question');
+    const after = await page.locator('#panel .idea-title').allTextContents();
+    assert.deepEqual(after, state.plots['plot-rise'].suggestions.map(idea => idea.title));
+    assert.notDeepEqual(after, before, 'fresh ideas replace the first three');
+    assert.equal(await page.locator('#panel [data-field="ask"]').inputValue(), '', 'the box is ready for the next question');
+    const calls = await architectCalls();
+    const asked = calls.filter(call => call.kind === 'suggest').at(-1);
+    assert.equal(asked.question, question);
+    assert.equal(asked.mode, 'fake');
+    assert.equal(asked.designer, 'auto');
+    assert.deepEqual(Object.keys(asked).sort(), ['at', 'built', 'designer', 'exclude', 'kind', 'mode', 'plot', 'question']);
+    assert.deepEqual(asked.exclude, before, 'the ideas already shown are asked to be left out');
+    assert.deepEqual(Object.keys(asked.plot).sort(), ['h', 'id', 'name', 'w']);
+    assert.equal(asked.plot.id, 'plot-rise');
+    assert.equal(asked.plot.name, 'Sunny rise');
+    assert.ok(asked.plot.w > 0 && asked.plot.h > 0);
+    assert.ok(asked.built.includes('Watchtower'));
+    // Nothing from the watched sessions ever goes to the crew.
+    const shared = JSON.stringify(calls).toLowerCase();
+    for (const secret of [LIVE_TITLE, WAIT_TITLE, 'Tidy notes', 'lantern', 'Plant a small', 'Sorted them']) {
+      assert.ok(!shared.includes(secret.toLowerCase()), `${secret} never reaches the crew`);
+    }
+    await dismissBubbles();
+  });
+
+  let firstBuilding = '';
+  await check('building an idea puts up a building site, then the building with its level tree', async () => {
+    await openPlace('plot-rise');
+    const card = page.locator('#panel .idea').first();
+    const ideaTitle = (await card.locator('.idea-title').textContent()).trim();
+    await card.getByRole('button', { name: /^Build this/ }).click();
+    let sawSite = false;
+    await poll(async () => {
+      const status = await page.locator('#panel .plot-view').getAttribute('data-plot-status');
+      if (status === 'designing' && !sawSite) {
+        sawSite = true;
+        assert.equal((await page.locator('#place-list [data-place="plot-rise"] .place-note').textContent()).trim(), 'Being designed');
+        assert.match(await page.locator('#panel .progress-text').textContent(), /is drawing up plans…$/);
+        assert.equal(await page.locator('#panel').getByRole('button', { name: 'Cancel', exact: true }).count(), 1);
+        assert.match(await page.locator('#titlebar-status').textContent(), /drawing up plans/);
+        await page.screenshot({ path: path.join(artifacts, 'plot-designing.png') });
+      }
+      return status === 'built';
+    }, 'the building to go up', 40_000);
+    if (!sawSite) console.log('Note: the fake crew answered before the building site could be seen.');
+    const state = await savedState(value => value.plots?.['plot-rise']?.status === 'built');
+    const plot = state.plots['plot-rise'];
+    firstBuilding = plot.blueprint.name;
+    assert.equal(plot.idea.title, ideaTitle);
+    assert.ok(['claude', 'codex', 'kit'].includes(plot.designedBy), plot.designedBy);
+    assert.ok(Date.now() - plot.builtAt < 5 * 60_000);
+    assert.equal(plot.blueprint.levels.length, 5);
+    assert.equal((await page.locator('#panel-title').textContent()).trim(), firstBuilding);
+    assert.match(await page.locator('#panel .building-meta').textContent(), /^Designed by (Claude Code|Codex|Milo) · \d{1,2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) · Sunny rise$/);
+    assert.equal(await page.locator('#panel .building-tagline').count(), 1, 'the tagline says what it is for');
+    // Five planned levels, each with a proof check.
+    const levels = page.locator('#panel .plan-level');
+    assert.equal(await levels.count(), 5);
+    assert.equal(await page.locator('#panel .plan-level[data-level-state="planned"]').count(), 5);
+    for (let i = 0; i < 5; i += 1) {
+      const level = levels.nth(i);
+      assert.equal(await level.getAttribute('data-level'), String(i + 1));
+      assert.equal((await level.locator('.level-tag').textContent()).trim(), 'Planned');
+      assert.ok((await level.locator('.plan-proof').textContent()).replace('Proof check:', '').trim().length > 0, `level ${i + 1} has a proof check`);
+    }
+    assert.match(await page.locator('#panel .tree-note').textContent(), /Dispatch builds these in a later step/);
+    // The building, drawn large with whole pixels.
+    const art = await page.evaluate(() => {
+      const canvas = document.querySelector('#panel canvas[data-art="building"]');
+      if (!canvas) return null;
+      const rect = canvas.getBoundingClientRect();
+      const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      let painted = 0;
+      for (let i = 3; i < data.length; i += 4) if (data[i] > 0) painted += 1;
+      return { width: canvas.width, height: canvas.height, cssWidth: rect.width, pixel: Number(canvas.dataset.pixel), dpr: devicePixelRatio, painted, label: canvas.getAttribute('aria-label') };
+    });
+    assert.ok(art, 'the building is drawn in its panel');
+    assert.ok(Number.isInteger(art.pixel) && art.pixel >= 2, `drawn large at a whole-pixel scale: ${JSON.stringify(art)}`);
+    assert.ok(Math.abs(art.cssWidth * art.dpr - art.width) < 1, `one canvas pixel per screen pixel: ${JSON.stringify(art)}`);
+    assert.ok(art.painted > art.width * art.height * 0.1, 'the canvas holds a building, not a blank');
+    assert.match(art.label, new RegExp(escapeRegExp(firstBuilding)));
+    // Milo says so, and the place list knows it.
+    const said = bubble('built');
+    await said.waitFor({ timeout: 10_000 });
+    assert.match((await said.locator('.bubble-title').textContent()).trim(), / is built$/);
+    assert.doesNotMatch(await said.textContent(), /!/);
+    const entry = page.locator('#place-list [data-place="plot-rise"]');
+    assert.match(await entry.textContent(), new RegExp(escapeRegExp(firstBuilding)));
+    assert.equal((await entry.locator('.place-note').textContent()).trim(), 'Sunny rise');
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'building.png') });
+    await dismissBubbles();
+    // A design from an idea proves Tinkering; one the crew drew proves Dispatch too.
+    const learned = await savedState(value => value.skills?.tinkering?.level >= 1);
+    if (plot.designedBy !== 'kit') assert.ok(learned.skills?.dispatch?.level >= 1, 'a crew design proves Dispatch level 1');
+  });
+
+  await check('a building can be renamed, redesigned and cleared', async () => {
+    await page.locator('#panel [data-action="rename"]').click();
+    const nameInput = page.locator('#panel [data-field="rename"]');
+    assert.equal(await nameInput.inputValue(), firstBuilding);
+    await nameInput.press('Escape');
+    assert.equal(await page.locator('#panel [data-field="rename"]').count(), 0, 'Escape steps out of renaming');
+    assert.equal(await page.locator('#panel').isVisible(), true, 'and leaves the panel open');
+    await page.locator('#panel [data-action="rename"]').click();
+    await page.locator('#panel [data-field="rename"]').fill('Stream cave');
+    await page.locator('#panel [data-field="rename"]').press('Enter');
+    await poll(async () => (await page.locator('#panel-title').textContent()).trim() === 'Stream cave', 'the new name');
+    const renamed = (await savedState(value => value.plots?.['plot-rise']?.name === 'Stream cave')).plots['plot-rise'];
+    assert.match(await page.locator('#place-list [data-place="plot-rise"]').textContent(), /Stream cave/);
+
+    await page.locator('#panel [data-action="redesign"]').click();
+    assert.equal(await page.locator('#panel [data-field="rethink"]').isChecked(), false, 'a redesign keeps the level tree unless asked');
+    await page.locator('#panel [data-field="tweak"]').fill('make it cozier');
+    await page.locator('#panel [data-field="tweak"]').press('Enter');
+    // While the crew redesigns it, the building stays standing with a scaffold round it.
+    await poll(async () => (await page.locator('#panel canvas[data-art="redesign"]').count()) === 1
+      || (await page.locator('#panel .plot-view').getAttribute('data-plot-status')) === 'built', 'the building behind its scaffold');
+    const redone = (await savedState(value => value.plots?.['plot-rise']?.status === 'built' && value.plots['plot-rise'].builtAt > renamed.builtAt)).plots['plot-rise'];
+    assert.equal(redone.name, 'Stream cave', 'a redesign keeps your name for it');
+    assert.deepEqual(redone.blueprint.levels, renamed.blueprint.levels, 'a new look keeps the level tree');
+    assert.equal(redone.blueprint.purpose, renamed.blueprint.purpose);
+    assert.equal(redone.blueprint.style.chimney, true, 'and the look did change');
+    await plotView('plot-rise', 'built').waitFor();
+    const newLook = bubble('built');
+    await newLook.waitFor({ timeout: 10_000 });
+    assert.equal((await newLook.locator('.bubble-title').textContent()).trim(), 'The Stream cave has its new look');
+    assert.match(await newLook.textContent(), /Its level tree stays as it was./);
+    assert.equal((await page.locator('#panel-title').textContent()).trim(), 'Stream cave');
+    const redesign = (await architectCalls()).filter(call => call.kind === 'design').at(-1);
+    assert.equal(redesign.tweak, 'make it cozier');
+    assert.equal(redesign.plot.id, 'plot-rise');
+    assert.equal(redesign.previous?.name, renamed.blueprint.name, 'a redesign starts from the plans already there');
+    assert.ok(!redesign.built.includes('Stream cave') && !redesign.built.includes(firstBuilding), 'the building being redesigned is not listed as standing');
+    await dismissBubbles();
+
+    // A redesign the crew can't finish leaves the building exactly as it was.
+    const standing = (await savedState()).plots['plot-rise'];
+    await page.locator('#panel [data-action="redesign"]').click();
+    await page.locator('#panel [data-field="tweak"]').fill('this one will fail');
+    await page.locator('#panel [data-field="tweak"]').press('Enter');
+    await poll(async () => /the building stays as it was/.test(await page.locator('#panel').textContent()), 'Milo to say the building stays');
+    assert.match(await page.locator('#panel [data-note="error"]').textContent(), /^Codex didn’t answer, so the building stays as it was. Try again when you like.$/);
+    await plotView('plot-rise', 'built').waitFor();
+    const kept = (await savedState(value => value.plots?.['plot-rise']?.status === 'built')).plots['plot-rise'];
+    assert.deepEqual(kept.blueprint, standing.blueprint, 'the same building');
+    assert.equal(kept.designedBy, standing.designedBy);
+    await dismissBubbles();
+
+    await page.locator('#panel [data-action="clear"]').click();
+    const dialog = page.locator('#panel .confirm[role="alertdialog"]');
+    await dialog.waitFor();
+    assert.match(await dialog.textContent(), /Clear Sunny rise\?/);
+    assert.equal(await page.evaluate(() => document.activeElement?.dataset.action), 'clear-cancel', 'Keep it is the safe default');
+    await dialog.getByRole('button', { name: 'Keep it', exact: true }).click();
+    assert.equal(await page.locator('#panel .plot-view').getAttribute('data-plot-status'), 'built');
+    await page.locator('#panel [data-action="clear"]').click();
+    await page.locator('#panel [data-action="clear-confirm"]').click();
+    await plotView('plot-rise', 'empty').waitFor();
+    await poll(async () => (await page.locator('#panel .idea').count()) === 3, 'fresh ideas on the cleared plot');
+    const cleared = (await savedState(value => value.plots?.['plot-rise']?.status === 'empty' && value.plots['plot-rise'].suggestions.length === 3)).plots['plot-rise'];
+    assert.equal(cleared.blueprint, null);
+    assert.equal(cleared.name, null);
+    assert.equal((await page.locator('#panel-title').textContent()).trim(), 'Sunny rise');
+    assert.equal((await page.locator('#place-list [data-place="plot-rise"] .place-note').textContent()).trim(), 'Empty plot');
+    assert.match(await page.locator('#panel .milo-says').first().textContent(), /is down/);
+  });
+
+  let pondBuilding = '';
+  await check('your own idea gets designed and built too', async () => {
+    await openPlace('plot-pond');
+    await page.locator('#panel').getByRole('button', { name: 'Build my idea', exact: true }).click();
+    assert.match(await page.locator('#panel [data-hint]').textContent(), /Describe your idea first/);
+    await page.locator('#panel [data-field="ask"]').fill('Bakery: keeps track of my sourdough starters');
+    await page.locator('#panel').getByRole('button', { name: 'Build my idea', exact: true }).click();
+    const plot = (await savedState(value => value.plots?.['plot-pond']?.status === 'built')).plots['plot-pond'];
+    pondBuilding = plot.blueprint.name;
+    assert.equal(plot.idea.title, 'Bakery');
+    assert.equal(plot.idea.why, 'Your own idea');
+    const design = (await architectCalls()).filter(call => call.kind === 'design').at(-1);
+    assert.deepEqual(Object.keys(design).sort(), ['at', 'built', 'designer', 'idea', 'kind', 'mode', 'plot', 'tweak'], 'a first design has no earlier plans');
+    assert.equal(design.idea.title, 'Bakery');
+    assert.match(design.idea.pitch, /sourdough/);
+    await plotView('plot-pond', 'built').waitFor();
+    assert.equal(await page.locator('#panel .plan-level').count(), 5);
+    await dismissBubbles();
+  });
+
+  await check('when the crew can’t finish a design, Milo draws it himself and says so kindly', async () => {
+    await openPlace('plot-birch');
+    // The fake crew stumbles on anything that mentions failing: first when asked for ideas...
+    await page.locator('#panel [data-field="ask"]').fill('ideas that never fail');
+    await page.locator('#panel [data-field="ask"]').press('Enter');
+    await poll(async () => /^You asked “ideas that never fail”\. Codex didn’t answer, so these are my own ideas\.$/.test((await page.locator('#panel .milo-says').first().textContent()).trim()),
+      'Milo to say these ideas are his own');
+    assert.equal(await page.locator('#panel .idea').count(), 3);
+    assert.ok((await page.locator('#panel .idea').evaluateAll(nodes => nodes.map(node => node.dataset.source))).every(source => source === 'local'));
+    // ...then when asked to design.
+    await page.locator('#panel [data-field="ask"]').fill('Rain barn: fails over to a dry corner in storms');
+    await page.locator('#panel').getByRole('button', { name: 'Build my idea', exact: true }).click();
+    const plot = (await savedState(value => value.plots?.['plot-birch']?.status === 'built')).plots['plot-birch'];
+    assert.equal(plot.designedBy, 'kit');
+    assert.equal(plot.blueprint.levels.length, 5, 'Milo’s own design still has its level tree');
+    const said = bubble('built');
+    await said.waitFor({ timeout: 10_000 });
+    assert.match(await said.textContent(), /Codex didn’t answer, so I drew this one myself\./);
+    await plotView('plot-birch', 'built').waitFor();
+    assert.match(await page.locator('#panel .milo-says').first().textContent(), /Codex didn’t answer, so I drew this one myself\./);
+    assert.match(await page.locator('#panel .building-meta').textContent(), /^Designed by Milo/);
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /!/);
+    await dismissBubbles();
+  });
+
+  await check('Cancel stops a design and leaves the plot as it was', async () => {
+    await openPlace('plot-orchard');
+    const before = await page.locator('#panel .idea-title').allTextContents();
+    await page.locator('#panel .idea').first().getByRole('button', { name: /^Build this/ }).focus();
+    await page.keyboard.press('Enter');
+    const cancel = page.locator('#panel').getByRole('button', { name: 'Cancel', exact: true });
+    await cancel.waitFor({ timeout: 5000 });
+    assert.equal(await page.evaluate(() => document.activeElement?.dataset.focusKey), 'progress', 'keyboard focus moves to the progress line, not Cancel');
+    // A second Enter (a double press, or a held key) doesn't cancel what was just asked.
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(200);
+    assert.match(await page.locator('#panel .progress-text').textContent(), /is drawing up plans…$/, 'still designing after a second Enter');
+    assert.equal(await cancel.isEnabled(), true);
+    await cancel.click();
+    await plotView('plot-orchard', 'empty').waitFor({ timeout: 10_000 });
+    assert.deepEqual(await page.locator('#panel .idea-title').allTextContents(), before, 'the same three ideas are still there');
+    assert.equal(await page.locator('#panel [data-note="retry"]').count(), 0, 'a deliberate cancel doesn’t nag to try again');
+    await bubble('note').waitFor({ timeout: 5000 });
+    assert.match(await bubble('note').textContent(), /Okay, I stopped the plans/);
+    // Nothing lands afterwards.
+    await page.waitForTimeout(2500);
+    // (While designing, the file already says 'empty' with the idea kept, in case MILO closes; a cancel drops the idea.)
+    const state = await savedState(value => value.plots?.['plot-orchard']?.status === 'empty' && value.plots['plot-orchard'].idea === null);
+    assert.equal(state.plots['plot-orchard'].blueprint, null);
+    assert.equal(await page.locator('#panel .plot-view').getAttribute('data-plot-status'), 'empty');
+    assert.equal((await page.locator('#place-list [data-place="plot-orchard"] .place-note').textContent()).trim(), 'Empty plot');
+    await dismissBubbles();
+  });
+
+  await check('one request to the crew at a time', async () => {
+    const replies = await page.evaluate(async () => {
+      const idea = { id: 'local:tea-house', title: 'Tea house', pitch: 'A quiet spot for a daily plan.', why: '', source: 'local' };
+      const first = window.milo.architect.design('plot-meadow', idea, '');
+      await new Promise(resolve => setTimeout(resolve, 150));
+      const second = await window.milo.architect.suggest('plot-meadow', 'anything else?');
+      const third = await window.milo.architect.design('plot-meadow', idea, '');
+      await window.milo.architect.cancel();
+      return { first: await first, second, third, bad: await window.milo.architect.design('not-a-plot', idea, '') };
+    });
+    assert.deepEqual(replies.second, { ok: false, code: 'busy', error: 'Milo is already asking the crew.' });
+    assert.deepEqual(replies.third, replies.second);
+    assert.equal(replies.first.ok, false);
+    assert.equal(replies.first.code, 'cancelled');
+    assert.equal(replies.bad.ok, false, 'only real plots can be designed');
+    const state = await savedState();
+    assert.equal(state.plots['plot-meadow'].status, 'empty', 'a request the window never applied changes nothing');
+  });
+
+  await check('camp holds the Designer setting and each crew member’s readiness', async () => {
+    await openPlace('camp');
+    assert.equal(await page.locator('.skill[data-skill="tinkering"]').getAttribute('data-level'), '1', 'Tinkering level 1 is proven by the bakery');
+    const options = page.locator('#panel .designer input[type="radio"]');
+    assert.deepEqual(await options.evaluateAll(nodes => nodes.map(node => [node.value, node.checked])),
+      [['auto', true], ['claude', false], ['codex', false], ['kit', false]]);
+    assert.match(await page.locator('#panel .designer').textContent(), /Automatic.*Claude Code.*Codex.*Milo’s kit/s);
+    await page.locator('#panel label[for="designer-codex"]').click();
+    await savedState(value => value.settings?.designer === 'codex');
+    assert.equal(await page.locator('#designer-codex').isChecked(), true);
+    await page.locator('#panel label[for="designer-auto"]').click();
+    await savedState(value => value.settings?.designer === 'auto');
+    const status = await page.evaluate(() => window.milo.architect.status());
+    assert.ok(status && typeof status.designer === 'string', 'the architect answers with who designs');
+    if (status.crew?.length) {
+      await poll(async () => (await page.locator('#panel .crew-ready li').count()) === status.crew.length, 'readiness for each crew member');
+    }
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'camp-designer.png') });
+  });
+
+  await check('a new building is saved at once, even while Milo is still walking', async () => {
+    // Milo's kit designs at once, so the building lands while Milo is on a long walk.
+    // (Milo only walks while the window is on screen: a covered window pauses the world.)
+    await application.evaluate(({ BrowserWindow }) => { const win = BrowserWindow.getAllWindows()[0]; win.show(); win.moveTop(); win.focus(); });
+    await openPlace('camp');
+    await page.locator('#panel label[for="designer-kit"]').click();
+    await savedState(value => value.settings?.designer === 'kit');
+    await dismissBubbles();
+    const doorOf = id => page.evaluate(async place => (await import('./src/world/map.js')).placeById(place).door, id);
+    const meadow = await doorOf('plot-meadow');
+    // Put Milo far from the orchard in one step: with motion off he walks there at once, so this
+    // setup doesn't depend on how fast a background test window gets frames.
+    await page.locator('[data-setting="motion"]').click();
+    await savedState(value => value.settings.motion === false);
+    await openPlace('plot-meadow');
+    await savedState(value => value.milo?.tile?.x === meadow.x && value.milo.tile.y === meadow.y);
+    await openPlace('camp');
+    await page.locator('[data-setting="motion"]').click();
+    await savedState(value => value.settings.motion === true);
+    await openPlace('plot-orchard');   // 30 tiles from camp, about 6 s of walking
+    await plotView('plot-orchard', 'empty').waitFor();
+    await page.locator('#panel .idea').first().getByRole('button', { name: /^Build this/ }).click();
+    await plotView('plot-orchard', 'built').waitFor({ timeout: 10_000 });
+    const builtAt = Date.now();
+    const onDisk = await savedState(value => value.plots?.['plot-orchard']?.status === 'built');
+    const savedIn = Date.now() - builtAt;
+    const orchard = await doorOf('plot-orchard');
+    const walking = !(onDisk.milo?.tile?.x === orchard.x && onDisk.milo.tile.y === orchard.y);
+    assert.ok(walking, 'Milo was still on his way when the building was saved');
+    assert.ok(savedIn < 1200, `saved ${savedIn} ms after it went up`);
+    await dismissBubbles();
+    await openPlace('camp');
+    await page.locator('#panel label[for="designer-auto"]').click();
+    await savedState(value => value.settings?.designer === 'auto');
   });
 
   await check('1000×700 keeps the world, crew, bubble, and panel inside the window', async () => {
@@ -538,6 +953,29 @@ try {
     await bubble('alert').getByRole('button', { name: 'Got it', exact: true }).click();
   });
 
+  await check('at 1000×700 the plot and building panels fit without sideways scrolling', async () => {
+    await dismissBubbles();
+    for (const [id, status] of [['plot-pond', 'built'], ['plot-meadow', 'empty']]) {
+      await openPlace(id);
+      await plotView(id, status).waitFor();
+      await page.waitForTimeout(350);
+      const report = await page.evaluate(() => {
+        const rect = node => { const box = node.getBoundingClientRect(); return { left: box.left, top: box.top, right: box.right, bottom: box.bottom }; };
+        const body = document.querySelector('#panel-body');
+        return {
+          scroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+          panelOverflow: body.scrollWidth > body.clientWidth + 1,
+          panel: rect(document.querySelector('#panel')),
+          wide: [...body.querySelectorAll('*')].filter(node => node.getBoundingClientRect().right > body.getBoundingClientRect().right + 1).map(node => node.className || node.tagName),
+        };
+      });
+      assert.ok(report.scroll[0] <= 1000 && report.scroll[1] <= 700, `No window overflow at ${id}: ${JSON.stringify(report.scroll)}`);
+      assert.equal(report.panelOverflow, false, `The ${id} panel doesn't scroll sideways: ${report.wide.join(', ')}`);
+      assert.ok(report.panel.right <= 1001 && report.panel.bottom <= 701, `The panel stays inside: ${JSON.stringify(report.panel)}`);
+      await page.screenshot({ path: path.join(artifacts, `layout-1000x700-${status}.png`) });
+    }
+  });
+
   let setLastSeen;
   await check('closing saves lastSeenAt, and the next launch welcomes Chris back', async () => {
     const closedAt = Date.now();
@@ -559,6 +997,23 @@ try {
     assert.ok(Date.now() - state.lastSeenAt < 5 * 60_000);
     await settle();
     await page.screenshot({ path: path.join(artifacts, 'welcome-back.png') });
+  });
+
+  await check('buildings stay standing after a restart', async () => {
+    const state = await savedState(value => value.plots?.['plot-pond']?.status === 'built');
+    assert.equal(state.plots['plot-pond'].blueprint.name, pondBuilding);
+    assert.equal(state.plots['plot-rise'].status, 'empty', 'the cleared plot stays clear');
+    const entry = page.locator('#place-list [data-place="plot-pond"]');
+    assert.match(await entry.textContent(), new RegExp(escapeRegExp(pondBuilding)));
+    assert.equal((await entry.locator('.place-note').textContent()).trim(), 'Pondside plot');
+    await dismissBubbles();
+    await openPlace('plot-pond');
+    await plotView('plot-pond', 'built').waitFor();
+    assert.equal((await page.locator('#panel-title').textContent()).trim(), pondBuilding);
+    assert.equal(await page.locator('#panel .plan-level[data-level-state="planned"]').count(), 5);
+    assert.equal(await page.locator('#panel canvas[data-art="building"]').count(), 1);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'building-after-restart.png') });
   });
 
   await check('nothing leaves localhost', async () => {
@@ -593,7 +1048,7 @@ try {
   assert.deepEqual(pageErrors, [], `Renderer errors: ${pageErrors.join('\n')}`);
   // Until every module exists, the shell's defensive imports log a file-not-found
   // for each missing one. Once they all exist, any console error fails the run.
-  const missing = ['src/world/engine.js', 'src/world/map.js', 'src/model.js', 'src/recap.js', 'src/skills.js']
+  const missing = ['src/world/engine.js', 'src/world/map.js', 'src/world/kit.js', 'src/model.js', 'src/recap.js', 'src/skills.js', 'src/architect/blueprint.js']
     .filter(file => !existsSync(path.join(repo, file)));
   const unexpected = missing.length ? consoleErrors.filter(text => !/ERR_FILE_NOT_FOUND/.test(text)) : consoleErrors;
   if (missing.length) console.log(`Note: not written yet, so the shell ran without them: ${missing.join(', ')}`);

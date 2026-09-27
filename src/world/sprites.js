@@ -35,6 +35,13 @@ export const PALETTE = {
   V: { name: 'lavenderDeep', hex: '#a898cf' },
   t: { name: 'skin', hex: '#fde3cc' },
   x: { name: 'shadow', hex: 'rgba(61, 64, 56, 0.2)' },
+  // Deeper steps so every building colour in the kit has a full light-to-shade ramp.
+  z: { name: 'stoneDark', hex: '#928e84' },
+  K: { name: 'blossomDeep', hex: '#e39cb2' },
+  Y: { name: 'honeyDeep', hex: '#d8a060' },
+  Q: { name: 'clayDark', hex: '#b27262' },
+  N: { name: 'slateDark', hex: '#5f75a0' },
+  M: { name: 'leafDark', hex: '#4a7c5c' },
 };
 
 export const COLORS = Object.fromEntries(Object.values(PALETTE).map(({ name, hex }) => [name, hex]));
@@ -823,15 +830,6 @@ const FLAGSTONE = grid(`
   ...SSSS..
 `);
 
-const STOOL = grid(`
-  .oooooo.
-  onnnnnbo
-  onbbbbbo
-  oooooooo
-  .oB..Bo.
-  .oo..oo.
-`);
-
 const FLAG_POLE = grid(`
   .oo.........
   ouUo........
@@ -994,46 +992,6 @@ const SIGN_BOARD = grid(`
 `);
 
 export const ICONS = {
-  library: grid(`
-    .mm..mm.
-    m..mm..m
-    m..mm..m
-    m..mm..m
-    m..mm..m
-    .mmmmmm.
-  `),
-  workshop: grid(`
-    .mmmmmm.
-    .mmmmmm.
-    ....m...
-    ....m...
-    ....m...
-    ....m...
-  `),
-  'clip-studio': grid(`
-    m.mm.mm.
-    mmmmmmmm
-    m......m
-    m..m...m
-    m......m
-    mmmmmmmm
-  `),
-  'game-table': grid(`
-    .mmmmmm.
-    .mm...m.
-    .m..m.m.
-    .m....m.
-    .m...mm.
-    .mmmmmm.
-  `),
-  'building-site': grid(`
-    mmmmmmmm
-    m..m...m
-    mmmmmmmm
-    m...m..m
-    mmmmmmmm
-    ........
-  `),
   harbor: grid(`
     ...mm...
     ..m..m..
@@ -1103,58 +1061,7 @@ const STAKE = grid(`
   oo
 `);
 
-// ---------- building site, workshop, studio, game table ----------
-
-const SCAFFOLD = grid(`
-  .oooo.............oooo.............oooo.
-  .onbo.............onbo.............onbo.
-  .onbo.............onbo.............onbo.
-  oooooooooooooooooooooooooooooooooooooooo
-  onnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnno
-  obbbbbBbbbbbbbbBbbbbbbbbBbbbbbbbbBbbbbbo
-  oooooooooooooooooooooooooooooooooooooooo
-  .onbo......B......onboB...........Bonbo.
-  .onbo......B......onbo.B.........B.onbo.
-  .onbo......B......onbo..B.......B..onbo.
-  .onbo......B......onbo...B.....B...onbo.
-  .onbo......B......onbo....B...B....onbo.
-  .onbo......B......onbo.....B.B.....onbo.
-  .onbo....ooooo....onbo......B......onbo.
-  .onbo....osSSo....onbo.....B.B.....onbo.
-  .onbo....oSSSo....onbo....B...B....onbo.
-  .onbo.....ooo.....onbo...B.....B...onbo.
-  .onbo.............onbo..B.......B..onbo.
-  .onbo.............onbo.B.........B.onbo.
-  .onbo.............onboB...........Bonbo.
-  oooooooooooooooooooooooooooooooooooooooo
-  onnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnno
-  obbbbbBbbbbbbbbBbbbbbbbbBbbbbbbbbBbbbbbo
-  oooooooooooooooooooooooooooooooooooooooo
-  .onbo.............onbo...ob...bo...onbo.
-  .onbo.............onbo...obnnnbo...onbo.
-  .onboooooooo......onbo...ob...bo...onbo.
-  .onbocSccccc......onbo...ob...bo...onbo.
-  .onbosSsssss......onbo...ob...bo...onbo.
-  .onboSSSSSSSooooooonbo...obnnnbo...onbo.
-  .onbossssSsscccScconbo...ob...bo...onbo.
-  .onbossssSsssssSssonbo...ob...bo...onbo.
-  .onbossssSsssssSssonbo...ob...bo...onbo.
-  .onboSSSSSSSSSSSSSonbo...obnnnbo...onbo.
-  .onbosSsssssSsssssonbooooobo..bo...onbo.
-  .onbosSsssssSsssssonboccSobc..bo...onbo.
-  .onbosSsssssSsssssonbossSobs..bo...onbo.
-  .onboSSSSSSSSSSSSSonboSSSobnnnbooooonbo.
-  .onbossssSsssssSssonbosssobSccbocSconbo.
-  .onbossssSsssssSssonbosssobSssbosSsonbo.
-  .onbossssSsssssSssonbosssobSssbosSsonbo.
-  .onboSSSSSSSSSSSSSonboSSSobnnnboSSSonbo.
-  .onbosSsssssSsssssonbossSobsssbosssonbo.
-  .onbosSsssssSsssssonbossSobsssbosssonbo.
-  .onbosSsssssSsssssonbossSobsssbosssonbo.
-  .onboSSSSSSSSSSSSSonboSSSobnnnboSSSonbo.
-  .onbooooooooooooooonbooooobooobooooonbo.
-  .oooo.............oooo...oo...oo...oooo.
-`);
+// ---------- building materials and small props ----------
 
 const PLANKS = grid(`
   .oooooooooooooo.
@@ -1192,40 +1099,6 @@ const BARREL = grid(`
   ..oooooooo..
 `);
 
-const DESK = grid(`
-  ......oooooo......
-  ......oSSSSo......
-  ......oSScSo......
-  ......oSSSSo......
-  .oooooooooooooooo.
-  onnnnnnnnnnnnnnnbo
-  onnnnnnnnnnnnnnnbo
-  oooooooooooooooooo
-  obbbbbbbbbbbbbbbbo
-  oBBBBBBBBBBBBBBBBo
-  oooooooooooooooooo
-  .oBo..........oBo.
-  .oBo..........oBo.
-  .ooo..........ooo.
-`);
-
-const WORKBENCH = grid(`
-  ..............oo..
-  .oooooooooo..oSSo.
-  .onnnnnnnnbo.oSSo.
-  .oooooooooooooboo.
-  .oooooooooooooboo.
-  onnnnnnnnnnnnnnnbo
-  onnnnnnnnnnnnnnnbo
-  oooooooooooooooooo
-  obbbbbbbbbbbbbbbbo
-  oBBBBBBBBBBBBBBBBo
-  oooooooooooooooooo
-  .oBo..........oBo.
-  .oBo..........oBo.
-  .ooo..........ooo.
-`);
-
 const EASEL = grid(`
   ......oo......
   ..oooooooooo..
@@ -1245,19 +1118,62 @@ const EASEL = grid(`
   oo...ooo....oo
 `);
 
-const STUMP_TABLE = grid(`
-  ...oooooooooooooo...
-  ..onnnnnnnnnnnnnno..
-  .onnbbbbbbbbbbbbnno.
-  .onbnnnnoooonnnnbno.
-  .onbnnnnocconnnnbno.
-  .onnbbbbooooobbbnno.
-  .oonnnnnnnnnnnnnnoo.
-  .obBBbbbbBBbbbbBBbo.
-  .obBbbBbbbbBbbBbbbo.
-  oobBbbBbbbbBbbBbbboo
-  oooooooooooooooooooo
-`);
+// The crew's long workbench beside the camp: four places, each with its own bit of work.
+const CREW_BENCH = (() => {
+  const w = 64;
+  const line = (edge, fill, right = fill) => edge + fill.repeat(w - 3) + right + edge;
+  const legs = (ch) => {
+    const row = [...'.'.repeat(w)];
+    for (const x of [1, 30, 60]) { row[x] = 'o'; row[x + 1] = ch; row[x + 2] = 'o'; }
+    return row.join('');
+  };
+  let rows = [
+    ...Array.from({ length: 5 }, () => '.'.repeat(w)),
+    `.${'o'.repeat(w - 2)}.`,
+    line('o', 'n', 'b'),
+    line('o', 'n', 'b'),
+    'o'.repeat(w),
+    line('o', 'b', 'B'),
+    line('o', 'B'),
+    'o'.repeat(w),
+    legs('B'),
+    legs('B'),
+    legs('o'),
+  ];
+  const SCREEN = grid(`
+    oooooo
+    oSSSSo
+    oSeeSo
+    oSSSSo
+    oooooo
+    ..oo..
+  `);
+  const VICE = grid(`
+    .oooo.
+    .oSSo.
+    ooSsoo
+    oSSSSo
+    oooooo
+  `);
+  const PAPERS = grid(`
+    ooooooo.
+    occcCCoo
+    occcCoro
+    ooooooo.
+  `);
+  const MUG = grid(`
+    ooo.
+    oroo
+    oRoo
+    ooo.
+  `);
+  rows = stamp(rows, SCREEN, 5, 0);
+  rows = stamp(rows, VICE, 21, 1);
+  rows = stamp(rows, PAPERS, 36, 2);
+  rows = stamp(rows, MUG, 46, 2);
+  rows = stamp(rows, SCREEN, 53, 0);
+  return rows;
+})();
 
 // ---------- harbor ----------
 
@@ -1397,15 +1313,9 @@ export const SPRITES = {
   woodpile: [WOODPILE],
   garden: [GARDEN],
   flagstone: [FLAGSTONE],
-  stool: [STOOL],
   flag: [FLAG_POLE, FLAG_WAVE],
   lantern: [LANTERN],
   tower: [TOWER],
-  'sign.library': [signFor(ICONS.library)],
-  'sign.workshop': [signFor(ICONS.workshop)],
-  'sign.clip-studio': [signFor(ICONS['clip-studio'])],
-  'sign.game-table': [signFor(ICONS['game-table'])],
-  'sign.building-site': [signFor(ICONS['building-site'])],
   'sign.harbor': [signFor(ICONS.harbor)],
   'fence.post': [FENCE_POST],
   'fence.e': [FENCE_RAIL_E],
@@ -1413,14 +1323,11 @@ export const SPRITES = {
   'fence.n': [FENCE_RAIL_N],
   'fence.s': [FENCE_RAIL_S],
   stake: [STAKE],
-  scaffold: [SCAFFOLD],
   planks: [PLANKS],
   crate: [CRATE],
   barrel: [BARREL],
-  desk: [DESK],
-  workbench: [WORKBENCH],
+  'crew.bench': [CREW_BENCH],
   easel: [EASEL],
-  'stump.table': [STUMP_TABLE],
   dock: [DOCK],
   'dock.post': [DOCK_POST],
   boat: [BOAT],
