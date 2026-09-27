@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "about": "The Hearth: Milo's camp as a fortress that grows into a kingdom (WORLD.md §2). Hearthvale itself is always sanctuary: no rift ever opens inside it. Each tier pushes the Hearthward (wardRadius, in tiles beyond Hearthvale's edge) further into the wilds. Tiers need real progress (requirements, which can't be grinded), game materials and Construction. Every defence is a real MILO capability, usually an automation, so a stronger kingdom means fewer problems ever reach the walls.",
+  "tiers": [
+    {
+      "id": "camp",
+      "tier": 1,
+      "name": "The Camp",
+      "look": "A tent, a log cabin, a campfire with three stumps and a bench, and the iron Lantern Hook.",
+      "wardRadius": 0,
+      "requirements": [],
+      "materials": {},
+      "construction": 1,
+      "defences": [
+        { "name": "The Lantern Hook", "real": "Hearthvale is sanctuary: rifts open only in the wilds beyond it, and the closer one opens to the vale, the more urgent it is." },
+        { "name": "The Watchtower", "real": "Watchkeeping: every crew session, live." }
+      ],
+      "unlocks": ["Five plots for buildings", "Milo's greeting and task alerts"]
+    },
+    {
+      "id": "stockade",
+      "tier": 2,
+      "name": "The Stockade",
+      "look": "A timber palisade round the vale, a gate with a bell, and banners on the watchtower.",
+      "wardRadius": 12,
+      "requirements": [
+        { "kind": "crew-sessions-finished", "count": 20, "text": "Watch 20 crew sessions finish" },
+        { "kind": "buildings-designed", "count": 1, "text": "Design your first building" },
+        { "kind": "days-with-milo", "count": 7, "text": "Spend a week with MILO" }
+      ],
+      "materials": { "birch": 200, "ash": 60 },
+      "construction": 5,
+      "defences": [
+        { "name": "The War Table", "real": "Every open rift on one map with its real cause: the problems dashboard." },
+        { "name": "The Gate Bell", "real": "Rifts that reach the walls ring a soft bell (a desktop note), once." },
+        { "name": "The first ward-post", "real": "An auto-ward rule: quests you've marked 'someday' never open rifts until you ask." }
+      ],
+      "unlocks": ["A gate and palisade", "Room for a second row of plots", "The first outpost blueprint"]
+    },
+    {
+      "id": "hold",
+      "tier": 3,
+      "name": "The Hold",
+      "look": "Stone walls, a gatehouse with a portcullis, a barracks, and two squat ward-towers.",
+      "wardRadius": 28,
+      "requirements": [
+        { "kind": "focus-sessions", "count": 30, "text": "Complete 30 focus sessions" },
+        { "kind": "building-level", "count": 1, "text": "Prove a building's level 1" },
+        { "kind": "quests-finished", "count": 25, "text": "Finish 25 quests" }
+      ],
+      "materials": { "birch": 150, "stone": 200, "copperstone": 60 },
+      "construction": 15,
+      "defences": [
+        { "name": "Ward-towers", "real": "Two auto-ward rules of your choosing, such as: hold Nocturne rifts on a Stillday, or snooze admin rifts until Monday." },
+        { "name": "The Sally Port", "real": "Send the crew out from the gate: a queue for commissions, so they never pile up." },
+        { "name": "The Barracks", "real": "Residents who stay live here, each with their real service." }
+      ],
+      "unlocks": ["Residents' quarters", "Two ward-towers", "Outposts in explored land"]
+    },
+    {
+      "id": "keep",
+      "tier": 4,
+      "name": "The Keep",
+      "look": "A stone keep with Milo's lantern at the top of its tower, a bell tower, and a market square.",
+      "wardRadius": 48,
+      "requirements": [
+        { "kind": "delve-finished", "count": 1, "text": "Finish a project delve" },
+        { "kind": "days-with-milo", "count": 30, "text": "Spend a month with MILO" },
+        { "kind": "calendar-connected", "count": 1, "text": "Connect a calendar (Mistmere's fog lifts)" }
+      ],
+      "materials": { "stone": 500, "ironroot": 150, "diesel-cog": 10 },
+      "construction": 30,
+      "defences": [
+        { "name": "The Dawn Bell tower", "real": "The morning brief, rung from the keep." },
+        { "name": "Ballistae", "real": "Auto-dispatch rules: when a rift of a kind you choose opens (a failing check, say), a crew member sets out to fix it under a ward, and asks before changing anything important." },
+        { "name": "Lookouts", "real": "Rifts are seen on the horizon earlier: deadlines 7 days out instead of 2." }
+      ],
+      "unlocks": ["The keep and bell tower", "A branch of the Tide Market", "The Bindery's outpost", "Waystones to every outpost"]
+    },
+    {
+      "id": "castle",
+      "tier": 5,
+      "name": "The Castle",
+      "look": "Curtain walls with towers, a moat and drawbridge, guild halls, and a great hall with banners.",
+      "wardRadius": 72,
+      "requirements": [
+        { "kind": "buildings-at-level", "count": 3, "level": 3, "text": "Three buildings at level 3" },
+        { "kind": "focus-sessions", "count": 100, "text": "Complete 100 focus sessions" },
+        { "kind": "residents", "count": 6, "text": "Six residents living in the Hold" }
+      ],
+      "materials": { "stone": 1200, "ironroot": 400, "silverstone": 100, "essences-of-genres": 6 },
+      "construction": 45,
+      "defences": [
+        { "name": "Guild halls", "real": "Each faction's hall runs its domain's rules (the Quiet Order holds your evening bell; the Tide Syndics watch deadlines)." },
+        { "name": "The Hangar", "real": "Titan defence: big deadlines get a countdown and a plan the moment they're seen." },
+        { "name": "The Great Hall", "real": "Starfall, the weekly review, held as a feast." }
+      ],
+      "unlocks": ["Curtain walls and a moat", "Faction guild halls", "The Hangar", "Beacons on outposts (phone pings, opt-in)"]
+    },
+    {
+      "id": "citadel",
+      "tier": 6,
+      "name": "The Citadel",
+      "look": "Tiers of white stone climbing a hill, districts for every craft, an observatory dome.",
+      "wardRadius": 100,
+      "requirements": [
+        { "kind": "focus-sessions", "count": 250, "text": "Complete 250 focus sessions" },
+        { "kind": "days-with-milo", "count": 180, "text": "Six months with MILO" },
+        { "kind": "story-act", "count": 4, "text": "Finish Act IV" }
+      ],
+      "materials": { "stone": 3000, "tidesteel": 300, "starsilver": 60, "maelstrom-glass": 1 },
+      "construction": 60,
+      "defences": [
+        { "name": "The Observatory", "real": "Long sight: 14-day horizon for deadlines and Titans, and a monthly look ahead." },
+        { "name": "Siege engines", "real": "Bigger auto-dispatch: chains of crew runs (research, build, test) for rifts you choose." },
+        { "name": "Districts", "real": "A district per life skill, each showing that area's quests, buildings and rifts together." }
+      ],
+      "unlocks": ["Districts for every life skill", "Roads between outposts", "The Observatory"]
+    },
+    {
+      "id": "kingdom",
+      "tier": 7,
+      "name": "The Kingdom",
+      "look": "A walled city under the Lantern Spire, banners on every tower, roads out to every outpost.",
+      "wardRadius": 140,
+      "requirements": [
+        { "kind": "story-act", "count": 6, "text": "Finish Act VI" },
+        { "kind": "days-with-milo", "count": 365, "text": "A year with MILO" },
+        { "kind": "residents", "count": 12, "text": "Twelve residents" }
+      ],
+      "materials": { "stone": 8000, "starsilver": 300, "emberheart": 40, "maelstrom-glass": 6 },
+      "construction": 80,
+      "defences": [
+        { "name": "The Lantern Spire", "real": "The Hearthward reaches every outpost: your whole working world, watched." },
+        { "name": "Royal decrees", "real": "Standing rules for everything (focus, rest, crew, alerts) set as decrees and shown in one place." },
+        { "name": "The coronation", "real": "A title, a banner and a year-in-review written into the Chronicle." }
+      ],
+      "unlocks": ["The Lantern Spire", "Royal decrees", "A kingdom banner of your design"]
+    },
+    {
+      "id": "bright-kingdom",
+      "tier": 8,
+      "name": "The Bright Kingdom",
+      "look": "The Spire burns white; every befriended Elsewhere opens as a door around the city walls.",
+      "wardRadius": 200,
+      "requirements": [
+        { "kind": "story-act", "count": 7, "text": "Meet the Beginner at the Margin (Act VII)" },
+        { "kind": "skill-level", "count": 99, "text": "Reach 99 in any life skill" }
+      ],
+      "materials": { "maelstrom-glass": 12, "emberheart": 200 },
+      "construction": 99,
+      "defences": [
+        { "name": "The Bookmark", "real": "Every befriended Elsewhere becomes a door you can open from the walls, whenever you like." },
+        { "name": "The Kingdom's light", "real": "Your year, your buildings and your residents, shown on the far shelf beside other books." }
+      ],
+      "unlocks": ["Doors to every befriended Elsewhere", "The kingdom's light on the far shelf"]
+    }
+  ]
+}
