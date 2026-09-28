@@ -1,0 +1,359 @@
+{
+  "version": 1,
+  "about": "Words for the wilds beyond Hearthvale (WORLD.md §6 and the Phase 3 contract, §12): examine lines, notes from the Old Company, Tamsin’s unfinished statues and their Glimmers, each region’s arrival and Hush lines, hamlet greetings, stray lines by temperament, loot tables, mimics and chopping. The shell picks a line from each list by hashing the place’s id, so the same place always says the same thing. Loot ranges are inclusive.",
+  "examine": {
+    "lantern": {
+      "sleeping": [
+        "Cold, dusty and very patient. It remembers every lantern you’ve lit.",
+        "A Maker lantern on an old post. The wick’s still in there, waiting for someone to come along.",
+        "Cobwebs on the glass and a little soot from the last time. It would catch, if you asked it.",
+        "It’s been asleep a long while. Milo taps the glass, the way you’d knock on a friend’s door."
+      ],
+      "lit": [
+        "Warm again. From here you can step to any lantern you’ve lit, as easily as crossing a room.",
+        "Burning steady. Rest here, and it’ll be the first lantern on Milo’s travel list, right after home.",
+        "The glass is clean now. Somewhere down the road, another lantern knows this one’s lit.",
+        "A small, bright ring on the old road. Moths have already found it."
+      ]
+    },
+    "ruin": [
+      "Maker ruins. A doorway to nowhere and half a staircase, both left that way on purpose, probably.",
+      "Old stone, older than the road. Someone began a tower here and stopped at the second floor.",
+      "A Maker wall with its carvings worn soft by rain. Something might be tucked in the rubble.",
+      "Three pillars and a lintel, holding up nothing in particular, very carefully."
+    ],
+    "ruinSearched": [
+      "Searched. The stones have told you everything they know.",
+      "Nothing left in the rubble but moss and a good view.",
+      "You’ve been through this one. A lizard has moved back into the best gap."
+    ],
+    "cave": [
+      "A cave mouth, with cool air breathing out of it. It goes further than you’d think.",
+      "Dark, damp and humming faintly. Whatever’s in there is the patient sort.",
+      "A cave. The dripping inside keeps slow, even time, like a clock nobody wound."
+    ],
+    "chest": [
+      "An old iron-banded chest with its lid on a tilt. The latch looks willing.",
+      "Someone meant to come back for this. It’s been waiting politely ever since.",
+      "A traveller’s chest, gone mossy at the corners. Something shifts inside when you nudge it."
+    ],
+    "chestOpened": [
+      "Open and empty. The hinges sound rather pleased with themselves.",
+      "Already opened. It’s mostly air now, and a smell of cedar.",
+      "Nothing left inside but a dry leaf and a clear conscience."
+    ],
+    "hamlet": [
+      "A hamlet that swears it’s always been here. The smoke from its chimneys agrees.",
+      "A few cottages, a well and a cat who’s clearly in charge.",
+      "Washing on the line and bread cooling in a window. People have made a home of the in-between."
+    ],
+    "ore": [
+      "Streaks of ore in the stone, catching the light when the clouds move.",
+      "A knob of rock with something bright in its veins. Brannoch would know its name by the sound.",
+      "Good ore, close to the surface. Somebody will want a pick for this."
+    ],
+    "herbs": [
+      "Moss-sage and something that smells like rain. Nan Bristle would know every name.",
+      "A patch of wild herbs, with bees working it in shifts.",
+      "Soft leaves, a little silver underneath. They’d make a decent tea."
+    ],
+    "fishing": [
+      "Rings on the water where something’s rising. A good spot, if you’ve patience.",
+      "A still pool with a flat stone for sitting. The fish here have opinions too.",
+      "The water’s deep and clear. A trout looks up at you, unimpressed."
+    ],
+    "quay": [
+      "Captain Sloe’s quay. The ferry’s moored with its ropes coiled, going nowhere yet.",
+      "Grey planks, bleached by salt, and a bell for the ferryman. He says little and rows steadily.",
+      "Boats that go west leave from here. The water laps at the steps as if it’s counting."
+    ],
+    "landmark": [
+      "An old border stone, carved deep so the fog couldn’t wear the name away.",
+      "A waymark older than the road, with a small lantern cut into its top.",
+      "Past this stone the land belongs to its own story. You can feel the page change."
+    ],
+    "westwatch": {
+      "day": [
+        "A clifftop at the end of the west road. The sea runs grey-blue to the edge of seeing.",
+        "Wind, gulls and a long drop to the water. There’s more to see here after dark.",
+        "Nothing out there but sea, today. Come back on a clear night."
+      ],
+      "night": [
+        "On a clear night, a light turns, far out to sea. It turns back.",
+        "Far to the west, the Great Lighthouse turns. Milo watches it for a while and doesn’t say anything.",
+        "A tiny light on the horizon, steady as a heartbeat. That’s the Far Shore, holding the page open."
+      ]
+    },
+    "thicket": [
+      "Bramble and hawthorn grown thick as a wall. Only the gates go through.",
+      "A briar thicket round the vale’s edge. It’s kept the camp tucked in for three hundred years.",
+      "Too dense to push through, and full of wrens who’d rather you didn’t try."
+    ],
+    "palisade": [
+      "Birch and ash, sharpened, lashed and set deep. Hob would call it level to a hair.",
+      "The Stockade’s wall. Every post was a tree you chose, and it shows.",
+      "A timber palisade that still smells of sap. The lantern’s ring reaches well past it now."
+    ],
+    "gate": [
+      "One of the vale’s four gates. The old road starts just outside.",
+      "A gate worn smooth by three hundred years of nobody coming through, and now you.",
+      "The way out, and the way back in. Milo always knows which is which."
+    ],
+    "crag": [
+      "A crag of grey rock, too steep to climb and too old to mind.",
+      "Stone shouldering up out of the ground. Brannoch would talk to it, and it might answer.",
+      "Sheer rock with a gull’s nest on the ledge. Best go round."
+    ],
+    "tree": [
+      "Good timber, and a fine perch for any bird passing through.",
+      "It creaks a little in the wind, as if it’s thinking something over.",
+      "Older than the road, probably. It isn’t saying.",
+      "A tree with a good lean to it. Fell it today, and it’ll be standing again tomorrow."
+    ],
+    "stump": [
+      "Still smelling of sap. Milo tries it as a seat, briefly, and approves.",
+      "A fresh stump. It’ll grow back by tomorrow, the way things do out here.",
+      "Cut clean. Milo counts the rings and gives up at ninety."
+    ],
+    "note": [
+      "A folded note, tucked under a road stone. The ink’s gone brown, but it still reads.",
+      "Paper weighted with a pebble, the way the Old Company always left them.",
+      "A note from the Old Company. Someone wrote it by lantern-light, a long time ago."
+    ],
+    "statue": [
+      "Tamsin Wick, left unfinished on purpose, so nobody mistakes her for done.",
+      "Another of Tamsin’s statues. Something’s missing. She insisted.",
+      "Tamsin mid-stride, carved by someone who stopped short, as instructed."
+    ]
+  },
+  "notes": [
+    { "id": "note-01", "from": "Tamsin", "region": null, "text": "Whoever finds this: the fence by the third milestone had a loose rail, so I mended it. If it’s loose again, the nails are in the tin under this stone. Don’t tell Brannoch I used the wrong ones. — Tamsin" },
+    { "id": "note-02", "from": "Tamsin", "region": null, "text": "Note to self: north is not ‘whichever way looks nicest’. Oriel has drawn a little arrow on the back of my hand so I’ll remember. It’s smudged already. I think it’s pointing at lunch. — T." },
+    { "id": "note-03", "from": "Tamsin", "region": "whisperwood", "text": "Lost in the Whisperwood three times today. The owls don’t hoot at you, they just look, which is worse. Milo swears he knew the way all along and was letting me enjoy the moss. — T." },
+    { "id": "note-04", "from": "Tamsin", "region": null, "text": "Found a goat on the road who was sure she lived somewhere else. Walked her home. It took all afternoon, and she ate the end of my scarf. Mother knitted it too long anyway. If you’re a goat reading this, the farm with the blue gate is yours. — Tamsin" },
+    { "id": "note-05", "from": "Tamsin", "region": "dicing-downs", "text": "Lost to Brannoch at bones again. The dice stones showed me a six and him a one, and he still won. I’ve decided the Downs are on his side. I owe him one supper and one apology, in that order. — T." },
+    { "id": "note-06", "from": "Tamsin", "region": "far-shore", "text": "The Lighthouse is lit. It’s taller than Oriel said and exactly as tall as she said, which she insists is the same thing. Pell’s asleep in the long grass. Tomorrow we start home. Today we’re doing nothing at all. — T." },
+    { "id": "note-07", "from": "Tamsin", "region": null, "text": "Mended this week: one fence, two kettles, a quarrel, Pell’s sandal and a very small bridge. Broken this week: the very small bridge, first. Start small, end kindly. — T." },
+    { "id": "note-08", "from": "Tamsin", "region": null, "text": "If you’ve found this, you’re on the old road, which means you’re going somewhere. Good. When you get there, leave a little undone. Nothing in Hearthvale is ever quite finished, and everyone keeps coming back. — Tamsin Wick" },
+    { "id": "note-09", "from": "Tamsin", "region": null, "text": "Oriel keeps a list of my mistakes. She says it’s for history. It’s four pages long, and the first one is ‘walked into a lantern post, twice, same post’. In my defence, the post moved. — T." },
+    { "id": "note-10", "from": "Oriel", "region": "archive-peaks", "text": "The Stacks has ten thousand shelves. I’ve catalogued four. Brannoch asked why I was smiling. It’s because there are nine thousand, nine hundred and ninety-six to go. — O." },
+    { "id": "note-11", "from": "Oriel", "region": null, "text": "A Small Spell, collected today from a baker in a village with no name: the spell to keep bread from going stale on one side. One side only. Useless. Wonderful. Entry three hundred and eleven. — O." },
+    { "id": "note-12", "from": "Oriel", "region": null, "text": "Tamsin asked me tonight whether the Hush was angry with us. I said no, it’s only where things wait. She said that sounded lonely. I’ve been thinking about it for an hour, which for me is nothing, and for her is quite a lot. — O." },
+    { "id": "note-13", "from": "Oriel", "region": "ivory-college", "text": "The College wished to lend me a book. I explained, kindly, that I don’t return books; I keep them safe. They explained, less kindly, what lending is. We’ve agreed to disagree for the next two hundred years. — O." },
+    { "id": "note-14", "from": "Oriel", "region": null, "text": "To whoever lit the lantern at Hearthvale: the spell to keep tea exactly warm is three words and a little patience. I’ll teach it to you when you come up. Bring your own cup. I’ve only the one. — Oriel, of the Stacks" },
+    { "id": "note-15", "from": "Oriel", "region": null, "text": "Brannoch asked what earthly use the spell to find the end of the tape could be. Then he spent an evening fighting a roll of bandage, and I said nothing at all, very loudly. — O." },
+    { "id": "note-16", "from": "Oriel", "region": null, "text": "I remember every word Brannoch has ever said to me. There are fewer than you’d think. Most of them were ‘eat’. — O." },
+    { "id": "note-17", "from": "Brannoch", "region": "cinderforge", "text": "Bridge over the ravine hums a low D. Mine. If it goes flat, thank it and tap the third plank. Stone likes to be thanked. — B.D." },
+    { "id": "note-18", "from": "Brannoch", "region": null, "text": "Tamsin. Soup’s in the pot under the cloth. Eat it hot. Before the fence, not after the fence. — B." },
+    { "id": "note-19", "from": "Brannoch", "region": null, "text": "Left a spoon under here. Good spoon. Made it for Pell, who keeps losing them. If you need it, keep it. If you don’t, leave it for someone who does. — Brannoch" },
+    { "id": "note-20", "from": "Brannoch", "region": "whisperwood", "text": "Built the Last Bridge in the rain, over the Murmur. The river kept saying my last word back to me. Last word was ‘level’. Bridge came out very level. — B.D." },
+    { "id": "note-21", "from": "Brannoch", "region": null, "text": "Oriel asked me to write down how I feel. Hungry. Also proud of the kid. Don’t show her the second bit. — B." },
+    { "id": "note-22", "from": "Brannoch", "region": "skyward-isles", "text": "Wouldn’t go up in the kite. Stone doesn’t fly and neither do I. Held the rope instead. Held it all afternoon while Tamsin laughed at the clouds. Hands are fine. — B.D." },
+    { "id": "note-23", "from": "Pell", "region": "mistmere", "text": "Made the Company sit on the harbour wall for an hour. They sat. Brannoch sat on the pear cider, a loss to us all. Rest is part of the road, and so is laughing at a damp Cinderfolk. — Pell" },
+    { "id": "note-24", "from": "Pell", "region": null, "text": "Tamsin, dear, I heard your heartbeat from the next hill, and it’s quick. Sit on this stone a while and let it catch up with you. The Lighthouse will still be there tomorrow. — Sister Pell Marrow" },
+    { "id": "note-25", "from": "Pell", "region": "glass-fen", "text": "The water here shows other days. I saw us last spring, younger and wetter, and Tamsin was holding the map upside down then too. Some things the Fen needn’t bother showing you. — Pell" },
+    { "id": "note-26", "from": "Pell", "region": null, "text": "For a cut: seawater, a clean cloth and a joke. If you haven’t a joke, borrow one of Brannoch’s. It takes longer, but you’ll be too puzzled to feel the sting. — Sister Pell" },
+    { "id": "note-27", "from": "Pell", "region": "painted-hills", "text": "The painters in Easelmoor want me to sit for a portrait. I’ve said yes, if they paint me asleep. Resting’s the one thing I’m properly good at, and I’d like it remembered. — P." },
+    { "id": "note-28", "from": "Pell", "region": "greyreach", "text": "The Greyreach is full of things half done. That isn’t failure, dear. It’s waiting. Put yours down gently, and if it’s still calling you in a week, pick it up again. If not, wave it off west. — Pell" },
+    { "id": "note-29", "from": "Milo", "region": null, "text": "Carry list: the fire (me), the maps (dry), Tamsin’s other sock, Oriel’s cup, Brannoch’s spoon, Pell’s cider (half), one spare wick. Checked twice. Tamsin has already lost the sock. — M." },
+    { "id": "note-30", "from": "Milo", "region": null, "text": "The way home, in case anyone forgets: back over the humming bridges, past every lantern we lit, and on until the trees look as if they’ve been waiting for you. That’s Hearthvale. — Milo" },
+    { "id": "note-31", "from": "Milo", "region": null, "text": "Nothing left unlit tonight. I checked the crossroads lantern twice. The Company says I fuss. The Company is warm and dry, so. — M." },
+    { "id": "note-32", "from": "Milo", "region": null, "text": "Tamsin says I needn’t write everything down, because I’ll remember. I will. I’d just like the paper to remember too, in case. — M." },
+    { "id": "note-33", "from": "Milo", "region": null, "text": "Oriel let me borrow a book, which she says she’s never done for anyone. It’s about lanterns: mostly wrong, and very kind about us. I’ve pencilled small corrections in the margins. She won’t mind. She’ll mind. — M." },
+    { "id": "note-34", "from": "Milo", "region": null, "text": "Tamsin bought her first wick thirty years ago today. She says nobody counts from that. I do. — M." }
+  ],
+  "statues": {
+    "whisperwood": {
+      "missing": "her right ear, though she’s still cupping a hand to it",
+      "glimmer": "Deep in the pines, Tamsin stops the Company with one raised hand. “Listen.” Nothing but owls and rain. “That’s it,” she says. “That’s what I wanted you to hear.”"
+    },
+    "mistmere": {
+      "missing": "her left boot",
+      "glimmer": "Fog on the quay. Pell tips seawater out of Tamsin’s left boot and hands it back. “The tide wanted it more than you did.” Tamsin hops the whole way to the chapel, laughing."
+    },
+    "painted-hills": {
+      "missing": "the bristles of her brush",
+      "glimmer": "Easelmoor, late. Tamsin tries to paint the sunset and ends up with madder red on her nose. A painter tells her it’s the best thing in the gallery. She believes him for a week."
+    },
+    "ivory-college": {
+      "missing": "the words on the page she’s reading",
+      "glimmer": "The Examination Tower’s stairs, counted out loud. Tamsin loses count at two hundred and six. Oriel doesn’t. Brannoch carries lunch the whole way up, and at the top there’s a view."
+    },
+    "dicing-downs": {
+      "missing": "the die in her open palm",
+      "glimmer": "A dice stone at noon. It shows Tamsin a one, so she walks round it until it shows a six. “There,” she tells Milo. “Same stone. Better day.”"
+    },
+    "cinderforge": {
+      "missing": "the head of her little hammer",
+      "glimmer": "Sparks in the ravine. Brannoch hands Tamsin a hammer no bigger than a spoon, the first small thing he ever made. “For fences,” he says, and looks at the stone instead of her."
+    },
+    "glass-fen": {
+      "missing": "the brim of her rain hat",
+      "glimmer": "A still pool shows the Company from above: five small figures and one lantern. Tamsin leans over to wave at herself. Her reflection waves back a moment late, and she laughs about it for a mile."
+    },
+    "archive-peaks": {
+      "missing": "the last line of the letter in her hand",
+      "glimmer": "Snow on the Stacks’ windowsill. Oriel reads aloud from a very dull catalogue until Tamsin falls asleep on her shoulder. Oriel keeps reading, more quietly, to the end of the page."
+    },
+    "greyreach": {
+      "missing": "everything above her boots",
+      "glimmer": "The last fire before the Greyreach. Tamsin lists everything she’ll do after the Lighthouse. It takes an hour. She did about half of it, Milo remembers, and that half was plenty."
+    },
+    "skyward-isles": {
+      "missing": "the kite on the end of her string",
+      "glimmer": "Wind over the Kiteworks. Tamsin clings to a kite frame, laughing too hard to be frightened, while Brannoch holds the rope below and pretends not to watch."
+    },
+    "far-shore": {
+      "missing": "her scarf, which she’d already given away",
+      "glimmer": "Autumn, and Captain Sloe’s ferry bumps the quay. Tamsin, eighty-one, steps into the long grass and reaches for a scarf that isn’t there. “Keep him warm,” she tells the sea, and walks on up to the Lighthouse."
+    }
+  },
+  "regions": {
+    "whisperwood": {
+      "arrive": "The Whisperwood. Tall pines, deep moss, and a quiet you can hear your own thoughts in.",
+      "hush": "The wood waits in the Hush, grey and soft. Its owls are only sleeping, and it’ll wake in time."
+    },
+    "mistmere": {
+      "arrive": "Mistmere Harbor. Grey stone, blue shutters and fog off the water. The Tide Clock ticks on.",
+      "hush": "The harbour waits in the Hush, its ships at anchor. A calendar will wake it, in time."
+    },
+    "painted-hills": {
+      "arrive": "The Painted Hills. Madder on the slopes, woad in the hollows, weld along the ridges.",
+      "hush": "The colour here waits in the Hush, pale as paint left out in the rain. It’ll come back in time."
+    },
+    "ivory-college": {
+      "arrive": "The Ivory College. Pale cloisters, a great observatory and a hundred students who all look tired.",
+      "hush": "The College waits in the Hush, as if between terms. Its bells are only resting, and they’ll ring again."
+    },
+    "dicing-downs": {
+      "arrive": "The Dicing Downs. Stones carved like dice, and each one shows you a different number.",
+      "hush": "The Downs wait in the Hush. Nobody’s rolled the dice in a while, but the game will start again in time."
+    },
+    "cinderforge": {
+      "arrive": "Cinderforge. Basalt, ember-light, and rope bridges humming a low D across the ravine.",
+      "hush": "The forges wait in the Hush, banked low and grey. Cinderfolk fires never quite go out, and these will wake in time."
+    },
+    "glass-fen": {
+      "arrive": "The Glass Fen. The water’s so still it shows other days. Mind your step, and your reflection.",
+      "hush": "The Fen waits in the Hush, its pools gone grey and quiet. In time they’ll show the right day again."
+    },
+    "archive-peaks": {
+      "arrive": "The Archive Peaks. Snow, thin air, and the Stacks carved into the mountain, with paper birds overhead.",
+      "hush": "The peaks wait in the Hush and will wake in time. Up there, Oriel is pretending she isn’t waiting too."
+    },
+    "greyreach": {
+      "arrive": "The Greyreach. Everything left for someday drifts here, and it’s stranger and lovelier than you’d think.",
+      "hush": "The Hush is thickest here, but nothing in it is lost. It all waits, and it’ll wake when it’s ready."
+    },
+    "skyward-isles": {
+      "arrive": "The Skyward Isles. Islands riding the wind, and a courier bird for everything that crosses.",
+      "hush": "The isles drift in the Hush with their kites furled. They’ll catch the wind again in time."
+    },
+    "far-shore": {
+      "arrive": "The Far Shore. White cliffs, long grass, and the Great Lighthouse turning slowly overhead.",
+      "hush": "The Far Shore rests in the Hush, still and unhurried. It’ll wake when Captain Sloe’s ferry comes."
+    }
+  },
+  "hamlets": {
+    "greetings": [
+      "Oh, hello. We don’t get many from the vale. Mind the goose, she bites the polite ones.",
+      "They say someone’s lit the lantern at Hearthvale. Was that you? Good. The kettle’s on.",
+      "We’ve always been here, whatever the maps say. Stay as long as you like.",
+      "You’ve the look of someone walking the old road. It’s a good road. Keep to the lanterns.",
+      "Milo, is it? My gran told me about a little lantern in a long scarf. I thought she’d made you up.",
+      "Nothing much happens here, and we like it that way. Come back when you’ve a story to tell.",
+      "Mind the well-bucket, it swings. And if you see a goat heading north, she’s ours.",
+      "Bread’s just out of the oven, if you’d like a heel of it. No, keep your coins. We don’t use them."
+    ]
+  },
+  "strays": {
+    "shy": [
+      "Oh. Sorry. I’m not meant to be in this chapter. I’ll just stand very still.",
+      "In my book I’m only ever in the background. It’s strange, being looked at.",
+      "I don’t usually have lines. Is this one? I think this might be one.",
+      "If you mend the seam, could you do it gently? I’d like to slip back in without a fuss."
+    ],
+    "curious": [
+      "Your trees don’t flicker. How do you get them to hold still like that?",
+      "Is it always this quiet here? Where I’m from, something’s always about to happen.",
+      "What’s a lantern for, if nothing’s chasing you? Just for light? Only for light?",
+      "Your sky’s the wrong colour. I like it. Can I take a little bit home?"
+    ],
+    "grumpy": [
+      "I was in the middle of a scene. A good scene. Now I’m in a field.",
+      "Nobody here has read my book. I find that very rude.",
+      "Your weather is far too pleasant. I don’t trust it.",
+      "I want to go home and be cross in my own chapter, where it counts."
+    ],
+    "dramatic": [
+      "Torn from my own pages and cast out onto a meadow. There are daisies. It’s unbearable.",
+      "Remember me, stranger, if the thread goes through before my chapter ends.",
+      "My book ends on a cliffhanger, and I’m the one hanging. Well, I was.",
+      "Is there an audience? There’s always an audience. I can feel them."
+    ],
+    "sleepy": [
+      "Is it still night in my book? It feels like it ought to be night.",
+      "I only stepped out for a minute. Then there was all this grass, and it was so soft.",
+      "Wake me when the seam’s mended. Or don’t. Either’s fine.",
+      "Your little lantern’s very warm. I’ll just rest my eyes beside it."
+    ],
+    "polite": [
+      "I beg your pardon, I seem to have wandered off my page. Which way is the binding?",
+      "Thank you for not shouting. Where I’m from, everyone shouts.",
+      "Might I trouble you for directions? I’m meant to be at a ball, or a heist. One of those.",
+      "Lovely place you have. I’ll be out of your way the moment the thread goes through."
+    ],
+    "lost": [
+      "Is this chapter three? It doesn’t look like chapter three.",
+      "I followed a light, and now I can’t find the page I came in on.",
+      "Someone was going to tell me what happens next. I think they’re still in the other book.",
+      "Which way’s home? It had rain in it, and a street, and a sign I always meant to read."
+    ],
+    "nosy": [
+      "What’s in that chest? I won’t touch it. I’d just like to know.",
+      "Who lives in that little cottage? What do they do all day? Is it nice?",
+      "Your lantern friend keeps looking at me. What’s he thinking? You can tell me.",
+      "I read ahead in my own book once. Don’t tell anyone. It was worth it."
+    ],
+    "proud": [
+      "In my book I have a whole chapter to myself. Here I’m just a stray.",
+      "I’ll have you know I’m the finest of my kind in three volumes and an appendix.",
+      "Back home they drew me on the cover. Well, the back cover. Still counts.",
+      "I don’t need any help. I’d accept some, though. Graciously."
+    ]
+  },
+  "loot": {
+    "chest": { "birch": [8, 20], "ash": [3, 10], "pine": [0, 6] },
+    "ruin": { "birch": [0, 10], "ash": [4, 12], "pine": [0, 4] },
+    "tabletChance": 0.25,
+    "mimicChance": 0.12
+  },
+  "mimic": [
+    "That chest has teeth. Nice teeth, though. It hands over its things and looks pleased you came.",
+    "The lid opens by itself and grins. It’s been hoping for company since before the Hush.",
+    "A mimic. It licks your sleeve, which tickles, then politely coughs up its treasure.",
+    "The chest yawns, stretches its little wooden legs and asks if you’ll be back. You might be."
+  ],
+  "chop": {
+    "birch": [
+      "Pale chips fly, and the birch comes down tidy, the way birches do.",
+      "Birch, good and dry. Milo stacks the logs the way the Company did, bark side up.",
+      "Crack, lean, fall. A clean cut and a sweet smell of sap."
+    ],
+    "ash": [
+      "Ash splits straight and true. Hob would approve.",
+      "Heavy logs of ash, the kind that burn slow and quiet all night.",
+      "The ash comes down with a long, polite creak."
+    ],
+    "pine": [
+      "Resin on everything and a sharp green smell. The pine lets go at last.",
+      "Pine logs, sticky and bright. The owls move one tree over, grumbling.",
+      "Down comes the pine, its needles falling like a short rain."
+    ]
+  },
+  "notes_later": {
+    "cave": "Caves open with the Adventurer’s Kit. For now there’s only cool air and the sound of dripping.",
+    "gathering": "Gathering comes with the Notice Board. Until then, it’s simply nice to look at.",
+    "ferry": "The ferry waits for Act VI. Captain Sloe will take you west when the story gets there."
+  }
+}

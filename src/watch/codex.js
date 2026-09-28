@@ -25,6 +25,17 @@
 //   Every native Codex turn has a turn_context with the same turn_id, so only those turns count as
 //   Codex's work. Most replayed records are stamped with the import time.
 // - Rollouts are append-only and can pass 100 MB, so they are read incrementally (parseIncremental).
+// - Codex's allowance readings ride on `event_msg` token_count records as payload.rate_limits:
+//   { limit_id, limit_name, primary, secondary, credits, plan_type, ... } or null. primary and
+//   secondary are null or { used_percent (0..100), window_minutes, resets_at (seconds) }. The
+//   account's own bucket has limit_id 'codex'; model-specific buckets (other ids, usually at 0%) are
+//   written too and must not replace it. Since Sept 2026 the 'codex' bucket is a weekly primary with
+//   secondary null; before that it was a 5-hour primary plus a weekly secondary. "rate_limits"
+//   starts about 450-510 bytes into the line (the reading runs on well past the 512-byte head), so
+//   each token_count line gets a bounded byte check and only a line holding a reading is parsed.
+// - Codex appends records in the order it writes them, and within a file the timestamps have always
+//   followed that order (1,639 readings checked). A clock that jumps can break it, so a file's
+//   reading is the last one appended, not the one with the latest stamp.
 
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
@@ -61,6 +72,101 @@ const SUBAGENT_THREAD_SOURCES = new Set(['subagent', 'guardian_review']);
 const LINE_HEAD_RE = /^\{"timestamp":"([^"]*)",(?:"ordinal":\d+,)?"type":"([a-z_]+)"(?:,"payload":\{"type":"([A-Za-z_]+)")?/;
 const FILE_ID_RE = /rollout-[\dT:-]+?-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
 const REQUEST_MARKER_RE = /^#{1,3}\s*My request(?: for Codex)?:[ \t]*$/m;
+// The account-wide allowance bucket. Readings from any other bucket are ignored.
+export const CAPACITY_LIMIT_ID = 'codex';
+// Only token_count lines holding this (a non-null reading) are ever parsed. A Buffer, so the
+// bounded per-line check never re-encodes the key.
+const RATE_LIMITS_KEY = Buffer.from('"rate_limits":{');
+// How far past the scan time a reading's stamp may be and still be placed in time: enough for the
+// few seconds a sync nudges the clock, or a record written while the scan runs. A stamp further
+// ahead was made by a clock that was wrong then or is wrong now, so its order is unknown.
+export const CLOCK_SKEW_MS = 5 * 60 * 1000;
+// Readings of one window give refill times up to 14 s apart (checked on the real files); the next
+// window refills hours or days later.
+const SAME_WINDOW_MS = 10 * 60 * 1000;
+
+/** One rate-limit window as { usedPercent, windowMinutes, resetsAt (ms) }, or null when unusable. */
+function readWindow(window, at) {
+  if (!window || typeof window !== 'object') return null;
+  const used = window.used_percent;
+  if (typeof used !== 'number' || !Number.isFinite(used)) return null;
+  const minutes = window.window_minutes;
+  let resetsAt = toMs(window.resets_at);
+  // Older Codex builds wrote how long until the refill instead of when.
+  const inSeconds = window.resets_in_seconds;
+  if (!resetsAt && typeof inSeconds === 'number' && Number.isFinite(inSeconds) && inSeconds >= 0 && at) {
+    resetsAt = at + Math.round(inSeconds * 1000);
+  }
+  return {
+    usedPercent: Math.min(100, Math.max(0, used)),
+    windowMinutes: typeof minutes === 'number' && Number.isFinite(minutes) && minutes > 0 ? minutes : 0,
+    resetsAt,
+  };
+}
+
+/**
+ * The capacity reading in one token_count payload.rate_limits, taken at `at` (ms):
+ * { usedPercent, resetsAt (ms), windowMinutes, at }, or null when it is missing, from another
+ * bucket, or has no usable window. Of primary and secondary, the fuller window wins (on a tie, the
+ * one that refills later, since that is when there is room again).
+ */
+export function pickRateLimits(rateLimits, at) {
+  if (!rateLimits || typeof rateLimits !== 'object' || Array.isArray(rateLimits)) return null;
+  const id = rateLimits.limit_id;
+  if (id !== undefined && id !== null && id !== '' && id !== CAPACITY_LIMIT_ID) return null;
+  let best = null;
+  for (const window of [readWindow(rateLimits.primary, at), readWindow(rateLimits.secondary, at)]) {
+    if (!window) continue;
+    if (!best || window.usedPercent > best.usedPercent
+      || (window.usedPercent === best.usedPercent && window.resetsAt > best.resetsAt)) best = window;
+  }
+  if (!best) return null;
+  return { usedPercent: best.usedPercent, resetsAt: best.resetsAt, windowMinutes: best.windowMinutes, at };
+}
+
+/** The newer of two readings (by `at`; on a tie, the fuller one). Either may be null. */
+export function newerReading(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  if (b.at !== a.at) return b.at > a.at ? b : a;
+  return b.usedPercent > a.usedPercent ? b : a;
+}
+
+/**
+ * Which of two readings came later, judged by the allowance rather than by stamps: `placed` has a
+ * stamp that can be trusted, `ahead` one that can't. Refill times come from Codex's servers, not
+ * this PC's clock. A later window is newer. Inside one window usage only climbs (real readings dip
+ * by 3 points at most), so the fuller reading is newer. On a tie the one that can be placed stands,
+ * as it does when the windows are of different lengths or a refill time isn't known.
+ */
+function laterByAllowance(placed, ahead) {
+  if (placed.windowMinutes !== ahead.windowMinutes || !placed.resetsAt || !ahead.resetsAt) return placed;
+  const drift = ahead.resetsAt - placed.resetsAt;
+  if (drift > SAME_WINDOW_MS) return ahead;
+  if (drift < -SAME_WINDOW_MS) return placed;
+  return ahead.usedPercent > placed.usedPercent ? ahead : placed;
+}
+
+/**
+ * The newest of a list of readings (nulls skipped), or null. Readings are ordered by `at` (see
+ * newerReading), except those stamped more than CLOCK_SKEW_MS past `now`: a clock that was wrong
+ * then, or is wrong now, made them, so time can't place them against the rest. The newest of those
+ * is weighed against the newest of the rest by the allowance itself (laterByAllowance). That way a
+ * reading from a clock that ran hours ahead neither hides the real ones written after the clock
+ * was put right nor gets passed over for older ones. The result doesn't depend on the order.
+ */
+export function latestReading(readings, now) {
+  const judged = typeof now === 'number' && Number.isFinite(now);
+  let placed = null;
+  let ahead = null;
+  for (const reading of readings) {
+    if (!reading) continue;
+    if (judged && reading.at > now + CLOCK_SKEW_MS) ahead = newerReading(ahead, reading);
+    else placed = newerReading(placed, reading);
+  }
+  if (!ahead || !placed) return ahead || placed;
+  return laterByAllowance(placed, ahead);
+}
 
 export function isSubagentMeta(meta) {
   if (!meta) return false;
@@ -143,6 +249,9 @@ export const codexRolloutParser = {
       modelAt: 0,
       firstTs: 0,
       lastTs: 0,
+      // The last usable allowance reading appended to this file. Replaced, never changed in place,
+      // so the cached state and earlier finish() values can share it.
+      rateLimits: null,
       stop: false,
     };
   },
@@ -205,6 +314,14 @@ export const codexRolloutParser = {
           state.lastMessageAt = ts;
         }
       }
+    } else if (type === 'event_msg' && payloadType === 'token_count') {
+      // The last reading appended wins, whatever its stamp says (see the notes at the top). Lines
+      // with rate_limits null or missing fail the bounded byte check and are never parsed.
+      if (!ts) return;
+      if (!record && !buffer.subarray(start, end).includes(RATE_LIMITS_KEY)) return;
+      record = record || parseJson(lineText());
+      const reading = record && record.payload ? pickRateLimits(record.payload.rate_limits, ts) : null;
+      if (reading) state.rateLimits = reading;
     } else if (type === 'turn_context') {
       record = record || parseJson(lineText());
       const payload = record && record.payload;
@@ -256,6 +373,7 @@ export const codexRolloutParser = {
       modelAt: state.modelAt,
       firstTs: state.firstTs,
       lastTs: state.lastTs,
+      rateLimits: state.rateLimits,
     };
   },
 };
@@ -414,6 +532,9 @@ export function buildCodexThread(threadId, parts, { now, names = new Map(), impo
     model,
     source: originator,
     archived: ordered.every((part) => part.archived),
+    // Codex never waits on Chris mid-turn (its rollouts hold no approval events), so there's
+    // nothing to time.
+    waitingSince: null,
   };
   return {
     session,
@@ -427,9 +548,13 @@ export function buildCodexSession(threadId, parts, options) {
 }
 
 /**
- * Scan a Codex home. Returns { source, sessions, imports } where source matches
- * Snapshot.sources.codex and imports maps each listed imported thread id to
- * { sourceSessionId, nativeEvents }. Subagent and review threads are left out of the list.
+ * Scan a Codex home. Returns { source, sessions, imports, capacity } where source matches
+ * Snapshot.sources.codex, imports maps each listed imported thread id to
+ * { sourceSessionId, nativeEvents }, and capacity is the newest allowance reading found in any
+ * rollout, archived ones included ({ usedPercent, resetsAt, windowMinutes, at }, see
+ * pickRateLimits and latestReading), or null. Its `at` is as written, so it can be past `now`.
+ * Subagent and review threads are left out of the list; their files are never read past line 1,
+ * so their readings wait for the parent thread's next one.
  */
 export async function scanCodex({ home, now = Date.now(), cache = new Map() } = {}) {
   const source = { ok: false, path: home || '', count: 0, live: false };
@@ -437,7 +562,7 @@ export async function scanCodex({ home, now = Date.now(), cache = new Map() } = 
   const homeStat = home ? await statSafe(home) : null;
   if (!homeStat || !homeStat.isDirectory()) {
     source.error = "Couldn't find Codex's folder on this PC.";
-    return { source, sessions: [], imports: imported };
+    return { source, sessions: [], imports: imported, capacity: null };
   }
 
   const [active, archived] = await Promise.all([
@@ -446,7 +571,7 @@ export async function scanCodex({ home, now = Date.now(), cache = new Map() } = 
   ]);
   if (!active && !archived) {
     source.error = "Codex hasn't saved any sessions here yet.";
-    return { source, sessions: [], imports: imported };
+    return { source, sessions: [], imports: imported, capacity: null };
   }
   source.ok = true;
 
@@ -473,6 +598,10 @@ export async function scanCodex({ home, now = Date.now(), cache = new Map() } = 
   ]);
   pruneCache(cache, seen);
 
+  // The allowance is the account's, not a thread's: every file's reading counts, whatever the
+  // file turns out to be, and the newest record wins (not the newest file).
+  const capacity = latestReading(parsed.map((part) => part && part.summary.rateLimits), now);
+
   const threads = new Map();
   for (const part of parsed) {
     if (!part || part.summary.subagent || !part.summary.threadId) continue;
@@ -491,5 +620,5 @@ export async function scanCodex({ home, now = Date.now(), cache = new Map() } = 
     if (thread.imported) imported.set(threadId, thread.imported);
   }
   source.count = sessions.length;
-  return { source, sessions, imports: imported };
+  return { source, sessions, imports: imported, capacity };
 }

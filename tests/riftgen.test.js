@@ -268,3 +268,38 @@ test('loot fits the rift: its genres\' essences, a Maelstrom glass for a Maelstr
   }
   assert.ok(relics > 50, `${relics} relics`);
 });
+
+test('a {num} or {time} that comes back in one pattern reads the same both times', () => {
+  // Every pattern here repeats its numbers and times; a {place} is a pattern of its own.
+  const twice = structuredClone(words);
+  for (const g of Object.values(twice.genres)) {
+    g.patterns = ['{num} past {num}, {time} to {time}'];
+    g.patternsReal = ['{subject}: {num} past {num}, {time} to {time}'];
+    g.bossPatterns = ['{num} of {place}, the {num}'];
+    g.quotes = ['Error {num}. Always error {num}, from {time} until {time}.'];
+    g.places = ['Level {num}'];
+  }
+  const gen = createRiftgen({ words: twice, genres });
+  const same = (text, re) => {
+    const m = text.match(re);
+    assert.ok(m, `${text} matches ${re}`);
+    assert.equal(m[1], m[2], `the same {num} twice in “${text}”`);
+    if (m.length > 3) assert.equal(m[3], m[4], `the same {time} twice in “${text}”`);
+  };
+  const nums = new Set();
+  const times = new Set();
+  const check = (spec) => {
+    if (spec.genres.length === 1) {
+      same(spec.name, /(\d+) past (\d+), (\d:\d\d) to (\d:\d\d)$/);
+      nums.add(spec.name.match(/(\d+) past/)[1]);
+      times.add(spec.name.match(/, (\d:\d\d) to/)[1]);
+    }
+    same(spec.taleLead.name, /^(\d+) of Level \d+, the (\d+)$/);
+    same(spec.taleLead.line, /^Error (\d+)\. Always error (\d+), from (\d:\d\d) until (\d:\d\d)\.$/);
+    for (const c of spec.taleLead.council || []) same(c, /^(\d+) of Level \d+, the (\d+)$/);
+  };
+  for (let i = 0; i < 400; i += 1) check(gen.wildRift({ seed: hashInts(i, 'twice'), tier: 1 + (i % 8) }));
+  for (const g of genres.genres) check(gen.realRift({ key: `repo-${g.id}`, subject: 'milo', signals: [g.signals[0]] }));
+  // Still rolled afresh for each rift, not fixed.
+  assert.ok(nums.size > 20 && times.size > 20, `${nums.size} numbers, ${times.size} times`);
+});

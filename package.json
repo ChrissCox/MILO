@@ -7,7 +7,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/watch.test.js tests/core.test.js tests/world.test.js tests/kit.test.js tests/architect.test.js tests/genres.test.js tests/riftgen.test.js tests/worldgen.test.js",
+    "test": "node --test tests/watch.test.js tests/core.test.js tests/world.test.js tests/kit.test.js tests/architect.test.js tests/genres.test.js tests/riftgen.test.js tests/worldgen.test.js tests/rifts.test.js tests/content.test.js tests/art.test.js tests/wilds.test.js tests/elsewhere.test.js tests/mapview.test.js tests/shell.test.js tests/scene.test.js",
     "test:ui": "node tests/ui.mjs"
   },
   "devDependencies": {

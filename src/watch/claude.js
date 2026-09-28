@@ -637,6 +637,14 @@ export function buildClaudeSession(sessionId, summary, registry, now, mtimeMs = 
   let startedAt = (summary && summary.startedAt) || (registry && registry.startedAt) || lastActivityAt;
   if (startedAt > lastActivityAt) startedAt = lastActivityAt;
   const completions = summary ? summary.completions.slice(-MAX_COMPLETIONS) : [];
+  // How long a live session has waited on Chris: the moment the registry status changed. Nothing
+  // is written to the transcript while a prompt waits, but subagent writes can move
+  // lastActivityAt later, so it is only the fallback.
+  let waitingSince = null;
+  if (live && status === 'needs-you') {
+    waitingSince = registry.statusUpdatedAt || lastActivityAt || null;
+    if (waitingSince && now && waitingSince > now) waitingSince = now;
+  }
   return {
     id: `claude:${sessionId}`,
     agent: 'claude',
@@ -655,6 +663,7 @@ export function buildClaudeSession(sessionId, summary, registry, now, mtimeMs = 
     model: (summary && summary.model) || '',
     source: (summary && summary.entrypoint) || (registry && registry.entrypoint) || '',
     archived: Boolean(archived) && !live,
+    waitingSince,
   };
 }
 

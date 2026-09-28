@@ -596,6 +596,213 @@ div.plot-note .px-btn { flex: none; }
 
 [data-state="designing"] .dot { background: var(--working); }
 
+/* ------------------------------------------------------------------------------------------
+   Phase 3: the Hearth, the frontier and the wilds.
+   ------------------------------------------------------------------------------------------ */
+
+/* The Map button sits in the title bar (drawn there; it comes after the world in tab order). */
+.titlebar-slot { flex: none; width: 76px; }
+html:not(.phase3) .titlebar-slot { display: none; }
+.map-button {
+  position: fixed;
+  top: 0;
+  right: 132px;
+  height: 32px;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-soft);
+  -webkit-app-region: no-drag;
+}
+.map-button[hidden] { display: none; }
+.map-button svg { fill: currentColor; flex: none; }
+.map-button:hover { background: var(--cream-3); color: var(--ink); }
+.map-button:focus-visible { outline-offset: -4px; }
+.map-button[aria-pressed="true"] { color: var(--ink); background: var(--cream-3); }
+
+/* The story card, under the crew strip. */
+.tracker {
+  position: absolute;
+  left: 14px;
+  top: var(--tracker-top, 76px);
+  z-index: 5;
+  width: 250px;
+  max-width: calc(100% - 28px);
+  padding: 9px 12px 10px;
+}
+.tracker[hidden] { display: none; }
+.tracker[data-collapsed="true"] { width: auto; padding: 0; background: none; box-shadow: none; }
+.tracker-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.tracker-title { font-size: 13.5px; font-weight: 700; margin-top: 3px; line-height: 1.3; }
+.tracker-hint { font-size: 12px; color: var(--ink-soft); line-height: 1.4; margin-top: 3px; }
+.tracker-actions { display: flex; align-items: center; gap: 12px; margin-top: 9px; }
+.tracker-hide { margin-left: auto; width: 24px; height: 22px; display: grid; place-items: center; color: var(--ink-soft); }
+.tracker-hide svg { fill: currentColor; }
+.tracker-hide:hover { background: var(--cream-2); }
+.tracker-pill {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--ink-soft);
+  background: var(--cream);
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 0 4px 0 0 var(--drop);
+}
+.tracker-pill:hover { background: var(--cream-2); color: var(--ink); }
+.px-btn.small { padding: 3px 9px; font-size: 11.5px; }
+.stage[data-panel="open"] .tracker { max-width: calc(100% - var(--panel-w) - 48px); }
+
+/* Inside an Elsewhere: a slim banner along the top, and the crew strip moves down beneath it. */
+.elsewhere-banner {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 8px 6px 14px;
+  min-height: 40px;
+}
+.elsewhere-banner[hidden] { display: none; }
+.stage[data-panel="open"] .elsewhere-banner { right: calc(var(--panel-w) + 28px); }
+.stage[data-area="elsewhere"] .crew-strip { top: 70px; }
+.banner-text { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; min-width: 0; }
+.banner-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.banner-name { font-size: 13.5px; font-weight: 700; overflow-wrap: anywhere; }
+.banner-depth { font-size: 11.5px; color: var(--ink-soft); }
+.elsewhere-banner .px-btn { flex: none; }
+.elsewhere-banner .genre-chips { margin: 0; }
+
+/* Genre chips and tags. */
+.genre-chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 5px 0 0; }
+.genre-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 650; padding: 0 7px 0 5px; line-height: 18px; background: var(--cream-3); color: var(--ink-soft); }
+.genre-chip i { width: 8px; height: 8px; background: var(--rim, var(--slate)); box-shadow: 0 0 0 1px var(--ink); flex: none; }
+.stage-tag, .kind-tag { font-size: 10.5px; font-weight: 700; padding: 0 7px; line-height: 18px; background: var(--cream-3); color: var(--ink-soft); white-space: nowrap; }
+.kind-tag { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+
+/* Rift rows: the watchtower's Rifts section and the War Table. */
+.rift-list { display: grid; gap: 8px; }
+.rift-row { padding: 9px 10px 10px 13px; background: var(--cream-2); box-shadow: inset 3px 0 0 0 var(--rim, var(--idle)); min-width: 0; }
+.rift-row[data-walls="true"] { background: #f8edd2; }
+.rift-row[data-held="true"], .rift-row.closed { box-shadow: inset 3px 0 0 0 var(--idle); }
+.rift-row.closed .rift-name { font-weight: 600; color: var(--ink-soft); }
+.rift-row-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.rift-name { font-size: 13.5px; font-weight: 700; line-height: 1.3; text-align: left; min-width: 0; overflow-wrap: anywhere; }
+button.rift-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.rift-cause { font-size: 12.5px; line-height: 1.4; color: var(--ink); margin-top: 6px; overflow-wrap: anywhere; }
+.rift-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+.rift-row-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; margin-left: 2px; }
+.rift-row .confirm { margin-top: 10px; }
+.group-note { font-size: 11.5px; color: var(--muted); line-height: 1.4; margin: -3px 0 8px; }
+
+/* The rift panel. */
+.rift-art { background: #2a2d3a; }
+.rift-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rift-tags .genre-chips { margin: 0; }
+.rift-where { font-size: 12px; color: var(--ink-soft); margin: 8px 0 12px; }
+.rift-section { margin-top: 14px; }
+.rift-section h3, .letter-section h3 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+.rift-text { font-size: 13px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.rift-mood { font-size: 12px; line-height: 1.45; color: var(--muted); font-style: italic; margin-top: 12px; overflow-wrap: anywhere; }
+.rift-facts { display: grid; gap: 5px; }
+.rift-facts li { font-size: 12.5px; line-height: 1.4; color: var(--ink-soft); overflow-wrap: anywhere; }
+.rift-facts strong { color: var(--ink); font-weight: 650; }
+.rift-facts .qty { color: var(--muted); white-space: nowrap; }
+.lead-line { font-size: 12.5px; color: var(--ink-soft); margin-top: 4px; padding-left: 9px; box-shadow: inset 2px 0 0 0 var(--line); }
+.rift-actions .ask-actions { margin-top: 12px; }
+.plot-note[data-note="ward"], .plot-note[data-note="held"] { background: var(--green-soft); color: var(--ink); }
+
+/* The War Table's map of the frontier: the land fills its frame edge to edge (the shell paints it
+   a little wider than the frame at whole pixels, and the frame trims the spare evenly). */
+.war-map { padding: 0; overflow: hidden; background: #9fd4e6; }
+.war-map .plot-canvas { max-width: none; flex: none; }
+/* A place in the wilds: its picture is the ground it stands on (grass, the Hush's sage, a bleed or
+   water), painted as wide as the frame, so no strip of vale grass shows round it. */
+.poi-art { padding: 0; overflow: hidden; }
+.poi-art .plot-canvas { max-width: none; flex: none; }
+.defences .setting-block { display: block; }
+.ward-options { margin-top: 8px; }
+
+/* The Hearth. */
+.hearth-art { background: #aad48f; }
+.hearth-tier { font-size: 13px; color: var(--ink-soft); margin-bottom: 4px; }
+.hearth-tier strong { color: var(--ink); font-weight: 700; }
+.hearth-ward { font-size: 12px; color: var(--ink-soft); line-height: 1.4; background: var(--cream-2); padding: 7px 10px; margin-bottom: 4px; }
+.hearth-h4 { font-size: 11px; font-weight: 700; color: var(--ink-soft); margin: 12px 0 6px; }
+.hearth-next .skill { margin-bottom: 0; }
+.hearth-note { margin-top: 10px; }
+.hearth-raise { margin-top: 12px; }
+.hearth-raise .plot-note { margin: 0; }
+.req-note { display: block; font-size: 11px; font-weight: 400; color: var(--muted); }
+.levels li[data-level-state="future"] { color: var(--muted); }
+.levels .have { font-weight: 700; color: var(--ink); }
+.levels li[data-level-state="proven"] .have { color: var(--green-text); }
+.defence-list { display: grid; gap: 6px; }
+.defence-list li { font-size: 12px; line-height: 1.4; color: var(--ink-soft); padding: 6px 9px; background: var(--cream-2); overflow-wrap: anywhere; }
+.defence-list strong { display: block; font-size: 12.5px; color: var(--ink); font-weight: 650; }
+.hearth-defences .defence-list li { background: var(--cream-2); box-shadow: inset 3px 0 0 0 var(--green); }
+.satchel-materials { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.satchel-materials li { display: flex; align-items: center; gap: 7px; padding: 7px 9px; background: var(--cream-2); font-size: 12px; color: var(--ink-soft); }
+.satchel-count { margin-left: auto; font-size: 13px; color: var(--ink); }
+.log { width: 12px; height: 8px; flex: none; box-shadow: 0 0 0 1px var(--ink); }
+.log-birch { background: linear-gradient(90deg, #fff6e2 0 3px, #3d4038 3px 4px, #fff6e2 4px 8px, #3d4038 8px 9px, #fff6e2 9px); }
+.log-ash { background: #cfa57d; }
+.log-pine { background: #a57e60; }
+.essence-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.essence-list li { font-size: 11.5px; padding: 1px 7px; background: var(--cream-3); color: var(--ink-soft); }
+.essence-list .qty { color: var(--muted); }
+
+/* Lanterns and places in the wilds. */
+.wild-line { font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin-bottom: 8px; overflow-wrap: anywhere; }
+.letter { margin: 10px 0 0; padding: 11px 13px 12px; background: #fdf9ee; box-shadow: 0 0 0 2px var(--line), 0 3px 0 0 var(--drop); }
+.letter p { font-size: 13px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.letter p + p { margin-top: 8px; }
+.letter footer { margin-top: 9px; font-size: 12px; color: var(--ink-soft); text-align: right; }
+.letter.glimmer { background: var(--green-soft); }
+.letter.greeting { background: var(--cream-2); }
+.travel-list { display: grid; gap: 4px; }
+.travel-btn { width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 10px; text-align: left; font-size: 13px; background: var(--cream-2); overflow-wrap: anywhere; }
+.travel-btn:hover { background: var(--cream-3); }
+.plot-note[data-note="result"] { background: var(--green-soft); color: var(--ink); }
+
+/* The Prologue. */
+.story-steps { gap: 6px; }
+.story-steps li { grid-template-columns: 14px minmax(0, 1fr) auto; }
+.story-steps .step-text, .story-steps .step-hint { grid-column: 2 / -1; font-size: 12px; line-height: 1.45; font-weight: 400; overflow-wrap: anywhere; }
+.story-steps .step-text { color: var(--ink-soft); margin-top: 2px; }
+.story-steps .step-hint { color: var(--ink); font-weight: 600; }
+.letter-section { margin-top: 16px; }
+
+/* A pixel select, for the evening bell. */
+.px-select {
+  flex: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--ink);
+  padding: 4px 8px;
+  background: var(--cream);
+  border: 0;
+  border-radius: 0;
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink);
+}
+.px-select:focus { outline: none; }
+.px-select:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+label.setting-name { display: block; }
+
 /* Motion off: nothing slides or fades. */
 .still *, .still *::before, .still *::after { transition: none !important; animation: none !important; }
 @media (prefers-reduced-motion: reduce) {

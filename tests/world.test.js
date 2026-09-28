@@ -1,8 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TILE, MAP, PLACES, PLOT_IDS, LEGACY_PLACE_IDS, TERRAIN, isWalkable, findPath, placeAt, placeById, plotById, buildableArea, plotGate, terrainAt } from '../src/world/map.js';
-import { SPRITES, PALETTE, MILO, CREW_ART, ICONS, mirror, sym, stamp, breathe, shiftRows } from '../src/world/sprites.js';
+import { SPRITES, PALETTE, MILO, CREW_ART, ICONS, mirror, sym, stamp, breathe, shiftRows, rowsToImageData } from '../src/world/sprites.js';
 import { createWorld, crewRoute, makeWay, objectBoxes, paintGround, plotLook, plotOptions } from '../src/world/engine.js';
+import { readFileSync } from 'node:fs';
+import { createRiftgen } from '../src/world/riftgen.js';
+import { createWorldgen, GATES } from '../src/world/worldgen.js';
+import { createWilds } from '../src/world/wilds.js';
+import { outfitPixels, spriteTable, bleedAt, bleedCover, COAT_TONES } from '../src/world/riftfx.js';
+import { buildElsewhere } from '../src/world/elsewhere.js';
 
 const PLOTS = { 'plot-meadow': 'Long meadow', 'plot-rise': 'Sunny rise', 'plot-birch': 'Birch hollow', 'plot-pond': 'Pondside plot', 'plot-orchard': 'Old orchard' };
 const PLACE_IDS = ['camp', 'watchtower', ...Object.keys(PLOTS), 'harbor'];
@@ -373,10 +379,12 @@ function manualClock() {
 function fakeDom({ width = 1000, height = 700, clock = null } = {}) {
   const listeners = {};
   const draws = [];
-  const makeContext = () => new Proxy({}, {
+  // A canvas's context; what's put into it is kept as owner.pixels (so a test can look at a sprite).
+  const makeContext = (owner = null) => new Proxy({}, {
     get(target, prop) {
-      if (prop === 'drawImage') return (image, ...args) => draws.push({ image, args });
+      if (prop === 'drawImage') return (image, ...args) => draws.push({ image, args, alpha: target.globalAlpha ?? 1 });
       if (prop === 'createImageData') return (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) });
+      if (prop === 'putImageData' && owner) return (image) => { owner.pixels = image.data; };
       if (prop in target) return target[prop];
       return () => {};
     },
@@ -414,8 +422,10 @@ function fakeDom({ width = 1000, height = 700, clock = null } = {}) {
     addEventListener() {},
     removeEventListener() {},
     createElement() {
-      const context = makeContext();
-      return { width: 1, height: 1, getContext: () => context };
+      const element = { width: 1, height: 1, pixels: null };
+      const context = makeContext(element);
+      element.getContext = () => context;
+      return element;
     },
   };
   const context = makeContext();
@@ -1028,5 +1038,1419 @@ test('a building being redesigned stays standing behind a scaffold', () => {
   } finally {
     world.dispose();
     cleanup();
+  }
+});
+
+// ---------- the wilds (Phase 3, CONTRACT-PHASE3.md §3, §7.4 and §9 G) ----------
+
+const CONTENT = Object.fromEntries(['genres', 'riftgen', 'fortress', 'wilds', 'story'].map((name) => [name, JSON.parse(readFileSync(new URL(`../content/${name}.json`, import.meta.url), 'utf8'))]));
+const RIFTGEN = createRiftgen({ words: CONTENT.riftgen, genres: CONTENT.genres });
+const WORLDGEN = createWorldgen({ seed: 'hushlands', regionWords: CONTENT.riftgen.regionWords });
+const WILDS = createWilds({ worldgen: WORLDGEN });
+const GATE_TILES = Object.fromEntries(Object.entries(GATES).map(([id, g]) => [id, { x: g.edge.x + g.dir.x, y: g.edge.y + g.dir.y, dir: g.dir }]));
+const HEART_PX = { x0: 0, y0: 0, x1: MAP.width * TILE, y1: MAP.height * TILE };
+const inHeartTile = (t) => t.x >= 0 && t.y >= 0 && t.x < MAP.width && t.y < MAP.height;
+const isGateTile = (t) => Object.values(GATE_TILES).some((g) => g.x === t.x && g.y === t.y);
+const onRing = (t) => t.x >= -1 && t.y >= -1 && t.x <= MAP.width && t.y <= MAP.height && !inHeartTile(t);
+const settleFrames = (ms = 40) => new Promise((resolve) => setTimeout(resolve, ms));
+const flush = async () => { for (let i = 0; i < 8; i += 1) await Promise.resolve(); };
+// Runs the manual clock until a promise settles; → its value.
+async function drive(clock, promise, ms = 30000) {
+  let settled = false;
+  let value;
+  promise.then((v) => { settled = true; value = v; });
+  for (let t = 0; t < ms && !settled; t += 100) {
+    clock.advance(100);
+    await flush();
+  }
+  assert.ok(settled, 'it settles');
+  return value;
+}
+
+// A synthetic rift with these genres at this stage (the generator's own, nothing real).
+function testSpec(genreIds, stage, salt = 0) {
+  const weights = Object.fromEntries(CONTENT.genres.genres.map((g) => [g.id, genreIds.includes(g.id) ? 400 : 0.0001]));
+  for (let seed = 1 + salt * 7919; seed < 20000 + salt * 7919; seed += 1) {
+    const spec = RIFTGEN.wildRift({ seed, tier: 2, depth: 1, weights });
+    if (spec.stage === stage && spec.genres.length === genreIds.length && genreIds.every((g) => spec.genres.includes(g))) return spec;
+  }
+  throw new Error(`no ${genreIds} ${stage} spec`);
+}
+function testRift(genreIds, stage, x, y, extra = {}) {
+  const spec = testSpec(genreIds, stage, extra.salt || 0);
+  return {
+    id: spec.id, key: `test:${spec.id}`, kind: 'real', realKind: 'knocking', spec, x, y, beyond: 8, towards: null, stage: spec.stage,
+    urgency: 0.5, bright: false, warded: null, held: null, atWalls: false, cause: 'A test rift.', stitch: 'Nothing to mend.', since: 0, echo: null, subject: null, ...extra,
+  };
+}
+
+function wildWorld({ dom = {}, ...options } = {}) {
+  const env = fakeDom(dom);
+  const events = { moves: [], areas: [], explored: [], entities: [], hovers: [] };
+  const world = createWorld(env.canvas, {
+    motion: () => false,
+    content: CONTENT,
+    onMiloMove: (tile) => events.moves.push(tile),
+    onAreaChange: (info) => events.areas.push(info),
+    onExplore: (keys) => events.explored.push(...keys),
+    onEntityClick: (entity) => events.entities.push(entity),
+    onHover: (info) => events.hovers.push(info),
+    ...options,
+  });
+  world.setWildState({ day: 20000, tier: 1, wardRadius: 0, closed: [], lit: [], opened: [], felled: {} });
+  return { world, events, ...env };
+}
+
+// Where a world pixel sits on screen, from Milo's head (the one screen position the engine reports).
+function screenOf(world, wx, wy) {
+  const head = world.miloScreenPos();
+  const tile = world.miloTile();
+  return { x: head.x + (wx - (tile.x * TILE + 8)) * world.scale, y: head.y + (wy - (tile.y * TILE + 13 - 19)) * world.scale };
+}
+
+test('wilds: Milo walks out of each of the four gates and back in', async () => {
+  const clock = manualClock();
+  const { world, events, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+  try {
+    for (const [id, gate] of Object.entries(GATE_TILES)) {
+      assert.equal(await drive(clock, world.travelTo('home')), true);
+      events.moves.length = 0;
+      const beyond = { x: gate.x + gate.dir.x * 3, y: gate.y + gate.dir.y * 3 };
+      assert.equal(await drive(clock, world.walkTo(beyond)), true, `${id}: he gets out`);
+      assert.deepEqual(world.miloTile(), beyond);
+      assert.ok(events.moves.some((t) => t.x === gate.x && t.y === gate.y), `${id}: through its gate tile`);
+      assert.ok(events.moves.every((t) => !onRing(t) || isGateTile(t)), `${id}: never over a wall`);
+      assert.equal(world.area().area, 'wilds');
+      events.moves.length = 0;
+      assert.equal(await drive(clock, world.walkTo(MAP.miloHome)), true, `${id}: and back home`);
+      assert.deepEqual(world.miloTile(), MAP.miloHome);
+      assert.ok(events.moves.some((t) => t.x === gate.x && t.y === gate.y), `${id}: in by the same gate`);
+      assert.equal(world.area().area, 'vale');
+    }
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: the ring round the vale is shut everywhere but the gates', async () => {
+  const clock = manualClock();
+  const { world, listeners, events, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+  try {
+    for (const tier of [1, 2]) {
+      world.setWildState({ tier, wardRadius: tier >= 2 ? 12 : 0 });
+      for (let x = -1; x <= MAP.width; x += 1) {
+        for (const y of [-1, MAP.height]) assert.equal(world.isWalkable(x, y), isGateTile({ x, y }), `tier ${tier}: ${x},${y}`);
+      }
+      for (let y = 0; y < MAP.height; y += 1) {
+        for (const x of [-1, MAP.width]) assert.equal(world.isWalkable(x, y), isGateTile({ x, y }), `tier ${tier}: ${x},${y}`);
+      }
+    }
+    const war = WILDS.warTable();
+    assert.equal(world.isWalkable(war.x, war.y), false, 'the War Table stands in the way at tier 2');
+    // A step at a wall goes nowhere; a walk to just past one goes round by a gate.
+    assert.equal(await drive(clock, world.travelTo({ x: 0, y: 13 })), true);
+    assert.deepEqual(world.miloTile(), { x: 0, y: 13 });
+    listeners.keydown({ key: 'ArrowLeft', preventDefault() {} });
+    listeners.keyup({ key: 'ArrowLeft' });
+    clock.advance(600);
+    assert.deepEqual(world.miloTile(), { x: 0, y: 13 }, 'the palisade holds');
+    events.moves.length = 0;
+    assert.equal(await drive(clock, world.walkTo({ x: -3, y: 13 })), true);
+    assert.deepEqual(world.miloTile(), { x: -3, y: 13 });
+    assert.ok(events.moves.some((t) => t.x === GATE_TILES['gate:w'].x && t.y === GATE_TILES['gate:w'].y), 'out by the west gate');
+    assert.ok(events.moves.every((t) => !onRing(t) || isGateTile(t)), 'never over a wall');
+    // Straight back over the wall is refused too: a walk that can only go round goes round.
+    events.moves.length = 0;
+    assert.equal(await drive(clock, world.walkTo({ x: 0, y: 13 })), true);
+    assert.ok(events.moves.some((t) => t.x === GATE_TILES['gate:w'].x && t.y === GATE_TILES['gate:w'].y), 'in by the west gate');
+    assert.ok(events.moves.every((t) => !onRing(t) || isGateTile(t)));
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: no rift, stray or seal is ever drawn inside the vale', async () => {
+  const { world, draws, cleanup } = wildWorld();
+  try {
+    const inside = testRift(['neon'], 'gaping', 20, 20);
+    const ring = testRift(['gothic'], 'open', 20, -1, { salt: 1 });
+    const north = testRift(['nocturne'], 'gaping', 30, -5, { salt: 2 });
+    const south = testRift(['iron', 'neon'], 'gaping', 14, 48, { salt: 3 });
+    const east = testRift(['void'], 'open', 68, 20, { salt: 4 });
+    world.setRifts([inside, ring, north, south, east]);
+    const seen = new Set();
+    const drawnRiftBits = () => draws.filter((d) => typeof d.image._milo === 'string' && /^(tear|stray|seal|letgo):/.test(d.image._milo));
+    for (const tile of [{ x: 30, y: 1 }, { x: 11, y: 42 }, { x: 62, y: 19 }, { x: 1, y: 20 }, { x: 20, y: 12 }, { x: 30, y: -6 }]) {
+      assert.equal(await world.travelTo(tile), true);
+      world.settle();
+      draws.length = 0;
+      world.resize(); // a fresh still frame
+      await settleFrames();
+      for (const d of drawnRiftBits()) {
+        seen.add(d.image._milo);
+        const [x, y] = d.args;
+        const clear = x + d.image.width <= HEART_PX.x0 || y + d.image.height <= HEART_PX.y0 || x >= HEART_PX.x1 || y >= HEART_PX.y1;
+        assert.ok(clear, `${d.image._milo} at ${x},${y} (${d.image.width}×${d.image.height}) stays out of the vale`);
+      }
+    }
+    const drawn = (rift) => seen.has(`tear:${rift.id}`);
+    assert.ok(drawn(north) && drawn(south) && drawn(east), 'the rifts outside were drawn');
+    assert.ok(!drawn(inside) && !drawn(ring), 'the ones given in the vale or on its wall never are');
+    assert.ok([...seen].some((tag) => tag.startsWith('stray:')), 'and their strays');
+    // Closing one near the wall: its seal is drawn outside too.
+    world.closeRift(north.id, 'sealed');
+    assert.equal(world.nearbyEntities().some((e) => e.id === north.id), false);
+    // And the vale's own picture never has a rift in it.
+    draws.length = 0;
+    world.renderMap(1);
+    assert.equal(drawnRiftBits().length, 0);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: travel to a lantern, home or a tile, with a calm fade when motion is on', async () => {
+  const lantern = WILDS.fixedPois().find((p) => p.type === 'lantern');
+  {
+    const { world, events, cleanup } = wildWorld();
+    try {
+      assert.equal(await world.travelTo(lantern.id), true);
+      assert.deepEqual(world.miloTile(), { x: lantern.x, y: lantern.y }, 'at the lantern, where he stands to light it');
+      assert.deepEqual(events.moves.at(-1), { x: lantern.x, y: lantern.y }, 'the shell hears where he went');
+      assert.equal(world.area().area, 'wilds');
+      assert.ok(events.areas.at(-1).chunk === `${Math.floor(lantern.x / 32)},${Math.floor(lantern.y / 32)}`);
+      assert.ok(world.nearbyEntities().some((e) => e.id === lantern.id && e.kind === 'lantern'), 'it is in the list, nearest first');
+      assert.equal(world.nearbyEntities()[0].id, lantern.id);
+      assert.equal(await world.travelTo('home'), true);
+      assert.deepEqual(world.miloTile(), MAP.miloHome);
+      assert.equal(await world.travelTo({ x: 40, y: -20 }), true);
+      const at = world.miloTile();
+      assert.ok(Math.abs(at.x - 40) <= 3 && Math.abs(at.y + 20) <= 3 && world.isWalkable(at.x, at.y), 'a tile: there or just beside it');
+      assert.equal(await world.travelTo('lantern:9999,9999'), false, 'nowhere');
+      assert.equal(await world.travelTo({ x: 20, y: 20 }), true, 'a walkable vale tile');
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+  {
+    const clock = manualClock();
+    const { world, draws, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+    try {
+      let done = false;
+      const trip = world.travelTo(lantern.id).then((ok) => { done = ok; });
+      clock.advance(200);
+      assert.deepEqual(world.miloTile(), MAP.miloHome, 'still home while the view fades out');
+      assert.ok(world.stats().fade > 0.2, 'fading');
+      clock.advance(400);
+      await Promise.resolve();
+      await Promise.resolve();
+      assert.deepEqual(world.miloTile(), { x: lantern.x, y: lantern.y }, 'moved while the view is dark');
+      for (let i = 0; i < 12 && !done; i += 1) {
+        clock.advance(120);
+        await flush();
+      }
+      assert.equal(done, true);
+      assert.ok(world.stats().fade === 0, 'and faded back in');
+      assert.ok(draws.length > 0);
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+});
+
+test('wilds: chopping a tree takes a moment, faces it, and a felled tree is left alone', async () => {
+  {
+    const { world, cleanup } = wildWorld();
+    try {
+      await world.travelTo({ x: 26, y: -6 });
+      const tree = world.nearbyEntities().find((e) => e.kind === 'tree');
+      assert.ok(tree, 'a tree nearby');
+      const result = await world.chop(tree.id);
+      assert.deepEqual(result, { ok: true, kind: tree.wood });
+      const at = world.miloTile();
+      assert.equal(Math.abs(at.x - tree.x) + Math.abs(at.y - tree.y), 1, 'beside the tree');
+      world.setWildState({ felled: { [tree.id]: 20000 } });
+      assert.equal((await world.chop(tree.id)).ok, false, 'a stump gives nothing more');
+      assert.equal((await world.chop('tree:9999,9999')).ok, false);
+      assert.equal((await world.chop('lantern:1,1')).ok, false);
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+  {
+    const clock = manualClock();
+    const { world, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+    try {
+      await world.travelTo({ x: 26, y: -6 });
+      const tree = world.nearbyEntities().find((e) => e.kind === 'tree');
+      // Walk beside it first (the walk resolves as the clock runs).
+      const approach = tree.approach;
+      const walk = world.walkTo(approach);
+      clock.advance(3000);
+      await walk;
+      let result = null;
+      world.chop(tree.id).then((r) => { result = r; });
+      await flush();
+      clock.advance(2000);
+      await flush();
+      assert.equal(result, null, 'still chopping after two seconds');
+      assert.ok(world.stats().chopAge >= 1900);
+      clock.advance(700);
+      await flush();
+      assert.deepEqual(result, { ok: true, kind: tree.wood }, 'done in about two and a half');
+      // A walk of Chris's stops a chop: it settles, with nothing gained.
+      let second = null;
+      world.chop(tree.id).then((r) => { second = r; });
+      await flush();
+      clock.advance(500);
+      world.walkTo(MAP.miloHome);
+      await flush();
+      assert.deepEqual(second, { ok: false, kind: tree.wood });
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+});
+
+// ---------- a walk begun part way through a step ----------
+
+const WILD_STATE = { day: 20000, tier: 1, wardRadius: 0, closed: [], lit: [], opened: [], felled: {} };
+// Where Milo is drawn, in art px from the campfire (a spot that never moves), read off keepClear.
+function fromFire(world) {
+  const rects = world.keepClear();
+  const milo = rects.find((r) => r.kind === 'milo');
+  const fire = rects.find((r) => r.kind === 'campfire');
+  return { x: (milo.x - fire.x) / world.scale, y: (milo.y - fire.y) / world.scale };
+}
+// Whether he stands exactly on his tile's feet, against `ref` ({ tile, at }) taken on a tile.
+function onTileFeet(world, ref) {
+  const at = fromFire(world);
+  const tile = world.miloTile();
+  return at.x === ref.at.x + (tile.x - ref.tile.x) * TILE && at.y === ref.at.y + (tile.y - ref.tile.y) * TILE;
+}
+// A world with motion on and the manual clock, Milo at home (31, 22), the vale alone or the wilds.
+function stepWorld(wilds, options = {}) {
+  const clock = manualClock();
+  const env = fakeDom({ clock });
+  const events = { moves: [], entities: [] };
+  const world = createWorld(env.canvas, {
+    motion: () => true,
+    content: wilds ? CONTENT : undefined,
+    startTile: { x: 31, y: 22 },
+    onMiloMove: (tile) => events.moves.push(tile),
+    onEntityClick: (entity) => events.entities.push(entity),
+    ...options,
+  });
+  if (wilds) world.setWildState(WILD_STATE);
+  clock.advance(100);
+  const ref = { tile: world.miloTile(), at: fromFire(world) };
+  return { world, clock, events, ref, ...env };
+}
+
+test('a walk begun part way through a step turns onto its way and ends on its tile', async () => {
+  for (const wilds of [false, true]) {
+    for (const after of [60, 100, 150]) {
+      const label = `${wilds ? 'wilds' : 'vale'}, ${after} ms in`;
+      const { world, clock, events, ref, listeners, cleanup } = stepWorld(wilds);
+      try {
+        assert.deepEqual(ref.tile, { x: 31, y: 22 });
+        world.walkTo({ x: 31, y: 28 });
+        clock.advance(after);
+        assert.ok(!onTileFeet(world, ref), `${label}: part way down his first step`);
+        // Then a spot off to the side: the new way begins at right angles to the step he's in.
+        const value = await drive(clock, world.walkTo({ x: 26, y: 23 }));
+        assert.equal(value, wilds ? true : undefined, label);
+        assert.deepEqual(world.miloTile(), { x: 26, y: 23 }, label);
+        assert.deepEqual(events.moves.at(-1), { x: 26, y: 23 }, `${label}: the shell hears he got there`);
+        assert.ok(onTileFeet(world, ref), `${label}: standing on it`);
+        // And the arrow keys walk on from there, a tile at a time.
+        const [key, next] = [['ArrowRight', { x: 27, y: 23 }], ['ArrowLeft', { x: 25, y: 23 }], ['ArrowDown', { x: 26, y: 24 }], ['ArrowUp', { x: 26, y: 22 }]]
+          .find(([, t]) => world.isWalkable(t.x, t.y));
+        listeners.keydown({ key, preventDefault() {} });
+        listeners.keyup({ key });
+        clock.advance(600);
+        assert.deepEqual(world.miloTile(), next, label);
+        assert.ok(onTileFeet(world, ref), label);
+      } finally {
+        world.dispose();
+        cleanup();
+      }
+    }
+  }
+});
+
+test('a walk with nowhere to go, begun part way through a step, still leaves Milo on a tile', async () => {
+  for (const wilds of [false, true]) {
+    for (const where of ['his own tile', 'water he cannot reach']) {
+      const label = `${wilds ? 'wilds' : 'vale'}, ${where}`;
+      const { world, clock, ref, cleanup } = stepWorld(wilds);
+      try {
+        world.walkTo({ x: 31, y: 28 });
+        clock.advance(120);
+        assert.ok(!onTileFeet(world, ref), `${label}: part way down his first step`);
+        const dest = where === 'his own tile' ? world.miloTile() : { x: 60, y: 42 };
+        const value = await drive(clock, world.walkTo(dest));
+        assert.equal(value, wilds ? where === 'his own tile' : undefined, `${label}: it says whether he got there`);
+        assert.deepEqual(world.miloTile(), { x: 31, y: 22 }, label);
+        assert.ok(onTileFeet(world, ref), `${label}: back on his tile, not between two`);
+      } finally {
+        world.dispose();
+        cleanup();
+      }
+    }
+  }
+});
+
+test('wilds: a walk to an entity or a chop begun part way through a step gets there, on a tile', async () => {
+  {
+    // The shell's Step through and Visit wait on walkToEntity: it has to settle.
+    const { world, clock, events, ref, cleanup } = stepWorld(true);
+    try {
+      world.setEchoes([{ id: 'echo:rift:a', riftId: 'rift:a', place: 'plot-birch', icon: 'spark', genre: 'neon', label: 'A spark' }]);
+      world.walkTo({ x: 31, y: 28 });
+      clock.advance(100);
+      assert.ok(!onTileFeet(world, ref), 'part way down his first step');
+      assert.equal(await drive(clock, world.walkToEntity('echo:rift:a')), true);
+      assert.equal(events.entities.at(-1).id, 'echo:rift:a', 'opened on arrival');
+      assert.deepEqual(world.miloTile(), placeById('plot-birch').door);
+      assert.ok(onTileFeet(world, ref));
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+  {
+    // Beside a tree but just stepping away: he steps back onto his tile and chops from there.
+    const { world, clock, cleanup } = stepWorld(true);
+    try {
+      assert.equal(await drive(clock, world.travelTo({ x: 26, y: -6 })), true);
+      const tree = world.nearbyEntities().find((e) => e.kind === 'tree');
+      assert.equal(await drive(clock, world.walkTo(tree.approach)), true);
+      const ref = { tile: world.miloTile(), at: fromFire(world) };
+      const away = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+        .map(([dx, dy]) => ({ x: ref.tile.x + dx * 3, y: ref.tile.y + dy * 3 }))
+        .find((t) => world.isWalkable(t.x, t.y) && !(t.x === tree.x && t.y === tree.y));
+      world.walkTo(away);
+      clock.advance(100);
+      assert.deepEqual(world.miloTile(), ref.tile, 'still beside the tree');
+      assert.ok(!onTileFeet(world, ref), 'part way through his first step away');
+      assert.deepEqual(await drive(clock, world.chop(tree.id)), { ok: true, kind: tree.wood });
+      assert.deepEqual(world.miloTile(), ref.tile);
+      assert.ok(onTileFeet(world, ref), 'chopped standing on his tile');
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+});
+
+test('wilds: Milo steps through a rift into its Elsewhere, stitches it and comes back out', async () => {
+  const { world, events, cleanup } = wildWorld();
+  try {
+    await world.travelTo({ x: 30, y: -10 });
+    const rift = { ...testRift(['frontier'], 'open', 34, -12), kind: 'wild', key: null };
+    assert.equal(await world.enterElsewhere(rift), true);
+    const inside = world.elsewhere();
+    assert.equal(inside.riftId, rift.id);
+    assert.equal(inside.name, rift.spec.name);
+    assert.equal(inside.depth, rift.spec.depth);
+    const area = events.areas.at(-1);
+    assert.equal(area.area, 'elsewhere');
+    assert.deepEqual(area.rift, { id: rift.id, name: rift.spec.name });
+    assert.equal(world.area().area, 'elsewhere');
+    const spawn = world.miloTile();
+    assert.equal(world.isWalkable(spawn.x, spawn.y), true, 'he arrives on the scene’s own floor');
+    const kinds = new Set(world.nearbyEntities().map((e) => e.kind));
+    assert.ok(kinds.has('exit'), 'the way home is right behind him');
+    const moves = events.moves.length;
+    // Walk to the seam and open it there.
+    assert.equal(await world.walkToEntity('stitch'), true);
+    assert.equal(events.entities.at(-1).kind, 'stitch');
+    assert.equal(events.entities.at(-1).refused, false, 'a wild seam takes the thread');
+    assert.equal(events.moves.length, moves, 'steps in an Elsewhere are not saved');
+    world.closeRift(rift.id, 'stitched');
+    assert.equal(world.nearbyEntities().some((e) => e.kind === 'stitch'), false, 'the seam is closed');
+    assert.equal(await world.walkTo('camp'), false, 'no vale places in here');
+    // Leave: back out by the rift, on its approach tile in the world.
+    assert.equal(await world.leaveElsewhere(), true);
+    assert.equal(world.elsewhere(), null);
+    const back = world.miloTile();
+    assert.equal(Math.abs(back.x - rift.x) + Math.abs(back.y - rift.y), 1, 'beside the rift he went through');
+    assert.deepEqual(events.moves.at(-1), back);
+    assert.equal(events.areas.at(-1).area, 'wilds');
+    assert.equal(await world.leaveElsewhere(), false, 'not inside any more');
+    // A real rift's seam holds.
+    const real = testRift(['gothic'], 'open', 34, -12, { salt: 5 });
+    assert.equal(await world.enterElsewhere(real), true);
+    await world.walkToEntity('stitch');
+    assert.equal(events.entities.at(-1).refused, true);
+    await world.leaveElsewhere();
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: a seam stitched just before motion goes off stays shut in the still frames', async () => {
+  const clock = manualClock();
+  let motion = true;
+  const { world, draws, cleanup } = wildWorld({ dom: { clock }, motion: () => motion });
+  try {
+    const rift = testRift(['neon'], 'open', 28, -12);
+    world.setRifts([rift]);
+    assert.equal(await drive(clock, world.enterElsewhere(rift)), true);
+    assert.equal(await drive(clock, world.walkToEntity('stitch')), true);
+    // The seam's art in the next few frames: its tear, or the seal drawing it shut.
+    const seam = () => {
+      draws.length = 0;
+      clock.advance(48);
+      return [...new Set(draws.map((d) => d.image._milo).filter((tag) => typeof tag === 'string' && /^(tear|seal)/.test(tag)))];
+    };
+    assert.deepEqual(seam(), [`tear:${rift.id}`], 'open');
+    world.closeRift(rift.id, 'stitched');
+    clock.advance(300);
+    assert.deepEqual(seam(), ['seal'], 'drawing shut');
+    motion = false; // switched off part way through the seal
+    assert.deepEqual(seam(), [], 'a still frame draws it shut');
+    world.resize();
+    assert.deepEqual(seam(), [], 'and so does the next');
+    assert.equal(world.elsewhereEntities().some((e) => e.kind === 'stitch'), false);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: clicking an entity walks there and opens it on arrival; hover names it; Enter opens it', async () => {
+  const { world, listeners, events, cleanup } = wildWorld();
+  try {
+    await world.travelTo({ x: 30, y: -10 });
+    const rift = testRift(['neon'], 'open', 35, -10);
+    world.setRifts([rift]);
+    world.settle();
+    // Point at the tear: it rises from its tile's feet point.
+    const aim = screenOf(world, rift.x * TILE + 8, rift.y * TILE + 13 - 10);
+    listeners.pointermove({ clientX: aim.x, clientY: aim.y });
+    const hover = events.hovers.at(-1);
+    assert.equal(hover.kind, 'rift');
+    assert.equal(hover.id, rift.id);
+    assert.equal(hover.label, rift.spec.name, 'the label comes from the entity');
+    listeners.pointerdown({ button: 0, clientX: aim.x, clientY: aim.y });
+    await settleFrames(20);
+    const opened = events.entities.at(-1);
+    assert.equal(opened.id, rift.id, 'opened on arrival');
+    const at = world.miloTile();
+    assert.ok(Math.abs(at.x - rift.x) + Math.abs(at.y - rift.y) === 1, 'standing just by the tear');
+    assert.ok(!world.nearbyEntities().some((e) => e.kind === 'rift' && e.x === at.x && e.y === at.y));
+    // Enter at the approach tile opens it again.
+    const count = events.entities.length;
+    listeners.keydown({ key: 'Enter', preventDefault() {} });
+    assert.equal(events.entities.length, count + 1);
+    assert.equal(events.entities.at(-1).id, rift.id);
+    // A lantern by id: walked to and opened.
+    const lantern = WILDS.fixedPois().find((p) => p.type === 'lantern');
+    await world.travelTo({ x: lantern.x, y: lantern.y + 3 });
+    assert.equal(await world.walkToEntity(lantern.id), true);
+    assert.equal(events.entities.at(-1).id, lantern.id);
+    assert.equal(events.entities.at(-1).kind, 'lantern');
+    assert.deepEqual(world.miloTile(), { x: lantern.x, y: lantern.y });
+    // Scenery and empty ground are not entities: a click there just walks.
+    assert.equal(await world.walkToEntity('poi:nothing:0,0'), false);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: echoes float over their places in the vale and open like entities', async () => {
+  const { world, events, draws, cleanup } = wildWorld({ startTile: MAP.miloHome });
+  try {
+    world.setEchoes([
+      { id: 'echo:rift:a', riftId: 'rift:a', place: 'camp', icon: 'spark', genre: 'neon', label: 'A spark from the frontier' },
+      { id: 'echo:rift:b', riftId: 'rift:b', place: 'nowhere', icon: 'moon', genre: 'nocturne', label: 'Lost' },
+    ]);
+    const echoes = world.nearbyEntities().filter((e) => e.kind === 'echo');
+    assert.deepEqual(echoes.map((e) => e.id), ['echo:rift:a'], 'an unknown place is skipped');
+    assert.equal(echoes[0].label, 'A spark from the frontier');
+    assert.deepEqual(echoes[0].approach, placeById('camp').door);
+    draws.length = 0;
+    world.resize();
+    await settleFrames();
+    // Over the tent's peak (the tent's sprite is 32 wide, its top at y 249): the icon and its halo.
+    assert.ok(draws.some((d) => d.image.width === 10 && d.image.height === 10 && d.args[0] === 579 && d.args[1] === 235), 'the icon floats over the tent');
+    assert.ok(draws.some((d) => d.image.width === 18 && d.image.height === 18 && d.args[0] === 575 && d.args[1] === 231), 'in its genre’s light');
+    assert.equal(await world.walkToEntity('echo:rift:a'), true);
+    assert.equal(events.entities.at(-1).kind, 'echo');
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: the view follows Milo past the vale’s edge, and the vale-only camera still clamps', () => {
+  for (const content of [CONTENT, null]) {
+    const env = fakeDom();
+    const world = createWorld(env.canvas, { motion: () => false, content, startTile: { x: 0, y: 20 } });
+    try {
+      const pos = world.miloScreenPos();
+      if (content) assert.ok(Math.abs(pos.x - 500) <= world.scale * 2, `centred on Milo at the west edge (${Math.round(pos.x)})`);
+      else assert.ok(pos.x < 100, 'the vale alone clamps to the map');
+    } finally {
+      world.dispose();
+      env.cleanup();
+    }
+  }
+  const { world, cleanup } = wildWorld({ startTile: { x: 30, y: -12 } });
+  try {
+    assert.deepEqual(world.miloTile(), { x: 30, y: -12 }, 'a start tile out in the wilds (previews)');
+    const pos = world.miloScreenPos();
+    assert.ok(Math.abs(pos.x - 500) <= world.scale * 2 && pos.y > 0 && pos.y < 700);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: the area and the chunks seen are reported as Milo goes', async () => {
+  const { world, events, cleanup } = wildWorld();
+  try {
+    await settleFrames(10);
+    assert.equal(events.areas[0].area, 'vale');
+    assert.equal(events.areas[0].regionName, 'Hearthvale');
+    await world.walkTo({ x: 32, y: -6 });
+    world.resize();
+    await settleFrames();
+    const area = events.areas.at(-1);
+    assert.equal(area.area, 'wilds');
+    assert.equal(area.regionId, 'whisperwood');
+    assert.equal(area.regionName, 'The Whisperwood');
+    assert.equal(area.hush, true, 'the Whisperwood waits in the Hush');
+    assert.equal(area.chunk, '1,-1');
+    assert.ok(Number.isInteger(area.tier) && Number.isInteger(area.depth));
+    assert.deepEqual(world.area(), area);
+    assert.ok(events.explored.includes('1,-1') && events.explored.includes('0,-1'), 'chunks in view are explored');
+    assert.ok(!events.explored.includes('0,0') && !events.explored.includes('1,0'), 'the vale’s own chunks are not reported');
+    assert.equal(new Set(events.explored).size, events.explored.length, 'each chunk once');
+    assert.equal(await world.walkTo('camp'), false, 'a vale place from the wilds: no walk');
+    assert.deepEqual(world.miloTile(), { x: 32, y: -6 }, 'and he stays put');
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: streaming keeps to 25 canvases, waits while hidden, and still frames repeat exactly', async () => {
+  const { world, canvas, draws, cleanup } = wildWorld();
+  try {
+    for (const tile of [{ x: 32, y: -8 }, { x: -12, y: 20 }, { x: 80, y: 14 }, { x: 11, y: 60 }, { x: 32, y: -40 }]) {
+      await world.travelTo(tile);
+      world.settle();
+      assert.ok(world.stats().canvases <= 25, `${world.stats().canvases} canvases`);
+    }
+    // Hidden: no idle work happens.
+    canvas.ownerDocument.hidden = true;
+    await world.travelTo({ x: 60, y: -40 });
+    const before = world.stats();
+    await settleFrames(120);
+    const after = world.stats();
+    assert.equal(after.chunks, before.chunks, 'nothing generated while hidden');
+    canvas.ownerDocument.hidden = false;
+    // Still frames: the same picture twice.
+    const rift = testRift(['nocturne'], 'gaping', 64, -42);
+    world.setRifts([rift]);
+    world.settle();
+    // The last whole frame drawn (each ends with the buffer scaled up onto the canvas).
+    const frame = async () => {
+      draws.length = 0;
+      world.resize();
+      await settleFrames();
+      const ends = draws.map((d, i) => (d.args.length === 8 && d.args[6] > d.args[2] ? i : -1)).filter((i) => i >= 0);
+      const last = draws.slice(ends.length > 1 ? ends.at(-2) + 1 : 0, ends.at(-1) + 1);
+      return last.map((d) => `${d.image._milo || `${d.image.width}x${d.image.height}`}@${d.args.join(',')}`).join('|');
+    };
+    const a = await frame();
+    const b = await frame();
+    assert.ok(a.includes(`tear:${rift.id}`));
+    assert.equal(a, b);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: idle slices prepare the chunks round the view by themselves; a frame draws only what is in view', async () => {
+  const { world, draws, cleanup } = wildWorld();
+  try {
+    assert.equal(await world.travelTo({ x: 40, y: -70 }), true);
+    // The view's own chunks were made ready for the fade in; the ring round it is still to come.
+    draws.length = 0;
+    world.resize();
+    await settleFrames();
+    const chunkDraws = () => draws.filter((d) => typeof d.image._milo === 'string' && d.image._milo.startsWith('chunk:'));
+    assert.ok(chunkDraws().length > 0, 'the ground under the view is drawn at once');
+    assert.equal(world.stats().pending, true, 'the chunks one out are left for idle time');
+    // No settle(): the idle slices (a timer here, requestIdleCallback in Electron) get there alone.
+    const started = Date.now();
+    while (world.stats().pending && Date.now() - started < 40000) await settleFrames(60);
+    assert.equal(world.stats().pending, false, 'everything round the view is ready');
+    assert.ok(world.stats().canvases <= 25);
+    // A frame now draws only ready canvases, one per chunk in view.
+    draws.length = 0;
+    world.resize();
+    await settleFrames();
+    const keys = chunkDraws().map((d) => d.image._milo);
+    assert.equal(new Set(keys).size, keys.length, 'each chunk once');
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: the Stockade rises, the map view gets its chunks, and words drift up', async () => {
+  const { world, draws, cleanup } = wildWorld({ startTile: { x: 32, y: 2 } });
+  try {
+    const war = WILDS.warTable();
+    assert.equal(world.isWalkable(war.x, war.y), true, 'no War Table at tier 1');
+    world.raiseReveal(2);
+    assert.equal(world.isWalkable(war.x, war.y), false, 'raised: the War Table stands by the north gate');
+    world.setWildState({ tier: 2, wardRadius: 12 });
+    const canvasOf = world.paintMapChunk(0, -1, 4);
+    assert.equal(canvasOf.width, 128);
+    assert.equal(canvasOf.height, 128);
+    assert.equal(world.paintMapChunk(0.5, 1, 4), null);
+    world.floatText('+5 birch', { x: 32, y: 1 });
+    draws.length = 0;
+    world.resize();
+    await settleFrames();
+    assert.ok(draws.some((d) => d.image._milo === 'float'), 'the words are drawn');
+    world.floatText('', { x: 1, y: 1 });
+    world.floatText('+2', null);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: with no content the world is the vale alone, and the new calls do nothing', async () => {
+  const { canvas, listeners, draws, cleanup } = fakeDom();
+  const moves = [];
+  const world = createWorld(canvas, { motion: () => false, onMiloMove: (t) => moves.push(t), startTile: { x: 32, y: 0 } });
+  try {
+    assert.equal(world.isWalkable(32, -1), false, 'no gate out');
+    assert.equal(world.isWalkable(32, 0), true);
+    await world.walkTo({ x: 32, y: -3 });
+    assert.deepEqual(world.miloTile(), { x: 32, y: 0 }, 'he stays in the vale');
+    listeners.keydown({ key: 'ArrowUp', preventDefault() {} });
+    assert.deepEqual(world.miloTile(), { x: 32, y: 0 });
+    assert.equal(await world.walkTo('camp'), undefined, 'walks settle as they always have');
+    assert.deepEqual(world.miloTile(), placeById('camp').door);
+    assert.equal(await world.travelTo('home'), false);
+    assert.equal(await world.walkToEntity('lantern:28,-34'), false);
+    assert.deepEqual(await world.chop('tree:1,1'), { ok: false, kind: null });
+    assert.equal(await world.enterElsewhere({ id: 'rift:x', spec: {} }), false);
+    assert.equal(await world.leaveElsewhere(), false);
+    assert.equal(world.elsewhere(), null);
+    assert.deepEqual(world.nearbyEntities(), []);
+    assert.equal(world.paintMapChunk(0, -1, 4), null);
+    assert.equal(world.area().area, 'vale');
+    assert.equal(world.closeRift('rift:x', 'sealed'), false);
+    world.setRifts([]);
+    world.setEchoes([]);
+    world.setWildState({ tier: 2 });
+    world.raiseReveal(2);
+    world.floatText('+5 birch', { x: 1, y: 1 });
+    assert.equal(world.stats(), null);
+    // The vale's own picture is the same with the wilds on.
+    const valeDraws = () => {
+      draws.length = 0;
+      world.renderMap(1);
+      return draws.map((d) => `${d.image.width}x${d.image.height}@${d.args.join(',')}`).join('|');
+    };
+    const alone = valeDraws();
+    const env = fakeDom();
+    const wild = createWorld(env.canvas, { motion: () => false, content: CONTENT, startTile: { x: 32, y: 0 } });
+    try {
+      wild.setRifts([testRift(['neon'], 'open', 40, -8)]);
+      await wild.walkTo('camp');
+      env.draws.length = 0;
+      wild.renderMap(1);
+      assert.equal(env.draws.map((d) => `${d.image.width}x${d.image.height}@${d.args.join(',')}`).join('|'), alone, 'renderMap stays the vale alone');
+    } finally {
+      wild.dispose();
+      env.cleanup();
+    }
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+// Milo holds still: over two seconds his tile and where he is drawn stay put, on ground he can stand on.
+function holdsStill(world, clock, label) {
+  const tile = world.miloTile();
+  clock.advance(600); // the camera settles on him
+  const pos = world.miloScreenPos();
+  clock.advance(2000);
+  assert.deepEqual(world.miloTile(), tile, `${label}: his tile holds`);
+  const again = world.miloScreenPos();
+  assert.ok(Math.abs(again.x - pos.x) < 0.01 && Math.abs(again.y - pos.y) < 0.01, `${label}: he stands still (${pos.x},${pos.y} → ${again.x},${again.y})`);
+  assert.equal(world.isWalkable(tile.x, tile.y), true, `${label}: on ground he can stand on`);
+}
+
+test('wilds: a scene change is one at a time, and nothing begun while the view fades out survives it', async () => {
+  const clock = manualClock();
+  const { world, listeners, events, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+  const settles = (promise) => {
+    const box = { value: 'pending' };
+    promise.then((v) => { box.value = v; });
+    return box;
+  };
+  // Clicks, keys and the shell's calls while the view goes dark: none of them starts anything.
+  const meddle = async (label, extra = () => {}) => {
+    assert.equal(world.stats().changing, true, `${label}: the view is fading out`);
+    // The shell's walks settle at once: he didn't get there.
+    const walk = settles(world.walkTo({ x: 28, y: 22 }));
+    await flush();
+    assert.equal(walk.value, false, `${label}: a walk asked for in the dark settles at once, not there`);
+    const entity = settles(world.walkToEntity('stitch'));
+    await flush();
+    assert.equal(entity.value, false, `${label}: so does a walk to an entity`);
+    // Clicks on the old scene and keys: whatever they'd start, holdsStill catches afterwards.
+    listeners.pointerdown({ button: 0, clientX: 300, clientY: 300 });
+    listeners.pointerdown({ button: 0, clientX: 700, clientY: 420 });
+    listeners.keydown({ key: 'ArrowLeft', preventDefault() {} });
+    listeners.keyup({ key: 'ArrowLeft' });
+    listeners.keydown({ key: 'Enter', preventDefault() {} });
+    listeners.pointermove({ clientX: 500, clientY: 300 });
+    assert.equal(events.hovers.at(-1) ?? null, null, `${label}: nothing in a scene that is going is named`);
+    extra();
+    assert.deepEqual(await world.chop('tree:1,1'), { ok: false, kind: null }, `${label}: no chop`);
+    assert.equal(await world.travelTo('home'), false, `${label}: another trip is refused`);
+  };
+  try {
+    // A trip.
+    const opened = events.entities.length;
+    const trip = world.travelTo({ x: 40, y: -60 });
+    clock.advance(100);
+    await meddle('travel');
+    assert.equal(await drive(clock, trip), true);
+    const at = world.miloTile();
+    assert.ok(Math.abs(at.x - 40) <= 3 && Math.abs(at.y + 60) <= 3, 'the trip got there');
+    assert.deepEqual(events.moves.at(-1), at, 'and the last move the shell heard is where he is');
+    holdsStill(world, clock, 'after the trip');
+    assert.equal(events.entities.length, opened, 'nothing was opened on the way');
+
+    // Stepping into an Elsewhere.
+    assert.equal(await drive(clock, world.travelTo({ x: 30, y: -10 })), true);
+    const rift = { ...testRift(['frontier'], 'open', 34, -12), kind: 'wild', key: null };
+    const inside = world.enterElsewhere(rift);
+    clock.advance(100);
+    let out = null;
+    await meddle('stepping in', () => { out = world.leaveElsewhere(); });
+    assert.equal(await out, false, 'not in one yet');
+    assert.equal(await drive(clock, inside), true);
+    assert.equal(world.elsewhere().riftId, rift.id, 'in the Elsewhere');
+    assert.equal(world.area().area, 'elsewhere');
+    holdsStill(world, clock, 'inside');
+
+    // And back out.
+    const leaving = world.leaveElsewhere();
+    clock.advance(100);
+    const deeper = settles(world.enterElsewhere(rift));
+    await meddle('stepping out');
+    assert.equal(deeper.value, false, 'no second rift while stepping out');
+    assert.equal(await drive(clock, leaving), true);
+    assert.equal(world.elsewhere(), null);
+    const back = world.miloTile();
+    assert.equal(Math.abs(back.x - rift.x) + Math.abs(back.y - rift.y), 1, 'beside the rift');
+    holdsStill(world, clock, 'back out');
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: once Milo is placed he can walk as the view fades in, and a new trip darkens from there', async () => {
+  const clock = manualClock();
+  const { world, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+  try {
+    const first = world.travelTo({ x: 32, y: -8 });
+    clock.advance(400);
+    await flush();
+    assert.equal(world.stats().changing, false, 'placed in the dark');
+    clock.advance(160);
+    const mid = world.stats().fade;
+    assert.ok(mid > 0.2 && mid < 0.9, `fading back in (${mid})`);
+    // A walk now is a walk in the new place.
+    const here = world.miloTile();
+    const step = [[2, 0], [-2, 0], [0, 2], [0, -2]].map(([dx, dy]) => ({ x: here.x + dx, y: here.y + dy })).find((t) => world.isWalkable(t.x, t.y));
+    assert.ok(step, 'somewhere to step');
+    assert.equal(await drive(clock, world.walkTo(step)), true);
+    assert.deepEqual(world.miloTile(), step);
+    assert.equal(await drive(clock, first), true);
+    // A trip begun while the view fades back in picks the fade up where it was.
+    const second = world.travelTo('home');
+    clock.advance(400);
+    await flush();
+    clock.advance(200);
+    const level = world.stats().fade;
+    assert.ok(level > 0.1 && level < 0.9, `fading back in (${level})`);
+    const third = world.travelTo({ x: 60, y: -20 });
+    assert.ok(Math.abs(world.stats().fade - level) < 0.05, `no jump to a clear view (${level} → ${world.stats().fade})`);
+    assert.equal(await drive(clock, second), true, 'the trip it cut short still got there');
+    assert.equal(await drive(clock, third), true);
+    const at = world.miloTile();
+    assert.ok(Math.abs(at.x - 60) <= 3 && Math.abs(at.y + 20) <= 3);
+    assert.equal(world.stats().fade, 0);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: a walk says whether Milo got there: false with no way, true when he stands there already', async () => {
+  const { world, events, cleanup } = wildWorld({ startTile: MAP.miloHome });
+  try {
+    await flush();
+    events.moves.length = 0;
+    assert.equal(await world.walkTo({ x: 5000, y: 5000 }), false, 'nowhere he can reach');
+    assert.deepEqual(world.miloTile(), MAP.miloHome, 'and he stays put');
+    assert.equal(events.moves.length, 0);
+    assert.equal(await world.walkTo(MAP.miloHome), true, 'already there');
+    // A tree can't be stood on: a walk to it ends beside it, so from beside it he is there.
+    await world.travelTo({ x: 26, y: -6 });
+    const tree = world.nearbyEntities().find((e) => e.kind === 'tree');
+    assert.equal(await world.walkTo(tree.approach), true);
+    const by = world.miloTile();
+    assert.equal(await world.walkTo({ x: tree.x, y: tree.y }), true, 'beside the tree is as close as it gets');
+    assert.deepEqual(world.miloTile(), by);
+    // Inside an Elsewhere, off the scene's floor altogether.
+    await world.travelTo({ x: 30, y: -10 });
+    assert.equal(await world.enterElsewhere({ ...testRift(['frontier'], 'open', 34, -12), kind: 'wild', key: null }), true);
+    const spawn = world.miloTile();
+    assert.equal(await world.walkTo({ x: -40, y: -40 }), false);
+    assert.deepEqual(world.miloTile(), spawn);
+    await world.leaveElsewhere();
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+  // The vale alone settles as it always has.
+  const env = fakeDom();
+  const vale = createWorld(env.canvas, { motion: () => false, startTile: MAP.miloHome });
+  try {
+    assert.equal(await vale.walkTo({ x: 5000, y: 5000 }), undefined);
+    assert.equal(await vale.walkTo(MAP.miloHome), undefined);
+  } finally {
+    vale.dispose();
+    env.cleanup();
+  }
+});
+
+test('wilds: the vale’s own picture has Milo in it only while he is in the vale', async () => {
+  const { world, draws, cleanup } = wildWorld({ startTile: MAP.miloHome });
+  // Milo's sprite (16 × 20) where he stands, or his shadow under it.
+  const miloIn = () => {
+    const t = world.miloTile();
+    const x = t.x * TILE;
+    const y = t.y * TILE + 13 - 19;
+    draws.length = 0;
+    world.renderMap(1);
+    return draws.some((d) => (d.image.width === 16 && d.image.height === 20 && d.args[0] === x && d.args[1] === y)
+      || (d.image.width === 10 && d.image.height === 3 && d.args[0] === x + 3 && d.args[1] === y + 18));
+  };
+  try {
+    assert.equal(miloIn(), true, 'at home he is in it');
+    await world.travelTo({ x: 30, y: -10 });
+    assert.equal(await world.enterElsewhere({ ...testRift(['frontier'], 'open', 34, -12), kind: 'wild', key: null }), true);
+    const spawn = world.miloTile();
+    assert.ok(spawn.x >= 0 && spawn.y >= 0 && spawn.x < MAP.width && spawn.y < MAP.height, 'the scene’s tile lies over the vale’s');
+    assert.equal(miloIn(), false, 'inside an Elsewhere he is not in the vale’s picture');
+    await world.leaveElsewhere();
+    assert.equal(miloIn(), false, 'nor out in the wilds');
+    await world.travelTo('home');
+    assert.equal(miloIn(), true, 'and home again he is');
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: a very wide, short window settles its idle work, and a frame repaints nothing', async () => {
+  const cases = [
+    { dom: { width: 3840, height: 600 } }, // the ring one chunk out holds more than the cap
+    { dom: { width: 2600, height: 400 } },
+    { dom: { width: 3840, height: 1100 }, scale: 1 }, // more chunks in view than the cap
+  ];
+  for (const { dom, scale } of cases) {
+    const { world, cleanup } = wildWorld({ dom, ...(scale ? { scale } : {}) });
+    const label = `${dom.width}×${dom.height}${scale ? ` at ${scale}x` : ''}`;
+    try {
+      assert.equal(await world.travelTo({ x: 40, y: -70 }), true);
+      const ran = world.settle(1500);
+      assert.ok(ran < 1500, `${label}: settled (${ran} tasks)`);
+      assert.equal(world.stats().pending, false, `${label}: nothing left`);
+      // Frames draw what is ready: nothing is painted, thrown out and wanted again.
+      world.resize();
+      await settleFrames();
+      world.resize();
+      await settleFrames();
+      assert.equal(world.settle(), 0, `${label}: still nothing to do after frames`);
+      assert.equal(world.stats().pending, false);
+      if (!scale) assert.ok(world.stats().canvases <= 25, `${label}: ${world.stats().canvases} canvases`);
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+});
+
+// ---------- polish: outfits, and the shell's calls for its maps and lists ----------
+
+// Milo as the last still frame drew him: the 16 × 20 image at his feet, its pixels, and which of
+// his four standing grids it is, dressed in which genre (null: his own colours). outfitPixels is
+// the one right way to dress him, so the drawn picture must be exactly one of its answers.
+function miloAsDrawn(world, draws) {
+  const tile = world.miloTile();
+  const x = tile.x * TILE;
+  const y = tile.y * TILE + 13 - 19;
+  const drawn = draws.filter((d) => d.image.width === 16 && d.image.height === 20 && d.args[0] === x && d.args[1] === y).at(-1);
+  assert.ok(drawn && drawn.image.pixels, 'Milo was drawn where he stands');
+  const pixels = [...drawn.image.pixels];
+  for (const dir of ['down', 'up', 'left', 'right']) {
+    const name = `milo.${dir}`;
+    const rows = SPRITES[name][0];
+    for (const genre of [null, ...CONTENT.genres.genres.map((g) => g.id)]) {
+      const want = outfitPixels(name, rows, genre, { genres: CONTENT.genres }).data;
+      if (want.length === pixels.length && want.every((v, i) => v === pixels[i])) return { dir, rows, genre, pixels };
+    }
+  }
+  return { dir: null, rows: null, genre: undefined, pixels };
+}
+
+// His skin, eyes, hair and outline in his own colours; his coat and scarf in the genre's (the coat's
+// honey keys u, U, Y in the genre's coat tones, COAT_TONES, so it changes even in a honey genre).
+function assertOutfit(seen, genre, label) {
+  assert.ok(seen.dir, `${label}: Milo is drawn as himself, only his clothes dressed (not the whole genre)`);
+  assert.equal(seen.genre, genre, `${label}: dressed in ${genre}`);
+  const base = spriteTable(null);
+  const dressed = spriteTable(genre, { genres: CONTENT.genres });
+  const at = (x, y) => seen.pixels.slice((y * 16 + x) * 4, (y * 16 + x) * 4 + 4);
+  let coat = 0;
+  seen.rows.forEach((row, y) => [...row].forEach((key, x) => {
+    if (key === 't' || key === 'o' || key === 'm') assert.deepEqual(at(x, y), base[key], `${label}: '${key}' at ${x},${y} keeps its own colour`);
+    if (key === 'U' || key === 'r') {
+      assert.deepEqual(at(x, y), dressed[COAT_TONES[key] || key], `${label}: '${key}' at ${x},${y} wears the genre`);
+      if (key === 'U') assert.notDeepEqual(at(x, y), base.U, `${label}: the coat at ${x},${y} isn't his own honey`);
+      coat += 1;
+    }
+  }));
+  assert.ok(coat > 10, `${label}: coat and scarf seen (${coat})`);
+}
+
+test('outfits: in a Neon or Gothic Elsewhere and in a wild bleed Milo keeps his face and hair, and wears the genre on his coat', async () => {
+  const { world, draws, cleanup } = wildWorld({ startTile: MAP.miloHome });
+  const still = async () => {
+    draws.length = 0;
+    world.resize();
+    await settleFrames();
+  };
+  try {
+    await still();
+    assert.equal(miloAsDrawn(world, draws).genre, null, 'at home he wears his own colours');
+    // Inside a Neon Elsewhere.
+    await world.travelTo({ x: 30, y: -10 });
+    const neon = { ...testRift(['neon'], 'open', 34, -12), kind: 'wild', key: null };
+    assert.equal(await world.enterElsewhere(neon), true);
+    await still();
+    assertOutfit(miloAsDrawn(world, draws), 'neon', 'in the Neon Elsewhere');
+    await world.leaveElsewhere();
+    // Inside a Gothic one.
+    const gothic = { ...testRift(['gothic'], 'open', 34, -12, { salt: 2 }), kind: 'wild', key: null };
+    assert.equal(await world.enterElsewhere(gothic), true);
+    await still();
+    assertOutfit(miloAsDrawn(world, draws), 'gothic', 'in the Gothic Elsewhere');
+    await world.leaveElsewhere();
+    // Standing in a Neon rift's bleed out in the wilds, right beside the tear.
+    await world.travelTo({ x: 30, y: -10 });
+    const here = world.miloTile();
+    const rift = testRift(['neon'], 'open', here.x + 1, here.y, { salt: 3 });
+    assert.equal(bleedAt([rift], here.x * TILE + 8, here.y * TILE + 12, { genres: CONTENT.genres }), 'neon', 'he stands in its bleed');
+    world.setRifts([rift]);
+    world.settle();
+    await still();
+    assertOutfit(miloAsDrawn(world, draws), 'neon', 'in a wild bleed');
+    // Back home, out of every bleed, he is all his own colours again.
+    world.setRifts([]);
+    await world.travelTo('home');
+    await still();
+    assert.equal(miloAsDrawn(world, draws).genre, null, 'home in his own colours');
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+// ---------- dressing sprites in a bleed: whole, and never strobing ----------
+
+// Every look Milo is drawn in out in the world (his four ways, every stride and breath), in his own
+// colours or dressed in each genre: its pixels → that genre (null: his own).
+let miloLookCache = null;
+function miloLooks() {
+  if (miloLookCache) return miloLookCache;
+  miloLookCache = new Map();
+  const names = Object.keys(SPRITES).filter((name) => /^milo\.(breath\.)?(down|up|left|right)$/.test(name));
+  for (const name of names) {
+    for (const rows of SPRITES[name]) {
+      for (const genre of [null, ...CONTENT.genres.genres.map((g) => g.id)]) {
+        const key = Buffer.from(outfitPixels(name, rows, genre, { genres: CONTENT.genres }).data).toString('base64');
+        if (!miloLookCache.has(key)) miloLookCache.set(key, genre);
+      }
+    }
+  }
+  return miloLookCache;
+}
+// The genre Milo was last drawn in among these draws (null: his own colours), or undefined.
+function miloDrawnIn(draws) {
+  let genre;
+  for (const d of draws) {
+    if (d.image.width !== 16 || d.image.height !== 20 || !d.image.pixels) continue;
+    const key = Buffer.from(d.image.pixels).toString('base64');
+    if (miloLooks().has(key)) genre = miloLooks().get(key);
+  }
+  return genre;
+}
+// What he wore, frame by frame, as runs: 'null×40 neon×61 null×38'.
+function runsOf(seen) {
+  const out = [];
+  for (const g of seen) {
+    if (out.length && out[out.length - 1][0] === g) out[out.length - 1][1] += 1;
+    else out.push([g, 1]);
+  }
+  return out.map(([g, n]) => `${g}×${n}`).join(' ');
+}
+
+// Open ways 24 tiles long, straight past a rift set `off` tiles south of their middle. The second
+// fusion's lobes lie east and west of its tear, so that way runs through both of its stories.
+const CROSSINGS = [
+  { genres: ['neon'], stage: 'open', row: -42, from: 35, to: 59, off: 2, most: 2 },
+  { genres: ['gothic'], stage: 'gaping', row: -59, from: 55, to: 79, off: 2, most: 2 },
+  { genres: ['iron', 'neon'], stage: 'gaping', row: -30, from: 22, to: 46, off: 2, most: 4 },
+  { genres: ['iron', 'neon'], stage: 'gaping', row: -30, from: 22, to: 46, off: 1, salt: 3, most: 4 },
+];
+const crossingRift = (c) => testRift(c.genres, c.stage, (c.from + c.to) / 2, c.row + c.off, { salt: c.salt || 0 });
+
+test('wilds: walking through a bleed, Milo’s coat changes as he crosses its edge, and never strobes', async () => {
+  for (const c of CROSSINGS) {
+    const label = `${c.genres.join('+')} ${c.stage}`;
+    const clock = manualClock();
+    const { world, draws, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+    try {
+      world.setWildState({ wardRadius: 400 }); // none of the day's wild rifts anywhere near
+      const start = { x: c.from, y: c.row };
+      const end = { x: c.to, y: c.row };
+      for (let x = c.from; x <= c.to; x += 1) assert.ok(world.isWalkable(x, c.row), `${label}: the way is open at ${x}`);
+      assert.equal(await drive(clock, world.travelTo(start)), true);
+      world.setRifts([crossingRift(c)]);
+      for (const [from, to] of [[start, end], [end, start]]) {
+        assert.deepEqual(world.miloTile(), from);
+        const seen = [];
+        let done = false;
+        world.walkTo(to).then(() => { done = true; });
+        for (let t = 0; t < 30000 && !done; t += 16) {
+          draws.length = 0;
+          clock.advance(16);
+          const genre = miloDrawnIn(draws);
+          if (genre !== undefined) seen.push(genre);
+          await flush();
+        }
+        assert.ok(done, `${label}: he walked it`);
+        assert.deepEqual(world.miloTile(), to);
+        const way = `${label}, ${from.x} to ${to.x}: ${runsOf(seen)}`;
+        assert.ok(seen.length > 100, way);
+        assert.equal(seen[0], null, `${way}: his own colours outside it`);
+        assert.equal(seen[seen.length - 1], null, `${way}: and out the other side`);
+        assert.ok(seen.some((g) => c.genres.includes(g)), `${way}: its genre on him inside it`);
+        assert.ok(seen.every((g) => g === null || c.genres.includes(g)), way);
+        const changes = seen.filter((g, i) => i > 0 && g !== seen[i - 1]).length;
+        assert.ok(changes <= c.most, `${way}: ${changes} coat changes, at most ${c.most}`);
+      }
+    } finally {
+      world.dispose();
+      cleanup();
+    }
+  }
+});
+
+test('wilds: what stands where a bleed holds the ground wears its genre, and nothing in daylight colours stands inside one', async () => {
+  // A view wide enough for a gaping fusion's whole bleed (33 × 21 tiles).
+  const { world, draws, cleanup } = wildWorld({ dom: { width: 1600, height: 1040 } });
+  const state = { felled: {}, lit: new Set(), opened: new Set(), day: 20000 };
+  let inside = 0;
+  let fringe = 0;
+  let wide = 0;
+  let outside = 0;
+  // Each crossing's rift, and one set right beside a ruin (a sprite two tiles wide, at 37..38, -14).
+  const spots = [
+    ...CROSSINGS.map((c) => ({ label: `${c.genres.join('+')} ${c.stage}`, genres: c.genres, rift: crossingRift(c), at: { x: (c.from + c.to) / 2, y: c.row } })),
+    { label: 'gothic open by a ruin', genres: ['gothic'], rift: testRift(['gothic'], 'open', 38, -12), at: { x: 34, y: -12 } },
+  ];
+  try {
+    world.setWildState({ wardRadius: 400 });
+    for (const c of spots) {
+      const { label, rift } = c;
+      assert.equal(await world.travelTo(c.at), true);
+      world.setRifts([rift]);
+      world.settle();
+      draws.length = 0;
+      world.resize();
+      await settleFrames();
+      for (let cy = Math.floor((rift.y - 8) / 32); cy <= Math.floor((rift.y + 7) / 32); cy += 1) for (let cx = Math.floor((rift.x - 12) / 32); cx <= Math.floor((rift.x + 12) / 32); cx += 1) WILDS.chunk(cx, cy);
+      const objects = WILDS.objectsIn(rift.x - 12, rift.y - 8, rift.x + 12, rift.y + 7, state);
+      objectBoxes(objects).forEach((box, i) => {
+        const o = objects[i];
+        // How much of the ground under its feet the bleed recolours (a wide sprite: its whole foot row).
+        const w = o.w || 1;
+        const fy = o.y + (o.h || 1) - 1;
+        let cover = 0;
+        for (let dx = 0; dx < w; dx += 1) cover += bleedCover(rift, o.x + dx, fy, { genres: CONTENT.genres }) / w;
+        const drawn = draws.filter((d) => d.args[0] === box.sx && d.args[1] === box.sy && d.image.width === box.sw && d.image.height === box.sh);
+        assert.ok(drawn.length, `${label}: ${o.id} (${box.sprite}) is drawn`);
+        const tags = drawn.map((d) => d.image._milo || 'daylight');
+        const where = `${label}: ${o.id} (${box.sprite}) stands on ground ${Math.round(cover * 100)}% bled, drawn ${tags}`;
+        if (cover >= 0.75) {
+          inside += 1;
+          if (cover < 1) fringe += 1;
+          if (w > 1) wide += 1;
+          assert.ok(tags.every((tag) => c.genres.some((g) => tag === `dress:${g}`)), where);
+        } else if (cover <= 0.25) {
+          outside += 1;
+          assert.ok(tags.every((tag) => !tag.startsWith('dress:')), where);
+        }
+      });
+    }
+    assert.ok(inside >= 12 && fringe >= 6 && wide >= 1 && outside >= 40, `enough sprites looked at: ${inside} inside (${fringe} on its fringe, ${wide} wide), ${outside} outside`);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: the harbour fog thins away before the east wall, and never lies over it', async () => {
+  const clock = manualClock();
+  const { world, draws, cleanup } = wildWorld({ dom: { clock }, motion: () => true, startTile: { x: 62, y: 33 } });
+  const harbor = placeById('harbor');
+  // The bank with the wilds: the vale's own reaches 3 tiles further east and 2 further south.
+  const bank = { x: (harbor.area.x - 3) * TILE, y: (harbor.area.y - 3) * TILE, w: (harbor.area.w + 9) * TILE, h: (harbor.area.h + 8) * TILE };
+  const puff = SPRITES.fog[0];
+  const meets = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  try {
+    for (const tier of [1, 2]) {
+      world.setWildState({ tier });
+      clock.advance(100);
+      const walls = objectBoxes(WILDS.ringObjects(tier)).map((b) => ({ x: b.sx, y: b.sy, w: b.sw, h: b.sh, sprite: b.sprite })).filter((b) => meets(b, bank));
+      assert.ok(walls.length >= 6, `tier ${tier}: the wall runs down to the water inside the bank (${walls.length})`);
+      let puffs = 0;
+      let layers = 0;
+      // The puffs drift right across the bank and round again in under seven minutes.
+      for (let step = 0; step < 220; step += 1) {
+        clock.t += 1900;
+        draws.length = 0;
+        clock.advance(16);
+        for (const d of draws) {
+          if (d.image.width === puff[0].length && d.image.height === puff.length && d.alpha > 0) {
+            puffs += 1;
+            const at = { x: d.args[0], y: d.args[1], w: d.image.width, h: d.image.height };
+            for (const wall of walls) assert.ok(!meets(at, wall), `tier ${tier}: a puff at ${at.x},${at.y} lies over the wall's ${wall.sprite} at ${wall.x},${wall.y}`);
+          }
+          if (d.image.width === bank.w && d.image.height === bank.h && d.args[0] === bank.x && d.args[1] === bank.y) {
+            layers += 1;
+            if (layers > 1) continue;
+            for (const wall of walls) {
+              for (let y = Math.max(wall.y, bank.y); y < Math.min(wall.y + wall.h, bank.y + bank.h); y += 1) {
+                for (let x = Math.max(wall.x, bank.x); x < Math.min(wall.x + wall.w, bank.x + bank.w); x += 1) {
+                  assert.equal(d.image.pixels[((y - bank.y) * bank.w + (x - bank.x)) * 4 + 3], 0, `tier ${tier}: mist at ${x},${y} over the wall`);
+                }
+              }
+            }
+          }
+        }
+      }
+      assert.ok(puffs > 400 && layers > 0, `tier ${tier}: the fog was drawn (${puffs} puffs, ${layers} banks)`);
+    }
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('wilds: chopping from the side, Milo leans in only a little, and his axe head lands in front of the tree', async () => {
+  const clock = manualClock();
+  const { world, draws, cleanup } = wildWorld({ dom: { clock }, motion: () => true });
+  const state = { felled: {}, lit: new Set(), opened: new Set(), day: 20000 };
+  const blank = (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) });
+  const same = (a, b) => a && b && a.length === b.length && a.every((v, i) => v === b[i]);
+  try {
+    assert.equal(await drive(clock, world.travelTo({ x: 26, y: -6 })), true);
+    // A tree with Milo east of it (he faces left) and one with him west of it (he faces right).
+    const trees = world.nearbyEntities().filter((e) => e.kind === 'tree');
+    const cases = [];
+    for (const side of [1, -1]) {
+      const tree = trees.find((e) => world.isWalkable(e.x + side, e.y) && !cases.some((c) => c.tree.id === e.id));
+      assert.ok(tree, `a tree with room ${side > 0 ? 'east' : 'west'} of it`);
+      cases.push({ tree, stand: { x: tree.x + side, y: tree.y }, dir: side > 0 ? 'left' : 'right' });
+    }
+    for (const { tree, stand, dir } of cases) {
+      assert.equal(await drive(clock, world.walkTo(stand)), true);
+      world.chop(tree.id);
+      await flush();
+      // On to a blow landing, well into the chop (the strike frame: 400 to 625 ms into a swing).
+      let age = 0;
+      for (let n = 0; n < 200; n += 1) {
+        draws.length = 0;
+        clock.advance(16);
+        age = world.stats().chopAge;
+        if (draws.length && age > 700 && age % 625 >= 420 && age % 625 < 520) break; // a frame drawn then
+      }
+      assert.ok(age > 700 && age % 625 >= 420 && age % 625 < 520, `${dir}: a blow lands (${age} ms in)`);
+      const rows = SPRITES[`milo.chop.${dir}`][1];
+      const want = rowsToImageData(rows, blank).data;
+      const miloAt = draws.findIndex((d) => d.image.width === rows[0].length && d.image.height === rows.length && same(d.image.pixels, want));
+      assert.ok(miloAt >= 0, `${dir}: Milo is drawn striking`);
+      const milo = { x: draws[miloAt].args[0], y: draws[miloAt].args[1] };
+      // The tree as the world places it (a blow can shake it by a pixel), drawn before him.
+      WILDS.chunk(Math.floor(tree.x / 32), Math.floor(tree.y / 32));
+      const object = WILDS.objectsIn(tree.x, tree.y, tree.x, tree.y, state).find((o) => o.id === tree.id);
+      const box = objectBoxes([object])[0];
+      const treeAt = draws.findIndex((d) => d.image.width === box.sw && d.image.height === box.sh && d.args[1] === box.sy && Math.abs(d.args[0] - box.sx) <= 1);
+      assert.ok(treeAt >= 0 && treeAt < miloAt, `${dir}: the tree is drawn, and before him`);
+      const treeX = draws[treeAt].args[0];
+      // He leans in to its trunk by about 2 px, no more (measured from where the trunk stands, a few
+      // px off its tile's middle): his middle a tile less that from it. Beside the tree, not on it.
+      const trunk = box.sx + box.sw / 2;
+      const lean = TILE - Math.abs(trunk - (milo.x + 8));
+      assert.ok(lean >= 1 && lean <= 3, `${dir}: leans ${lean} px in to the trunk`);
+      const treeRows = SPRITES[box.sprite][0];
+      const treeInk = (x, y) => { const row = treeRows[y - box.sy]; return !!row && row[x - treeX] !== undefined && row[x - treeX] !== '.'; };
+      // The axe head: its steel and bright edge in the four columns on the tree's side of him.
+      const cols = dir === 'left' ? [0, 1, 2, 3] : [rows[0].length - 4, rows[0].length - 3, rows[0].length - 2, rows[0].length - 1];
+      const head = [];
+      rows.forEach((row, y) => cols.forEach((x) => { if ('Scz'.includes(row[x])) head.push({ x: milo.x + x, y: milo.y + y }); }));
+      assert.ok(head.length >= 6, `${dir}: an axe head to see (${head.length} px)`);
+      assert.ok(head.some((p) => treeInk(p.x, p.y)), `${dir}: the axe head lands over the tree`);
+      // Nothing drawn after him covers it.
+      for (const d of draws.slice(miloAt + 1)) {
+        const [x, y] = d.args;
+        for (const p of head) assert.ok(!(p.x >= x && p.y >= y && p.x < x + d.image.width && p.y < y + d.image.height), `${dir}: the axe head at ${p.x},${p.y} is left in sight`);
+      }
+      // And he hides no more than a third of the tree: a chop, not a hug.
+      let ink = 0;
+      let hidden = 0;
+      treeRows.forEach((row, y) => [...row].forEach((ch, x) => {
+        if (ch === '.') return;
+        ink += 1;
+        const mx = treeX + x - milo.x;
+        const my = box.sy + y - milo.y;
+        if (rows[my] && rows[my][mx] !== undefined && rows[my][mx] !== '.') hidden += 1;
+      }));
+      assert.ok(hidden / ink <= 1 / 3, `${dir}: he hides ${Math.round((hidden / ink) * 100)}% of the ${box.sprite}`);
+      clock.advance(2000);
+      await flush();
+      assert.equal(world.stats().chopAge, null, `${dir}: the chop is done`);
+    }
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+});
+
+test('the shell’s calls: worldgen, terrainAt, renderMap without Milo, and everything in an Elsewhere', async () => {
+  const { world, draws, cleanup } = wildWorld({ startTile: MAP.miloHome });
+  try {
+    // The world's own generator: the same world the seed makes anywhere.
+    const gen = world.worldgen;
+    assert.ok(gen && typeof gen.terrainAt === 'function');
+    assert.equal(world.worldgen, gen, 'one generator');
+    for (const [x, y] of [[200, -300], [-90, 40], [5, -80]]) assert.equal(gen.terrainAt(x, y), WORLDGEN.terrainAt(x, y), `${x},${y}`);
+    // terrainAt: the vale's own map inside, the wilds' (roads kept off the ring) beyond.
+    for (let y = 0; y < MAP.height; y += 3) for (let x = 0; x < MAP.width; x += 3) assert.equal(world.terrainAt(x, y), terrainAt(x, y), `vale ${x},${y}`);
+    assert.ok(['~', '='].every((ch) => MAP.tiles.some((row, y) => [...row].some((c, x) => c === ch && world.terrainAt(x, y) === ch))), 'water and paths in the vale');
+    for (let x = -3; x <= MAP.width + 2; x += 1) for (const y of [-2, -1, MAP.height, MAP.height + 1]) assert.equal(world.terrainAt(x, y), WILDS.terrainAt(x, y), `ring ${x},${y}`);
+    for (const [x, y] of [[40, -60], [-70, 10], [300, 200]]) assert.equal(world.terrainAt(x, y), WILDS.terrainAt(x, y));
+    assert.equal(world.terrainAt(1.5, 2), null, 'whole tiles only');
+    assert.equal(world.terrainAt('a', 2), null);
+    // renderMap: Milo is in the vale's picture unless asked to leave him out.
+    const miloIn = (options) => {
+      const t = world.miloTile();
+      draws.length = 0;
+      world.renderMap(1, options);
+      return draws.some((d) => (d.image.width === 16 && d.image.height === 20 && d.args[0] === t.x * TILE && d.args[1] === t.y * TILE - 6)
+        || (d.image.width === 10 && d.image.height === 3 && d.args[0] === t.x * TILE + 3 && d.args[1] === t.y * TILE + 12));
+    };
+    assert.equal(miloIn(), true);
+    assert.equal(miloIn({ time: null }), true);
+    assert.equal(miloIn({ milo: false }), false, 'milo: false leaves him out');
+    assert.equal(miloIn({ milo: true }), true);
+    draws.length = 0;
+    world.renderMap(2, { milo: false });
+    assert.ok(draws.length > 50, 'the rest of the vale is still drawn');
+    // elsewhereEntities: nothing outside one.
+    assert.deepEqual(world.elsewhereEntities(), []);
+    await world.travelTo({ x: 30, y: -10 });
+    assert.deepEqual(world.elsewhereEntities(), [], 'nor out in the wilds');
+    const rift = { ...testRift(['gothic'], 'gaping', 34, -12, { salt: 7 }), kind: 'wild', key: null };
+    assert.equal(await world.enterElsewhere(rift), true);
+    const all = world.elsewhereEntities();
+    // Everything the scene holds that can be clicked, in view or not.
+    const scene = buildElsewhere(rift.spec, RIFTGEN.layout(rift.spec), { genres: CONTENT.genres, kind: 'wild', words: CONTENT.riftgen });
+    const want = [...scene.objects.filter((o) => !o.scenery).map((o) => o.id), ...scene.strays.map((s) => s.id)].sort();
+    assert.deepEqual(all.map((e) => e.id).sort(), want);
+    for (const kind of ['exit', 'stitch', 'tale-lead']) assert.ok(all.some((e) => e.kind === kind), `${kind} is listed`);
+    assert.ok(all.some((e) => e.kind === 'stray'), 'and its strays');
+    // The same shape as nearbyEntities, which lists only what's in view.
+    const near = world.nearbyEntities();
+    assert.ok(near.length < all.length, `more than the view holds (${near.length} of ${all.length})`);
+    for (const e of near) assert.deepEqual(all.find((a) => a.id === e.id), e, `${e.id} as nearbyEntities gives it`);
+    for (const e of all) {
+      assert.ok(typeof e.kind === 'string' && typeof e.id === 'string' && typeof e.label === 'string' && e.label.length > 0, e.id);
+      assert.ok(Number.isInteger(e.x) && Number.isInteger(e.y) && e.riftId === rift.id && e.approach, e.id);
+    }
+    const d = (e) => Math.hypot(e.x - world.miloTile().x, e.y - world.miloTile().y);
+    for (let i = 1; i < all.length; i += 1) assert.ok(d(all[i - 1]) <= d(all[i]), 'nearest first');
+    assert.deepEqual(world.elsewhereEntities().map((e) => e.id), all.map((e) => e.id), 'steady with motion off');
+    // Once the seam is stitched it's gone from the list.
+    world.closeRift(rift.id, 'stitched');
+    assert.equal(world.elsewhereEntities().some((e) => e.kind === 'stitch'), false);
+    await world.leaveElsewhere();
+    assert.deepEqual(world.elsewhereEntities(), []);
+  } finally {
+    world.dispose();
+    cleanup();
+  }
+  // The vale alone: no generator, no terrain, no Elsewhere; renderMap takes the option all the same.
+  const env = fakeDom();
+  const vale = createWorld(env.canvas, { motion: () => false, startTile: MAP.miloHome });
+  try {
+    assert.equal(vale.worldgen, null);
+    assert.equal(vale.terrainAt(31, 22), null);
+    assert.equal(vale.terrainAt(40, -60), null);
+    assert.deepEqual(vale.elsewhereEntities(), []);
+    const count = (options) => {
+      env.draws.length = 0;
+      vale.renderMap(1, options);
+      return env.draws.filter((d) => d.image.width === 16 && d.image.height === 20 && d.args[0] === MAP.miloHome.x * TILE && d.args[1] === MAP.miloHome.y * TILE - 6).length;
+    };
+    assert.equal(count(), 1);
+    assert.equal(count({ milo: false }), 0);
+  } finally {
+    vale.dispose();
+    env.cleanup();
   }
 });

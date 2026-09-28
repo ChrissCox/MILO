@@ -7,6 +7,8 @@
 //   node tests/fixtures/build-fixtures.mjs
 //
 // Timeline anchor used by tests: NOW = 2026-09-25T12:00:00.000Z.
+// Tests count the rollout files and threads, so a new Codex case goes into an existing rollout (or
+// is written by the test itself), never into a new fixture file.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -316,7 +318,44 @@ const taskComplete = (turnId, startTs, doneTs, message) => ({
 });
 const taskCompleteBare = (turnId, startTs) => ({ type: 'task_complete', turn_id: turnId, last_agent_message: null, started_at: secs(startTs) });
 const turnAborted = (turnId, startTs, doneTs) => ({ type: 'turn_aborted', turn_id: turnId, reason: 'interrupted', started_at: secs(startTs), completed_at: secs(doneTs), duration_ms: Date.parse(doneTs) - Date.parse(startTs) });
-const tokenCount = () => ({ type: 'token_count', info: { total_token_usage: { input_tokens: 1200, output_tokens: 80 } }, rate_limits: null });
+const tokenUsage = (input, cached, output, reasoning) => ({
+  input_tokens: input,
+  cached_input_tokens: cached,
+  cache_write_input_tokens: 0,
+  output_tokens: output,
+  reasoning_output_tokens: reasoning,
+  total_tokens: input + output,
+});
+// payload.rate_limits as Codex writes it since Sept 2026: the account's 'codex' bucket, a weekly
+// primary window and secondary null (the older format had a 5-hour primary plus a weekly
+// secondary). resets_at is in seconds. The fixture's one reading sits on T1's token_count; tests
+// expect it back as snapshot.capacity.codex = CODEX_CAPACITY.
+export const CODEX_CAPACITY = Object.freeze({
+  usedPercent: 12,
+  resetsAt: Date.parse('2026-10-01T14:20:00Z'),
+  windowMinutes: 10080,
+  at: Date.parse('2026-09-24T14:04:59.500Z'),
+});
+const codexRateLimits = ({ usedPercent, windowMinutes = 10080, resetsAt }) => ({
+  limit_id: 'codex',
+  limit_name: null,
+  primary: { used_percent: usedPercent, window_minutes: windowMinutes, resets_at: Math.floor(resetsAt / 1000) },
+  secondary: null,
+  credits: { has_credits: false, unlimited: false, balance: '0' },
+  individual_limit: null,
+  spend_control_reached: null,
+  plan_type: 'plus',
+  rate_limit_reached_type: null,
+});
+const tokenCount = (rateLimits = null) => ({
+  type: 'token_count',
+  info: {
+    total_token_usage: tokenUsage(18420, 12288, 812, 256),
+    last_token_usage: tokenUsage(9210, 6144, 406, 128),
+    model_context_window: 258400,
+  },
+  rate_limits: rateLimits,
+});
 const settingsApplied = (threadId) => ({ type: 'thread_settings_applied', thread_id: threadId, thread_settings: { model: 'gpt-demo-codex', effort: 'medium' } });
 const itemCompleted = (threadId, turnId, ts) => ({
   type: 'item_completed',
@@ -373,7 +412,11 @@ function buildCodex() {
     r('2026-09-24T14:00:07Z', 'response_item', functionOutput('call_t1_b')),
     r('2026-09-24T14:00:07.100Z', 'event_msg', itemCompleted(I.garden, 'turn-t1-1', '2026-09-24T14:00:07Z')),
     r('2026-09-24T14:04:59Z', 'response_item', assistantItem('The layout has two paths and four beds.')),
-    r('2026-09-24T14:04:59.500Z', 'event_msg', tokenCount()),
+    r(iso(CODEX_CAPACITY.at), 'event_msg', tokenCount(codexRateLimits({
+      usedPercent: CODEX_CAPACITY.usedPercent,
+      windowMinutes: CODEX_CAPACITY.windowMinutes,
+      resetsAt: CODEX_CAPACITY.resetsAt,
+    }))),
     r('2026-09-24T14:05:00Z', 'event_msg', taskComplete('turn-t1-1', '2026-09-24T14:00:01Z', '2026-09-24T14:05:00Z', 'The layout has two paths and four beds.')),
     r('2026-09-24T14:05:00.100Z', 'token_usage_record', { input_tokens: 1200, output_tokens: 80 }),
     r('2026-09-24T14:05:00.200Z', 'world_state', { full: true, state: {} }),

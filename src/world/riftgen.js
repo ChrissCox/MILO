@@ -26,8 +26,13 @@ export function createRiftgen({ words, genres }) {
     return rng.pick(g.namePrefixes) + rng.pick(g.nameSuffixes);
   }
 
+  // A pattern's {num} and {time} are rolled once, on first use, so a token that comes back
+  // later in the same pattern ("Error {num}. Always error {num}.") reads the same both times.
+  // A {place} is a pattern of its own and rolls its own.
   function fill(pattern, id, rng, extra = {}) {
     const g = bank(id);
+    const once = {};
+    const rolled = (token, roll) => (token in once ? once[token] : (once[token] = roll()));
     return pattern.replace(/\{(\w+)\}/g, (_, token) => {
       switch (token) {
         case 'adj': return rng.pick(g.adjectives);
@@ -35,8 +40,8 @@ export function createRiftgen({ words, genres }) {
         case 'place': return fill(rng.pick(g.places), id, rng, extra);
         case 'name': return g.names ? rng.pick(g.names) : kaijuName(rng, id);
         case 'title': return rng.pick(g.titles);
-        case 'num': return String(extra.num ?? rng.int(2, 99));
-        case 'time': return `${rng.int(1, 4)}:${String(rng.int(0, 59)).padStart(2, '0')}`;
+        case 'num': return rolled('num', () => String(extra.num ?? rng.int(2, 99)));
+        case 'time': return rolled('time', () => `${rng.int(1, 4)}:${String(rng.int(0, 59)).padStart(2, '0')}`);
         case 'subject': return extra.subject ?? rng.pick(g.nouns);
         default: return token;
       }

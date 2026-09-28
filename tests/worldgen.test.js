@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MAP } from '../src/world/map.js';
 import { PALETTE } from '../src/world/sprites.js';
-import { createWorldgen, ANCHORS, CHUNK, GATES, HEART, TERRAIN, TERRAIN_INFO } from '../src/world/worldgen.js';
+import { createWorldgen, layRoad, ANCHORS, CHUNK, GATES, GATE_LANE, DECK_CLEAR, HEART, MIN_WATER, TERRAIN, TERRAIN_INFO } from '../src/world/worldgen.js';
 import { createRiftgen } from '../src/world/riftgen.js';
 import { basePaletteByCode, byCode, colourise, paintRegion } from '../src/world/wildsart.js';
 import { buildGenrePalette } from '../src/world/genres.js';
@@ -305,4 +305,201 @@ test('the wilds are painted in world palette keys, so genres recolour them like 
     const r = paintRegion(world, 100, 100, 6, 5, size);
     assert.ok(r.keys.every((code) => keys.has(code)), `size ${size}`);
   }
+});
+
+test('a fishing spot always has water to fish in within two tiles; the same pick elsewhere is herbs', () => {
+  const WATERY = new Set([T.SEA, T.DEEP, T.RIVER, T.MARSH]);
+  const waterNear = (x, y) => {
+    for (let dy = -2; dy <= 2; dy += 1) for (let dx = -2; dx <= 2; dx += 1) if (!world.inHeart(x + dx, y + dy) && WATERY.has(world.terrainAt(x + dx, y + dy))) return true;
+    return false;
+  };
+  let fishing = 0;
+  let herbs = 0;
+  for (let cy = -12; cy <= 12; cy += 1) {
+    for (let cx = -12; cx <= 12; cx += 1) {
+      for (const p of world.chunk(cx, cy).pois) {
+        if (p.type === 'fishing') { fishing += 1; assert.ok(waterNear(p.x, p.y), `the fishing spot at ${p.x},${p.y} has water beside it`); }
+        if (p.type === 'herbs') herbs += 1;
+      }
+    }
+  }
+  assert.ok(fishing >= 5 && herbs >= 5, `${fishing} fishing spots, ${herbs} herbs`);
+  // In the pinewood north of the vale the pick was fishing, with no water near: it's herbs, and
+  // the chunk's other points of interest are just where the same draws put them.
+  const pois = world.chunk(0, -2).pois.map((p) => `${p.type}:${p.x},${p.y}`);
+  assert.deepEqual(pois.slice(-5), ['chest:3,-62', 'ruin:6,-43', 'cave:12,-61', 'ore:21,-61', 'herbs:22,-46']);
+});
+
+test('no stray ponds: water that doesn’t make a body of MIN_WATER tiles is land', () => {
+  const WATERS = new Set([T.SEA, T.DEEP, T.RIVER]);
+  const seen = new Set();
+  let bodies = 0;
+  let same = 0;
+  for (let y = -60; y < 100; y += 1) {
+    for (let x = -80; x < 150; x += 1) {
+      const k = `${x},${y}`;
+      if (world.inHeart(x, y) || seen.has(k) || !WATERS.has(world.naturalTerrain(x, y))) continue;
+      const body = [[x, y]];
+      const mine = new Set([k]);
+      for (let q = 0; q < body.length && body.length < MIN_WATER; q += 1) {
+        const [bx, by] = body[q];
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nk = `${bx + dx},${by + dy}`;
+          if (mine.has(nk) || world.inHeart(bx + dx, by + dy) || !WATERS.has(world.naturalTerrain(bx + dx, by + dy))) continue;
+          mine.add(nk);
+          body.push([bx + dx, by + dy]);
+        }
+      }
+      for (const nk of mine) seen.add(nk);
+      assert.ok(body.length >= MIN_WATER, `water at ${k} is a body of ${body.length} tiles`);
+      bodies += 1;
+    }
+  }
+  assert.ok(bodies > 3);
+  // the filled ponds take the land round them, and the same seed fills the same ones
+  const again = createWorldgen({ seed: 'hushlands', regionWords: words.regionWords });
+  for (let y = 20; y < 40; y += 1) for (let x = 60; x < 90; x += 1) if (again.naturalTerrain(x, y) === world.naturalTerrain(x, y)) same += 1;
+  assert.equal(same, 600, 'deterministic');
+  assert.notEqual(world.naturalTerrain(64, 31), T.RIVER, 'the one-tile river by the bay is land');
+});
+
+test('roads cross water only on straight decks, two tiles wide, bank to bank', () => {
+  const r = world.roads();
+  let decks = 0;
+  for (const k of r.tiles) {
+    const [x, y] = k.split(',').map(Number);
+    if (world.terrainAt(x, y) !== T.BRIDGE) continue;
+    decks += 1;
+    const dir = world.deckAt(x, y);
+    assert.ok(['ns', 'ew', 'x'].includes(dir), `the bridge at ${k} is a deck (${dir})`);
+  }
+  assert.ok(decks > 16, `${decks} deck tiles`);
+  // layRoad: a diagonal line over a river becomes one straight deck, or two meeting on a landing,
+  // squared off bank to bank; a line that only brushes the water narrows rather than jut out
+  const river = (x, y) => x >= 10 && x <= 13; // a river four tiles wide, running north-south
+  const laid = new Map();
+  layRoad([{ x: 4, y: 0 }, { x: 20, y: 8 }], { wet: river }, (x, y, deck) => laid.set(`${x},${y}`, deck));
+  const over = [...laid].filter(([k]) => river(...k.split(',').map(Number)));
+  assert.ok(over.length >= 8 && over.every(([, d]) => d === 'ew'), 'the river is crossed on an east-west deck');
+  const rows = new Set(over.map(([k]) => k.split(',')[1]));
+  assert.equal(rows.size, 2, 'two tiles wide, straight across');
+  for (const row of rows) for (let x = 10; x <= 13; x += 1) assert.equal(laid.get(`${x},${row}`), 'ew', `bank to bank on row ${row}`);
+  const along = new Map();
+  layRoad([{ x: 0, y: 0 }, { x: 0, y: 12 }], { wet: (x) => x === 1 }, (x, y, deck) => along.set(`${x},${y}`, deck));
+  assert.ok([...along.keys()].every((k) => k.split(',')[0] !== '1'), 'a road beside the water keeps off it');
+});
+
+// ---------- rivers' ends, gates' roads and places by the bridges ----------
+
+const OTHER_WORLDS = [42, 's5'].map((seed) => createWorldgen({ seed, regionWords: words.regionWords }));
+
+test('rivers end by narrowing to a tip: never against the vale\'s walls, the hills or ground that takes none', () => {
+  for (const w of [world, ...OTHER_WORLDS]) {
+    // No river comes within two tiles of the walls, so none ends against them or leaves a stub
+    // cut off between a bridge and the wall (the north gate's old pond).
+    for (let y = -4; y <= HEART.h + 3; y += 1) {
+      for (let x = -4; x <= HEART.w + 3; x += 1) {
+        if (w.inHeart(x, y) || w.heartDistance(x, y) > 3) continue;
+        assert.notEqual(w.naturalTerrain(x, y), T.RIVER, `${w.seed}: no river at ${x},${y}, beside the walls`);
+      }
+    }
+  }
+  // Where a river nears Cinderforge's basalt, or the Peaks' snow and rock, it has narrowed to a tip
+  // first: never two of its tiles side by side against that ground (a river cut off square).
+  const HARD = new Set([T.BASALT, T.SNOW, T.ROCK, T.MOUNTAIN]);
+  for (const w of [world, OTHER_WORLDS[0]]) {
+    let touching = 0;
+    for (const id of ['cinderforge', 'archive-peaks']) {
+      const a = w.anchorById[id];
+      const r = Math.ceil(a.radius * 1.6);
+      const against = new Set();
+      for (let y = a.y - r; y <= a.y + r; y += 1) {
+        for (let x = a.x - r; x <= a.x + r; x += 1) {
+          if (w.naturalTerrain(x, y) !== T.RIVER) continue;
+          if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => HARD.has(w.naturalTerrain(x + dx, y + dy)))) against.add(`${x},${y}`);
+        }
+      }
+      touching += against.size;
+      for (const k of against) {
+        const [x, y] = k.split(',').map(Number);
+        assert.ok(!against.has(`${x + 1},${y}`) && !against.has(`${x},${y + 1}`), `${w.seed}: the river at ${k} meets ${id}'s ground as a tip, not cut off square`);
+      }
+    }
+    assert.ok(touching < 12, `${w.seed}: ${touching} river tiles touch that ground at all`);
+  }
+  // And where the land climbs toward the hills a river has already narrowed and gone before the
+  // height where it used to stop at full width (0.72): in this world, none is left past 0.71.
+  for (const w of [world, OTHER_WORLDS[1]]) {
+    for (let y = -140; y <= 180; y += 2) {
+      for (let x = -200; x <= 200; x += 2) {
+        if (w.naturalTerrain(x, y) === T.RIVER) assert.ok(w.elevationAt(x, y) < 0.71, `${w.seed}: the river at ${x},${y} has narrowed away below the hills`);
+      }
+    }
+  }
+  // The rivers are still there: the world keeps its rivers, only their ends change.
+  let river = 0;
+  for (let y = -100; y <= 140; y += 1) for (let x = -120; x <= 180; x += 1) if (world.naturalTerrain(x, y) === T.RIVER) river += 1;
+  assert.ok(river > 1500, `${river} river tiles`);
+});
+
+test('the road meets each gate one lane wide, on the gate\'s own line, and widens beyond', () => {
+  for (const w of [world, ...OTHER_WORLDS]) {
+    for (const [id, g] of Object.entries(GATES)) {
+      const [sx, sy] = g.dir.x === 0 ? [1, 0] : [0, 1];
+      for (let k = 1; k <= GATE_LANE; k += 1) {
+        const x = g.edge.x + g.dir.x * k;
+        const y = g.edge.y + g.dir.y * k;
+        assert.ok([T.ROAD, T.BRIDGE].includes(w.terrainAt(x, y)), `${w.seed} ${id}: road on the gate's line at ${x},${y}`);
+        assert.ok(![T.ROAD, T.BRIDGE].includes(w.terrainAt(x + sx, y + sy)), `${w.seed} ${id}: one lane at ${x + sx},${y + sy}`);
+        assert.equal(w.deckAt(x + sx, y + sy), null);
+      }
+    }
+  }
+  // The north gate's road is two lanes wide again just past its narrow stretch.
+  const n = GATES['gate:n'];
+  assert.equal(world.terrainAt(n.edge.x + 1, n.edge.y - GATE_LANE - 1), T.ROAD);
+});
+
+test('lanterns, landmarks and statues stand clear of every bridge; a road\'s lanterns at its side', () => {
+  let near = 0;
+  for (const w of [world, ...OTHER_WORLDS, createWorldgen({ seed: 'another story', regionWords: words.regionWords })]) {
+    const roads = w.roads();
+    for (const p of w.fixedPois()) {
+      if (p.type === 'quay' || p.region === 'skyward-isles') continue;
+      for (let dy = -DECK_CLEAR; dy <= DECK_CLEAR; dy += 1) {
+        for (let dx = -DECK_CLEAR; dx <= DECK_CLEAR; dx += 1) {
+          if (w.inHeart(p.x + dx, p.y + dy)) continue;
+          assert.notEqual(w.terrainAt(p.x + dx, p.y + dy), T.BRIDGE, `${w.seed}: ${p.type} at ${p.x},${p.y} has a bridge at ${p.x + dx},${p.y + dy}`);
+        }
+      }
+      if (p.type === 'lantern' && !p.region) {
+        const roadside = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => roads.tiles.has(`${p.x + dx},${p.y + dy}`));
+        assert.ok(roadside, `${w.seed}: the lantern at ${p.x},${p.y} stands at the roadside`);
+        near += 1;
+      }
+    }
+  }
+  assert.ok(near > 20, `${near} road lanterns checked`);
+  // The one that stood on the deck west of the vale now stands on the bank by the road (the other,
+  // at -76,14, keeps its place: the river it stood over now rises clear of Cinderforge's road).
+  const ids = world.fixedPois().filter((p) => p.type === 'lantern').map((p) => `${p.x},${p.y}`);
+  assert.ok(!ids.includes('-8,-26'), 'off the deck west of the vale');
+  assert.ok(ids.includes('-76,14'), 'the Cinderforge road lantern is on dry road now');
+  assert.notEqual(world.terrainAt(-76, 14), T.BRIDGE);
+});
+
+test('every name and note the world gives out takes curly apostrophes, never straight ones', () => {
+  const texts = [];
+  for (const p of world.fixedPois()) texts.push(p.name, p.note);
+  for (let cy = -4; cy < 4; cy += 1) for (let cx = -4; cx < 4; cx += 1) for (const p of world.chunk(cx, cy).pois) texts.push(p.name, p.note);
+  for (const a of ANCHORS) texts.push(a.name);
+  for (const t of TERRAIN_INFO) texts.push(t.name);
+  for (let i = 0; i < 40; i += 1) texts.push(world.regionAt(i * 211 - 4000, i * 97 - 2000));
+  const said = texts.filter((s) => typeof s === 'string');
+  assert.ok(said.some((s) => s.includes('Sloe')), 'the quay is among them');
+  for (const s of said) assert.ok(!s.includes("'"), `“${s}” has a straight apostrophe`);
+  // And in the source: no quoted string literal in worldgen.js carries one (comments aside).
+  const src = readFileSync(new URL('../src/world/worldgen.js', import.meta.url), 'utf8');
+  const literals = src.split('\n').filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line)).flatMap((line) => line.match(/"[^"\n]*"|`[^`\n]*`/g) || []);
+  for (const lit of literals) assert.ok(!/[A-Za-z]'[A-Za-z]/.test(lit), `${lit} has a straight apostrophe`);
 });

@@ -9,13 +9,15 @@ import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MAX_SESSIONS, createWatcher } from '../src/watch/index.js';
+import { MAX_SESSIONS, capacityReading, createCapacityClock, createWatcher } from '../src/watch/index.js';
 import {
-  clip, firstLine, isHumanPrompt, msToFileTime, parseIncremental, parseProcStart, processStartTimes, projectName, snippet, toMs,
+  buildClaudeSession, clip, firstLine, isHumanPrompt, msToFileTime, parseIncremental, parseProcStart, processStartTimes, projectName, snippet, toMs,
 } from '../src/watch/claude.js';
-import { codexPromptText, isSubagentMeta, parseCodexRollout, threadIdFromFileName } from '../src/watch/codex.js';
+import {
+  CAPACITY_LIMIT_ID, CLOCK_SKEW_MS, codexPromptText, isSubagentMeta, latestReading, newerReading, parseCodexRollout, pickRateLimits, scanCodex, threadIdFromFileName,
+} from '../src/watch/codex.js';
 import { createToolProbes, detectTools, formatCost, readJevTool } from '../src/watch/local.js';
-import { CLAUDE_IDS, CODEX_IDS } from './fixtures/build-fixtures.mjs';
+import { CLAUDE_IDS, CODEX_CAPACITY, CODEX_IDS } from './fixtures/build-fixtures.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURES = path.join(here, 'fixtures');
@@ -102,6 +104,41 @@ async function writeRegistry(claudeHome, { pid = process.pid, sessionId, status,
     }),
   );
   return file;
+}
+
+// Codex allowance readings as Codex writes them (payload.rate_limits of a token_count record).
+// resets_at is in seconds, so reset times here are whole seconds.
+const RESET = Date.parse('2026-10-01T14:20:00Z');
+const rlWindow = (used, minutes, resetsAtMs) => ({ used_percent: used, window_minutes: minutes, resets_at: Math.floor(resetsAtMs / 1000) });
+function rateLimits({ id = CAPACITY_LIMIT_ID, name = null, primary = null, secondary = null } = {}) {
+  return {
+    limit_id: id,
+    limit_name: name,
+    primary,
+    secondary,
+    credits: { has_credits: false, unlimited: false, balance: '0' },
+    individual_limit: null,
+    spend_control_reached: null,
+    plan_type: 'plus',
+    rate_limit_reached_type: null,
+  };
+}
+const weekly = (used, resetsAtMs = RESET) => rateLimits({ primary: rlWindow(used, 10080, resetsAtMs) });
+const tokenInfo = { total_token_usage: { input_tokens: 1200, output_tokens: 80 }, last_token_usage: { input_tokens: 600, output_tokens: 40 }, model_context_window: 258400 };
+const tokenCountLine = (ms, limits, extra = {}) => JSON.stringify({
+  timestamp: new Date(ms).toISOString(), ordinal: 900, type: 'event_msg', payload: { type: 'token_count', info: tokenInfo, rate_limits: limits, ...extra },
+});
+const reading = (usedPercent, at, { resetsAt = RESET, windowMinutes = 10080 } = {}) => ({ usedPercent, resetsAt, windowMinutes, at });
+const codexFiles = (homes) => ({
+  gardenBase: path.join(homes.codexHome, 'sessions', '2026', '09', '24', `rollout-2026-09-24T10-00-00-${CODEX_IDS.garden}.jsonl`),
+  gardenSegment: path.join(homes.codexHome, 'sessions', '2026', '09', '25', `rollout-2026-09-25T05-00-00-${CODEX_IDS.garden}_${CODEX_IDS.gardenSegment}.jsonl`),
+  working: path.join(homes.codexHome, 'sessions', '2026', '09', '25', `rollout-2026-09-25T07-40-00-${CODEX_IDS.working}.jsonl`),
+  aborted: path.join(homes.codexHome, 'sessions', '2026', '09', '23', `rollout-2026-09-23T12-00-00-${CODEX_IDS.aborted}.jsonl`),
+  archived: path.join(homes.codexHome, 'archived_sessions', `rollout-2026-09-10T08-00-00-${CODEX_IDS.archived}.jsonl`),
+});
+async function appendLines(file, lines, mtime) {
+  await fsp.appendFile(file, `${lines.join('\n')}\n`);
+  if (mtime) await fsp.utimes(file, new Date(mtime), new Date(mtime));
 }
 
 async function replaceSameSize(file, from, to) {
@@ -419,10 +456,25 @@ test('big files: every turn counts, and a grown file is read from where the last
     rec(start + 2000, 'event_msg', { type: 'task_started', turn_id: 'head-1', started_at: (start + 2000) / 1000 }),
     rec(start + 3000, 'event_msg', { type: 'task_complete', turn_id: 'head-1', last_agent_message: 'Head reply.', started_at: (start + 2000) / 1000, completed_at: (start + 3000) / 1000 }),
   ];
+  // Padding: token_count lines with rate_limits null, the way Codex writes a turn without a
+  // reading. The key is there, so only the exact '"rate_limits":{' check passes them over.
   const pad = 'x'.repeat(1000);
-  for (let i = 0; i < 11000; i += 1) lines.push(rec(start + 10000 + i, 'event_msg', { type: 'token_count', info: null, pad }));
+  for (let i = 0; i < 11000; i += 1) lines.push(rec(start + 10000 + i, 'event_msg', { type: 'token_count', info: null, rate_limits: null, pad }));
+  // One allowance reading deep inside the bulk, then a null one, which must not erase it. Token
+  // counts laid out like a long real thread's put the reading's key across byte 512, as on about one
+  // real reading in five, so a check of only the first 512 bytes would miss it.
+  const usage = (input, cached, output, reasoning) => ({
+    input_tokens: input, cached_input_tokens: cached, cache_write_input_tokens: 0, output_tokens: output, reasoning_output_tokens: reasoning, total_tokens: input + output,
+  });
+  const fullInfo = { total_token_usage: usage(48213907, 45102336, 391204, 187633), last_token_usage: usage(212448, 208640, 3187, 1422), model_context_window: 258400 };
+  const middleReading = start + 29 * MIN;
+  const readingLine = rec(middleReading, 'event_msg', { type: 'token_count', info: fullInfo, rate_limits: weekly(64) });
+  const keyAt = readingLine.indexOf('"rate_limits":{');
+  assert.ok(keyAt < 512 && keyAt + '"rate_limits":{'.length > 512, `the reading's key starts ${keyAt} bytes in`);
+  lines.push(readingLine);
+  lines.push(rec(middleReading + 1000, 'event_msg', { type: 'token_count', info: fullInfo, rate_limits: null }));
   lines.push(rec(start + 30 * MIN, 'event_msg', { type: 'task_complete', turn_id: 'middle-1', last_agent_message: 'Middle reply.', completed_at: (start + 30 * MIN) / 1000 }));
-  for (let i = 0; i < 11000; i += 1) lines.push(rec(start + 31 * MIN + i, 'event_msg', { type: 'token_count', info: null, pad }));
+  for (let i = 0; i < 11000; i += 1) lines.push(rec(start + 31 * MIN + i, 'event_msg', { type: 'token_count', info: null, rate_limits: null, pad }));
   const end = NOW - 10 * MIN;
   lines.push(rec(end, 'event_msg', { type: 'task_started', turn_id: 'tail-1', started_at: end / 1000 }));
   lines.push(rec(end + 1000, 'response_item', { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Tail reply.' }] }));
@@ -432,9 +484,23 @@ test('big files: every turn counts, and a grown file is read from where the last
   assert.ok(size > 20 * 1024 * 1024, `test file is ${size} bytes`);
 
   const watcher = watcherFor(homes);
+  // Count JSON.parse calls: the 22,000 padded token_count lines must be passed over on a bounded
+  // byte check, never parsed.
+  const realParse = JSON.parse;
+  let parses = 0;
+  JSON.parse = (...args) => {
+    parses += 1;
+    return realParse(...args);
+  };
   const started = performance.now();
-  const snap = await watcher.scan();
+  let snap;
+  try {
+    snap = await watcher.scan();
+  } finally {
+    JSON.parse = realParse;
+  }
   const elapsed = performance.now() - started;
+  assert.ok(parses < 1000, `${parses} lines were parsed`);
   const big = find(snap, `codex:${id}`);
   assert.ok(big, 'big thread is listed');
   assert.equal(big.title, 'Big file prompt');
@@ -443,18 +509,22 @@ test('big files: every turn counts, and a grown file is read from where the last
   assert.equal(big.status, 'done');
   assert.equal(big.lastMessage, 'Tail reply.');
   assert.equal(big.project, 'Big');
+  assert.deepEqual(snap.capacity.codex, reading(64, middleReading), 'the reading in the middle of a big file is found');
   assert.ok(elapsed < 5000, `scan took ${Math.round(elapsed)} ms`);
 
   // Another turn is appended: the next scan picks it up without re-reading the whole file.
   await fsp.appendFile(file, `${[
     rec(end + 60000, 'event_msg', { type: 'task_started', turn_id: 'tail-2', started_at: (end + 60000) / 1000 }),
+    rec(end + 60500, 'event_msg', { type: 'token_count', info: fullInfo, rate_limits: weekly(65) }),
     rec(end + 61000, 'event_msg', { type: 'task_complete', turn_id: 'tail-2', last_agent_message: 'Second tail reply.', completed_at: (end + 61000) / 1000 }),
   ].join('\n')}\n`);
   const again = performance.now();
-  const grown = find(await watcher.scan(), `codex:${id}`);
+  const grownSnap = await watcher.scan();
+  const grown = find(grownSnap, `codex:${id}`);
   const appendElapsed = performance.now() - again;
   assert.equal(grown.turns, 4);
   assert.equal(grown.lastMessage, 'Second tail reply.');
+  assert.deepEqual(grownSnap.capacity.codex, reading(65, end + 60500), 'a newer reading appended to a big file');
   assert.ok(appendElapsed < elapsed, `append scan ${Math.round(appendElapsed)} ms vs first scan ${Math.round(elapsed)} ms`);
 });
 
@@ -510,6 +580,7 @@ test('missing or empty homes give ok:false with a calm error', async (t) => {
   const snap = await missing.scan();
   assert.deepEqual(snap.sessions, []);
   assert.equal(snap.scannedAt, NOW);
+  assert.deepEqual(snap.capacity, { codex: null }, 'no Codex folder, no reading');
   for (const key of ['claude', 'codex']) {
     const source = snap.sources[key];
     assert.equal(source.ok, false);
@@ -527,6 +598,7 @@ test('missing or empty homes give ok:false with a calm error', async (t) => {
   assert.equal(empty.sources.claude.ok, false);
   assert.match(empty.sources.claude.error, /hasn't saved any sessions/);
   assert.equal(empty.sources.codex.ok, false);
+  assert.deepEqual(empty.capacity, { codex: null }, 'a Codex folder without sessions has no reading');
 
   // Projects but no registry folder: readable, but live status isn't.
   await fsp.mkdir(path.join(root, 'empty-claude', 'projects'));
@@ -889,6 +961,401 @@ test('future-dated activity (clock skew) never reads as working and never outran
 });
 
 // ---------------------------------------------------------------------------------------------
+// Phase 3: Codex capacity and how long a session has waited on Chris
+
+test('capacity: only the codex bucket (or one without an id) counts, and the fuller window wins', () => {
+  const at = NOW - MIN;
+  const fiveHours = NOW + 3 * 60 * MIN;
+  // The current format: a weekly primary, secondary null.
+  assert.deepEqual(pickRateLimits(weekly(12), at), reading(12, at));
+  // No id (missing, null or empty) still means Codex's own allowance.
+  const noId = weekly(20);
+  delete noId.limit_id;
+  assert.deepEqual(pickRateLimits(noId, at), reading(20, at));
+  assert.deepEqual(pickRateLimits({ ...weekly(21), limit_id: null }, at), reading(21, at));
+  assert.deepEqual(pickRateLimits({ ...weekly(22), limit_id: '' }, at), reading(22, at));
+  // Model-specific buckets (usually at 0%) never stand in for the account's.
+  assert.equal(pickRateLimits(rateLimits({ id: 'codex_demo_mdl', name: 'Demo model', primary: rlWindow(0, 300, fiveHours), secondary: rlWindow(0, 10080, RESET) }), at), null);
+  assert.equal(pickRateLimits(rateLimits({ id: 'demo-bucket-weekly-1', primary: rlWindow(97, 10080, RESET) }), at), null);
+  assert.equal(pickRateLimits(rateLimits({ id: 'Codex', primary: rlWindow(97, 10080, RESET) }), at), null, 'ids match exactly');
+
+  // The older format: a 5-hour primary and a weekly secondary. The fuller window is the limit.
+  assert.deepEqual(pickRateLimits(rateLimits({ primary: rlWindow(30, 300, fiveHours), secondary: rlWindow(72, 10080, RESET) }), at), reading(72, at));
+  assert.deepEqual(
+    pickRateLimits(rateLimits({ primary: rlWindow(91, 300, fiveHours), secondary: rlWindow(72, 10080, RESET) }), at),
+    reading(91, at, { resetsAt: fiveHours, windowMinutes: 300 }),
+  );
+  assert.deepEqual(pickRateLimits(rateLimits({ primary: null, secondary: rlWindow(40, 10080, RESET) }), at), reading(40, at));
+  // A tie goes to the window that refills later, in either slot: that's when there's room again.
+  assert.deepEqual(pickRateLimits(rateLimits({ primary: rlWindow(100, 300, fiveHours), secondary: rlWindow(100, 10080, RESET) }), at), reading(100, at));
+  assert.deepEqual(pickRateLimits(rateLimits({ primary: rlWindow(100, 10080, RESET), secondary: rlWindow(100, 300, fiveHours) }), at), reading(100, at));
+
+  // Nothing usable: no reading.
+  const unusable = [
+    null, undefined, 'codex', 12, [], {}, rateLimits(),
+    rateLimits({ primary: { used_percent: 'high', window_minutes: 300, resets_at: RESET / 1000 } }),
+    rateLimits({ primary: { used_percent: Number.NaN, window_minutes: 300, resets_at: RESET / 1000 } }),
+    rateLimits({ primary: 'full' }),
+  ];
+  for (const value of unusable) assert.equal(pickRateLimits(value, at), null, JSON.stringify(value));
+
+  // resets_at is seconds since 1970; the reading is in ms.
+  assert.equal(pickRateLimits(rateLimits({ primary: { used_percent: 1, window_minutes: 10080, resets_at: 1791053279 } }), at).resetsAt, 1791053279000);
+  // Older builds said how long until the refill instead.
+  assert.deepEqual(
+    pickRateLimits(rateLimits({ primary: { used_percent: 55, window_minutes: 300, resets_in_seconds: 5400 } }), at),
+    reading(55, at, { resetsAt: at + 5400 * 1000, windowMinutes: 300 }),
+  );
+  // Out-of-range or missing values stay sane; fractions are kept.
+  assert.deepEqual(pickRateLimits(rateLimits({ primary: { used_percent: 104.5, resets_at: RESET / 1000 } }), at), reading(100, at, { windowMinutes: 0 }));
+  assert.equal(pickRateLimits(rateLimits({ primary: rlWindow(-3, 300, RESET) }), at).usedPercent, 0);
+  assert.equal(pickRateLimits(rateLimits({ primary: rlWindow(37.5, 300, RESET) }), at).usedPercent, 37.5);
+  assert.equal(pickRateLimits(rateLimits({ primary: { used_percent: 20, window_minutes: 300 } }), at).resetsAt, 0, 'no refill time known');
+
+  // Combining readings: the newer wins; at the same moment, the fuller one.
+  const older = reading(10, NOW - 2 * MIN);
+  const newer = reading(20, NOW - MIN);
+  assert.equal(newerReading(older, newer), newer);
+  assert.equal(newerReading(newer, older), newer);
+  assert.equal(newerReading(null, older), older);
+  assert.equal(newerReading(older, null), older);
+  assert.equal(newerReading(null, undefined), null);
+  assert.equal(newerReading(reading(30, NOW), reading(10, NOW)).usedPercent, 30);
+  assert.equal(newerReading(reading(10, NOW), reading(30, NOW)).usedPercent, 30);
+
+  // Across files: the latest stamp, with a stamp up to CLOCK_SKEW_MS past the scan still placed by time.
+  assert.equal(latestReading([], NOW), null);
+  assert.equal(latestReading([null, undefined], NOW), null);
+  assert.equal(latestReading([newer, null, older], NOW), newer);
+  const nearAhead = reading(15, NOW + CLOCK_SKEW_MS);
+  assert.equal(latestReading([nearAhead, newer], NOW), nearAhead);
+  // A stamp further ahead can't be placed by time. The allowance decides instead: in the same
+  // window the fuller reading came later, and on a tie the one that can be placed stands.
+  const HOUR = 60 * MIN;
+  const fullerAhead = reading(91, NOW + 2 * HOUR);
+  const emptierAhead = reading(5, NOW + 2 * HOUR);
+  assert.equal(latestReading([newer, fullerAhead], NOW), fullerAhead, 'ahead and fuller: written after');
+  assert.equal(latestReading([emptierAhead, newer], NOW), newer, 'ahead but emptier: written before');
+  assert.equal(latestReading([reading(20, NOW + 2 * HOUR), newer], NOW), newer, 'a tie keeps the one that can be placed');
+  assert.equal(latestReading([emptierAhead, newer]), emptierAhead, 'without a scan time, stamps are taken as written');
+  // Refill times drift a few seconds between readings of one window; that's still one window.
+  assert.equal(latestReading([reading(20, NOW - MIN, { resetsAt: RESET + 14000 }), reading(25, NOW + 2 * HOUR)], NOW).usedPercent, 25);
+  assert.equal(latestReading([reading(25, NOW - MIN), reading(20, NOW + 2 * HOUR, { resetsAt: RESET - 14000 })], NOW).usedPercent, 25);
+  // A later window is newer, whatever the usage says.
+  const nextWeek = RESET + 7 * 24 * HOUR;
+  assert.equal(latestReading([reading(90, NOW - MIN), reading(3, NOW + 2 * HOUR, { resetsAt: nextWeek })], NOW).usedPercent, 3);
+  assert.equal(latestReading([reading(3, NOW - MIN, { resetsAt: nextWeek }), reading(90, NOW + 2 * HOUR)], NOW).usedPercent, 3);
+  // Windows of different lengths, or an unknown refill time, can't be compared: the placed one stands.
+  // (In the older two-window format the fuller window is reported, so readings swap between a
+  // 5-hour and a weekly window and their refill times say nothing about order.)
+  assert.equal(latestReading([reading(40, NOW - MIN), reading(91, NOW + 2 * HOUR, { resetsAt: NOW + 3 * HOUR, windowMinutes: 300 })], NOW).usedPercent, 40);
+  assert.equal(latestReading([reading(91, NOW - MIN, { resetsAt: NOW + 3 * HOUR, windowMinutes: 300 }), reading(40, NOW + 2 * HOUR)], NOW).usedPercent, 91);
+  assert.equal(latestReading([reading(40, NOW - MIN, { resetsAt: 0 }), reading(91, NOW + 2 * HOUR)], NOW).usedPercent, 40);
+  assert.equal(latestReading([reading(40, NOW - MIN), reading(91, NOW + 2 * HOUR, { resetsAt: 0 })], NOW).usedPercent, 40);
+  // Only readings from ahead: the latest stamp among them.
+  assert.equal(latestReading([reading(93, NOW + 3 * HOUR), reading(95, NOW + 2 * HOUR)], NOW).usedPercent, 93);
+  // Several of each, in every order: the newest placed (60) against the newest from ahead (70).
+  const mixed = [reading(50, NOW - 30 * MIN), reading(60, NOW - 5 * MIN), reading(80, NOW + 2 * HOUR), reading(70, NOW + 3 * HOUR)];
+  const orders = [[0, 1, 2, 3], [3, 2, 1, 0], [2, 0, 3, 1], [1, 3, 0, 2]];
+  for (const order of orders) assert.equal(latestReading(order.map((i) => mixed[i]), NOW).usedPercent, 70, order.join());
+
+  // What reaches the snapshot: exactly the contract's fields, never later than the scan.
+  assert.equal(capacityReading(null, NOW), null);
+  assert.equal(capacityReading(undefined, NOW), null);
+  assert.equal(capacityReading({ ...reading(50, NOW), resetsAt: Number.NaN }, NOW), null);
+  assert.deepEqual(capacityReading({ ...reading(50, NOW + 5 * MIN), extra: 'dropped' }, NOW), reading(50, NOW));
+  const kept = reading(50, NOW - MIN);
+  const copy = capacityReading(kept, NOW);
+  assert.deepEqual(copy, kept);
+  assert.notEqual(copy, kept, 'a fresh object, so the snapshot never shares the cache');
+
+  // Over a run of scans, a reading stamped ahead keeps the scan time that first saw it.
+  const clock = createCapacityClock();
+  const ahead = reading(91, NOW + 2 * 60 * MIN);
+  assert.deepEqual(clock.read(ahead, NOW), reading(91, NOW));
+  assert.deepEqual(clock.read({ ...ahead }, NOW + MIN), reading(91, NOW), 'the same reading, even as a new object');
+  assert.deepEqual(clock.read(ahead, NOW + 2 * MIN), reading(91, NOW));
+  // A different reading from ahead starts again from its own first scan.
+  const aheadAgain = reading(92, NOW + 2 * 60 * MIN + MIN);
+  assert.deepEqual(clock.read(aheadAgain, NOW + 3 * MIN), reading(92, NOW + 3 * MIN));
+  assert.deepEqual(clock.read(aheadAgain, NOW + 4 * MIN), reading(92, NOW + 3 * MIN));
+  // A reading that isn't ahead is passed through, and forgets the held one.
+  assert.deepEqual(clock.read(reading(30, NOW + 4 * MIN), NOW + 5 * MIN), reading(30, NOW + 4 * MIN));
+  assert.deepEqual(clock.read(aheadAgain, NOW + 6 * MIN), reading(92, NOW + 6 * MIN));
+  assert.equal(clock.read(null, NOW + 7 * MIN), null);
+  assert.deepEqual(clock.read(aheadAgain, NOW + 8 * MIN), reading(92, NOW + 8 * MIN));
+  // Once the clock passes the stamp, the stamp itself is the time.
+  assert.deepEqual(clock.read(aheadAgain, NOW + 3 * 60 * MIN), reading(92, NOW + 2 * 60 * MIN + MIN));
+  // Never later than the scan, even if a scan's time goes backwards.
+  assert.deepEqual(clock.read(ahead, NOW + 10 * MIN), reading(91, NOW + 10 * MIN));
+  assert.deepEqual(clock.read(ahead, NOW + 9 * MIN), reading(91, NOW + 9 * MIN));
+  clock.reset();
+  assert.deepEqual(clock.read(ahead, NOW + 11 * MIN), reading(91, NOW + 11 * MIN), 'reset forgets the held reading');
+  assert.equal(clock.read({ ...ahead, at: Number.NaN }, NOW), null);
+});
+
+test('capacity: the fixture reading comes back from the codex bucket, in ms', async (t) => {
+  const homes = await makeHomes(t);
+  const snap = await watcherFor(homes).scan();
+  assert.deepEqual(snap.capacity, { codex: { ...CODEX_CAPACITY } });
+  assert.equal(snap.capacity.codex.resetsAt, Date.parse('2026-10-01T14:20:00Z'));
+  // The record really says seconds, the way Codex writes it.
+  const raw = await fsp.readFile(codexFiles(homes).gardenBase, 'utf8');
+  assert.ok(raw.includes(`"resets_at":${Date.parse('2026-10-01T14:20:00Z') / 1000}`));
+  assert.equal((raw.match(/"rate_limits":\{/g) || []).length, 1, 'one reading in the fixtures');
+  // The reading is the account's, not a thread's: nothing about the sessions changes.
+  assert.equal(snap.sources.codex.count, 6);
+  assert.equal(find(snap, codexId('garden')).lastActivityAt, Date.parse('2026-09-25T09:03:00Z'));
+});
+
+test('capacity: null readings, other buckets and empty windows never replace a real one', async (t) => {
+  const homes = await makeHomes(t);
+  const files = codexFiles(homes);
+  const watcher = watcherFor(homes);
+  // All newer than the fixture's reading and in the same file, none of them a usable Codex reading.
+  await appendLines(files.gardenBase, [
+    tokenCountLine(NOW - 50 * MIN, null),
+    tokenCountLine(NOW - 49 * MIN, rateLimits({ id: 'codex_demo_mdl', name: 'Demo model', primary: rlWindow(0, 300, NOW + 60 * MIN), secondary: rlWindow(0, 10080, RESET) })),
+    tokenCountLine(NOW - 48 * MIN, rateLimits({ primary: null, secondary: null })),
+    rolloutLine(NOW - 47 * MIN, 'event_msg', { type: 'token_count', info: null }),
+    tokenCountLine(NOW - 46 * MIN, rateLimits({ id: 'demo-bucket-weekly-1', primary: rlWindow(99, 10080, RESET) })),
+  ], NOW - 46 * MIN);
+  let snap = await watcher.scan();
+  assert.deepEqual(snap.capacity.codex, { ...CODEX_CAPACITY }, 'the older real reading stands');
+
+  // A real one in the older two-window format: the fuller window, its refill time in ms.
+  await appendLines(files.gardenSegment, [
+    tokenCountLine(NOW - 40 * MIN, rateLimits({ primary: rlWindow(40, 300, NOW + 2 * 60 * MIN), secondary: rlWindow(88, 10080, RESET) })),
+    tokenCountLine(NOW - 39 * MIN, null),
+  ], NOW - 39 * MIN);
+  snap = await watcher.scan();
+  assert.deepEqual(snap.capacity.codex, reading(88, NOW - 40 * MIN));
+  assert.deepEqual((await watcherFor(homes).scan()).capacity.codex, reading(88, NOW - 40 * MIN), 'the same from a cold read');
+});
+
+test('capacity: the newest reading across rollouts wins by record time, archived ones included', async (t) => {
+  const homes = await makeHomes(t);
+  const files = codexFiles(homes);
+  // Modification times say the working thread's file is newest; the records say otherwise.
+  await appendLines(files.working, [tokenCountLine(NOW - 20 * MIN, weekly(40))], NOW);
+  await appendLines(files.archived, [tokenCountLine(NOW - 5 * MIN, weekly(55))], NOW - 60 * MIN);
+  await appendLines(files.aborted, [tokenCountLine(NOW - 10 * MIN, weekly(47))], NOW - 30 * MIN);
+  const watcher = watcherFor(homes);
+  let snap = await watcher.scan();
+  assert.deepEqual(snap.capacity.codex, reading(55, NOW - 5 * MIN), 'the archived rollout holds the newest reading');
+  assert.equal(find(snap, codexId('archived')).archived, true);
+
+  // A newer reading elsewhere takes over, and an older one written to another file later doesn't.
+  const nextWeek = RESET + 7 * 24 * 60 * MIN;
+  await appendLines(files.aborted, [tokenCountLine(NOW - 2 * MIN, weekly(58, nextWeek))], NOW - 29 * MIN);
+  await appendLines(files.working, [tokenCountLine(NOW - 30 * MIN, weekly(99))], NOW + 1000);
+  snap = await watcher.scan();
+  assert.deepEqual(snap.capacity.codex, reading(58, NOW - 2 * MIN, { resetsAt: nextWeek }));
+  // Inside one file, the reading appended last is the file's reading even when its stamp is
+  // older: Codex appends in write order, so an older stamp there means the clock went back.
+  assert.deepEqual((await parseCodexRollout(files.working)).rateLimits, reading(99, NOW - 30 * MIN), 'a file keeps the reading written last');
+});
+
+test('capacity: a reading stamped ahead (clock skew) never hides real ones written after it', async (t) => {
+  const homes = await makeHomes(t);
+  const files = codexFiles(homes);
+  const HOUR = 60 * MIN;
+  let clock = NOW;
+  const watcher = watcherFor(homes, { now: () => clock });
+  assert.deepEqual((await watcher.scan()).capacity.codex, { ...CODEX_CAPACITY });
+
+  // The clock ran two hours ahead while Codex wrote a reading, then was put right. It's fuller than
+  // the fixture's 12% in the same window, so it came later and stands. It keeps the scan time that
+  // first saw it, rather than a new time every scan.
+  await appendLines(files.working, [tokenCountLine(NOW + 2 * HOUR, weekly(91))], NOW);
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(91, NOW));
+  clock = NOW + MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(91, NOW), 'the same reading, the same time');
+
+  // Codex's next turn in the same thread, stamped by the corrected clock, is the reading from then
+  // on: in a file, the reading written last wins.
+  await appendLines(files.working, [tokenCountLine(NOW + 4 * MIN, weekly(30))], NOW + 4 * MIN);
+  clock = NOW + 5 * MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(30, NOW + 4 * MIN));
+  clock = NOW + 10 * MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(30, NOW + 4 * MIN), 'and it stays');
+  assert.deepEqual((await watcherFor(homes, { now: () => clock }).scan()).capacity.codex, reading(30, NOW + 4 * MIN), 'the same from a cold read');
+
+  // In another thread: a reading from hours ahead that's fuller in the same window came later.
+  await appendLines(files.aborted, [tokenCountLine(NOW + 3 * HOUR, weekly(95))], NOW + 11 * MIN);
+  clock = NOW + 12 * MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(95, NOW + 12 * MIN), 'fuller, from another thread');
+  clock = NOW + 13 * MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(95, NOW + 12 * MIN));
+  // Codex carries on in a third thread with the corrected clock: that reading takes over at once,
+  // not two hours later.
+  await appendLines(files.gardenSegment, [tokenCountLine(NOW + 14 * MIN, weekly(96))], NOW + 14 * MIN);
+  clock = NOW + 15 * MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(96, NOW + 14 * MIN), 'a real reading written after it');
+  // An emptier reading from ahead was written before the real ones, so it never takes over.
+  await appendLines(files.archived, [tokenCountLine(NOW + 2 * HOUR + MIN, weekly(94))], NOW + 15 * MIN);
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(96, NOW + 14 * MIN), 'emptier, from ahead');
+  // Nor does one from the window before, however full.
+  await appendLines(files.aborted, [tokenCountLine(NOW + 3 * HOUR + MIN, weekly(100, RESET - 7 * 24 * HOUR))], NOW + 15 * MIN);
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(96, NOW + 14 * MIN), 'the window before, from ahead');
+
+  // A stamp a little ahead (a sync nudging the clock, or a line written during the scan) counts by
+  // its time, and reads as the scan that first saw it until the clock passes it.
+  await appendLines(files.gardenSegment, [tokenCountLine(clock + CLOCK_SKEW_MS - 1000, weekly(97))], clock);
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(97, NOW + 15 * MIN));
+  clock = NOW + 16 * MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(97, NOW + 15 * MIN));
+  clock = NOW + 21 * MIN;
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(97, NOW + 20 * MIN - 1000), 'its own time once the clock passes it');
+
+  // When every reading is from ahead, the latest stamp stands, as the scan that first saw it.
+  const aheadOnly = await makeHomes(t);
+  const aheadFiles = codexFiles(aheadOnly);
+  const text = await fsp.readFile(aheadFiles.gardenBase, 'utf8');
+  await fsp.writeFile(aheadFiles.gardenBase, text.replace(/"rate_limits":\{.*\}\}\}$/m, '"rate_limits":null}}'));
+  await appendLines(aheadFiles.working, [tokenCountLine(NOW + 2 * HOUR, weekly(91))]);
+  await appendLines(aheadFiles.aborted, [tokenCountLine(NOW + 3 * HOUR, weekly(95))]);
+  assert.deepEqual((await watcherFor(aheadOnly).scan()).capacity.codex, reading(95, NOW));
+});
+
+test('capacity: a file that only grew keeps the reading it already had', async (t) => {
+  const homes = await makeHomes(t);
+  const files = codexFiles(homes);
+  const watcher = watcherFor(homes);
+  assert.deepEqual((await watcher.scan()).capacity.codex, { ...CODEX_CAPACITY });
+
+  // The old reading is changed in place (same size, well past the first bytes), then the file
+  // grows with nothing newer. Only the new bytes are read, so the reading carried in the cache
+  // stands; the old line isn't read again.
+  await replaceSameSize(files.gardenBase, '"used_percent":12,', '"used_percent":34,');
+  await appendLines(files.gardenBase, [
+    tokenCountLine(NOW - 20 * MIN, null),
+    rolloutLine(NOW - 19 * MIN, 'response_item', { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Made-up follow-up.' }] }),
+  ], NOW - 19 * MIN);
+  let snap = await watcher.scan();
+  assert.equal(find(snap, codexId('garden')).lastMessage, 'Made-up follow-up.', 'the appended lines were read');
+  assert.deepEqual(snap.capacity.codex, { ...CODEX_CAPACITY }, 'the earlier reading is carried, not lost');
+  // A cold read of the whole file sees the edited line, so the value above came from the cache.
+  assert.equal((await watcherFor(homes).scan()).capacity.codex.usedPercent, 34);
+
+  // Growth with a newer reading replaces it, and an unchanged file serves it from the cache.
+  await appendLines(files.gardenBase, [tokenCountLine(NOW - 10 * MIN, weekly(47))], NOW - 10 * MIN);
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(47, NOW - 10 * MIN));
+  assert.deepEqual((await watcher.scan()).capacity.codex, reading(47, NOW - 10 * MIN));
+
+  // A rewritten (shorter) file is read again from the start and keeps only what it still holds.
+  const lines = (await fsp.readFile(files.gardenBase, 'utf8')).split('\n').filter((line) => !line.includes('"rate_limits":{'));
+  await fsp.writeFile(files.gardenBase, lines.join('\n'));
+  await fsp.utimes(files.gardenBase, new Date(NOW - 5 * MIN), new Date(NOW - 5 * MIN));
+  assert.deepEqual((await watcher.scan()).capacity, { codex: null }, 'no reading left anywhere');
+});
+
+test('capacity: null when Codex has no reading or no folder; a future-dated reading is clamped', async (t) => {
+  const homes = await makeHomes(t);
+  const files = codexFiles(homes);
+  // Readable rollouts, but Codex never wrote a reading (rate_limits null).
+  const text = await fsp.readFile(files.gardenBase, 'utf8');
+  await fsp.writeFile(files.gardenBase, text.replace(/"rate_limits":\{.*\}\}\}$/m, '"rate_limits":null}}'));
+  let snap = await watcherFor(homes).scan();
+  assert.equal(snap.sources.codex.ok, true);
+  assert.equal(snap.sources.codex.count, 6, 'the thread is still read');
+  assert.deepEqual(snap.capacity, { codex: null });
+
+  // A reading stamped in the future (clock skew) counts, but never later than the scan.
+  await appendLines(files.working, [tokenCountLine(NOW + 2 * 60 * MIN, weekly(91))]);
+  const watcher = watcherFor(homes);
+  snap = await watcher.scan();
+  assert.deepEqual(snap.capacity.codex, reading(91, NOW));
+  // The snapshot's reading is its own object: changing it can't reach the watcher's cache.
+  snap.capacity.codex.usedPercent = 1;
+  assert.equal((await watcher.scan()).capacity.codex.usedPercent, 91);
+  // A refill time that has passed is still reported as read; the rift layer treats it as refilled.
+  snap = await watcherFor(homes, { now: () => RESET + MIN }).scan();
+  assert.deepEqual(snap.capacity.codex, reading(91, NOW + 2 * 60 * MIN));
+
+  // No usable folder: ok:false and no reading.
+  const notAFolder = path.join(homes.root, 'codex-file');
+  await fsp.writeFile(notAFolder, 'not a folder');
+  snap = await watcherFor({ ...homes, codexHome: notAFolder }).scan();
+  assert.equal(snap.sources.codex.ok, false);
+  assert.deepEqual(snap.capacity, { codex: null });
+  assert.equal((await scanCodex({ home: path.join(homes.root, 'nowhere'), now: NOW })).capacity, null);
+  assert.equal((await scanCodex({ home: '', now: NOW })).capacity, null);
+});
+
+test('waitingSince: when a live Claude session began waiting on you', async (t) => {
+  const homes = await makeHomes(t);
+  const watcher = watcherFor(homes);
+  const since = NOW - 25 * 60 * MIN;
+
+  // Waiting since yesterday: the registry's status time, not the newer transcript time.
+  await writeRegistry(homes.claudeHome, { sessionId: CLAUDE_IDS.liveable, status: 'waiting_for_permission', statusUpdatedAt: since });
+  let session = find(await watcher.scan(), claudeId('liveable'));
+  assert.equal(session.status, 'needs-you');
+  assert.equal(session.live, true);
+  assert.equal(session.waitingSince, since);
+  assert.equal(session.lastActivityAt, Date.parse('2026-09-25T11:00:10Z'));
+
+  // A subagent still writing moves lastActivityAt, but not when the waiting began.
+  const agentFile = path.join(homes.claudeHome, 'projects', 'Z--Demo', CLAUDE_IDS.liveable, 'subagents', 'agent-demo.jsonl');
+  await fsp.mkdir(path.dirname(agentFile), { recursive: true });
+  await fsp.writeFile(agentFile, '{"isSidechain":true}\n');
+  await fsp.utimes(agentFile, new Date(NOW - 20 * 1000), new Date(NOW - 20 * 1000));
+  session = find(await watcher.scan(), claudeId('liveable'));
+  assert.equal(session.lastActivityAt, NOW - 20 * 1000);
+  assert.equal(session.waitingSince, since);
+  await fsp.rm(path.join(homes.claudeHome, 'projects', 'Z--Demo', CLAUDE_IDS.liveable), { recursive: true });
+
+  // No status time in the registry: lastActivityAt stands in.
+  await writeRegistry(homes.claudeHome, { sessionId: CLAUDE_IDS.liveable, status: 'waiting_for_permission', statusUpdatedAt: null });
+  session = find(await watcher.scan(), claudeId('liveable'));
+  assert.equal(session.waitingSince, Date.parse('2026-09-25T11:00:10Z'));
+  assert.equal(session.waitingSince, session.lastActivityAt);
+
+  // A status time past the scan (clock skew) reads as now.
+  await writeRegistry(homes.claudeHome, { sessionId: CLAUDE_IDS.liveable, status: 'waiting_for_permission', statusUpdatedAt: NOW + 60 * MIN });
+  assert.equal(find(await watcher.scan(), claudeId('liveable')).waitingSince, NOW);
+
+  // Working, finished, or no longer running: not waiting.
+  for (const status of ['busy', 'idle']) {
+    await writeRegistry(homes.claudeHome, { sessionId: CLAUDE_IDS.liveable, status, statusUpdatedAt: since });
+    session = find(await watcher.scan(), claudeId('liveable'));
+    assert.equal(session.live, true);
+    assert.equal(session.waitingSince, null, status);
+  }
+  await fsp.rm(path.join(homes.claudeHome, 'sessions', `${process.pid}.json`));
+  session = find(await watcher.scan(), claudeId('liveable'));
+  assert.equal(session.live, false);
+  assert.equal(session.waitingSince, null);
+
+  // A stale registry entry (its pid isn't running) that says it's waiting: not live, not waiting.
+  await writeRegistry(homes.claudeHome, { pid: 4194303, sessionId: CLAUDE_IDS.stopped, status: 'waiting_for_permission', statusUpdatedAt: since });
+  // A registry-only session (no transcript yet) that is waiting.
+  const freshId = 'aaaabbbb-0000-4000-8000-000000000009';
+  await writeRegistry(homes.claudeHome, { pid: process.ppid, sessionId: freshId, status: 'waiting_for_permission', name: 'Fresh ask', statusUpdatedAt: NOW - 26 * 60 * MIN });
+  const snap = await watcher.scan();
+  assert.equal(find(snap, claudeId('stopped')).waitingSince, null);
+  assert.equal(find(snap, claudeId('stopped')).status, 'stopped');
+  const fresh = find(snap, `claude:${freshId}`);
+  assert.equal(fresh.status, 'needs-you');
+  assert.equal(fresh.waitingSince, NOW - 26 * 60 * MIN);
+
+  // Codex never waits on Chris mid-turn.
+  const codex = snap.sessions.filter((s) => s.agent === 'codex');
+  assert.equal(codex.length, 6);
+  for (const s of codex) assert.equal(s.waitingSince, null, s.id);
+
+  // Straight from the builder: a live entry with no status time and no transcript falls back
+  // through lastActivityAt to the registry's update time.
+  const built = buildClaudeSession('cafecafe-0000-4000-8000-000000000001', null, {
+    alive: true, status: 'waiting_for_permission', statusUpdatedAt: 0, updatedAt: NOW - 5 * MIN, startedAt: NOW - 9 * MIN, name: 'Made-up', cwd: '', entrypoint: 'cli',
+  }, NOW);
+  assert.equal(built.status, 'needs-you');
+  assert.equal(built.waitingSince, NOW - 5 * MIN);
+  assert.equal(buildClaudeSession('cafecafe-0000-4000-8000-000000000002', null, null, NOW).waitingSince, null);
+});
+
+// ---------------------------------------------------------------------------------------------
 // Tools
 
 test('jev: installed from the router stats file, detail from sent_to and cost', async (t) => {
@@ -982,12 +1449,20 @@ test('whisper and ollama: probed once per launch, injected in tests, skipped whe
 test('snapshot matches the contract shape and survives JSON (IPC) round trips', async (t) => {
   const homes = await makeHomes(t);
   await writeRegistry(homes.claudeHome, { sessionId: CLAUDE_IDS.liveable, status: 'busy', name: 'Watering run' });
+  await writeRegistry(homes.claudeHome, { pid: process.ppid, sessionId: CLAUDE_IDS.done, status: 'waiting_for_permission', statusUpdatedAt: NOW - 3 * MIN });
   const snap = await watcherFor(homes).scan();
   assert.equal(snap.scannedAt, NOW);
-  assert.deepEqual(Object.keys(snap).sort(), ['scannedAt', 'sessions', 'sources', 'tools']);
+  assert.deepEqual(Object.keys(snap).sort(), ['capacity', 'scannedAt', 'sessions', 'sources', 'tools']);
   assert.deepEqual(JSON.parse(JSON.stringify(snap)), snap);
 
-  const keys = ['agent', 'archived', 'completions', 'cwd', 'id', 'lastActivityAt', 'lastMessage', 'live', 'model', 'project', 'sessionId', 'source', 'startedAt', 'status', 'statusDetail', 'title', 'turns'];
+  // Phase 3: capacity = { codex: { usedPercent, resetsAt, windowMinutes, at } | null }.
+  assert.deepEqual(Object.keys(snap.capacity), ['codex']);
+  assert.deepEqual(Object.keys(snap.capacity.codex).sort(), ['at', 'resetsAt', 'usedPercent', 'windowMinutes']);
+  for (const value of Object.values(snap.capacity.codex)) assert.ok(Number.isFinite(value));
+  assert.ok(snap.capacity.codex.usedPercent >= 0 && snap.capacity.codex.usedPercent <= 100);
+  assert.ok(snap.capacity.codex.at <= snap.scannedAt);
+
+  const keys = ['agent', 'archived', 'completions', 'cwd', 'id', 'lastActivityAt', 'lastMessage', 'live', 'model', 'project', 'sessionId', 'source', 'startedAt', 'status', 'statusDetail', 'title', 'turns', 'waitingSince'];
   const ids = new Set();
   for (const s of snap.sessions) {
     assert.deepEqual(Object.keys(s).sort(), keys, s.id);
@@ -1004,9 +1479,15 @@ test('snapshot matches the contract shape and survives JSON (IPC) round trips', 
     assert.ok(Number.isInteger(s.turns) && s.turns >= s.completions.length);
     for (const field of ['project', 'cwd', 'model', 'source']) assert.equal(typeof s[field], 'string');
     for (const field of ['live', 'archived']) assert.equal(typeof s[field], 'boolean');
+    // waitingSince: a time only for a live Claude session waiting on Chris, never later than the scan.
+    if (s.agent === 'claude' && s.live && s.status === 'needs-you') {
+      assert.ok(Number.isFinite(s.waitingSince) && s.waitingSince <= snap.scannedAt, s.id);
+    } else {
+      assert.equal(s.waitingSince, null, s.id);
+    }
   }
   const statuses = new Set(snap.sessions.map((s) => s.status));
-  assert.deepEqual([...statuses].sort(), ['done', 'stopped', 'working']);
+  assert.deepEqual([...statuses].sort(), ['done', 'needs-you', 'stopped', 'working']);
 
   for (const tool of snap.tools) {
     assert.deepEqual(Object.keys(tool).sort(), ['active', 'detail', 'id', 'installed', 'kind', 'name', 'note']);

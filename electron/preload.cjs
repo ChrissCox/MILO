@@ -33,16 +33,31 @@ const architect = Object.freeze({
   onAsking: callback => subscribe('milo:architect-asking', id => { if (CREW.includes(id)) callback(id); }),
 });
 
+// A page saves only after it has read the saved state: before that it holds nothing of Chris's,
+// and a save would put a default over state.json (and, on the next save, over its backup too).
+let stateRead = false;
+
 contextBridge.exposeInMainWorld('milo', Object.freeze({
-  loadState: () => ipcRenderer.invoke('milo:load-state'),
-  saveState: state => ipcRenderer.invoke('milo:save-state', state),
+  loadState: () => ipcRenderer.invoke('milo:load-state').then(value => {
+    stateRead = true;
+    return value;
+  }),
+  saveState: state => (stateRead
+    ? ipcRenderer.invoke('milo:save-state', state)
+    : Promise.resolve({ ok: false, error: 'MILO hasn’t read its saved state yet.' })),
   scan: () => ipcRenderer.invoke('milo:scan'),
+  // The game's content bundle { genres, riftgen, fortress, wilds, story } (each parsed JSON or null).
+  content: () => ipcRenderer.invoke('milo:content'),
+  // { offset }: the test clock's offset in ms (MILO_NOW, tests only), else 0.
+  clock: () => ipcRenderer.invoke('milo:clock'),
   onSnapshot: callback => subscribe('milo:snapshot', callback),
   notify: payload => {
     if (!payload || typeof payload !== 'object') return Promise.resolve(false);
     const title = typeof payload.title === 'string' ? payload.title : '';
     const body = typeof payload.body === 'string' ? payload.body : '';
-    return ipcRenderer.invoke('milo:notify', { title, body });
+    // The Gate Bell's note follows its own switch; every other note follows Alerts.
+    const kind = payload.kind === 'gate-bell' ? 'gate-bell' : 'alert';
+    return ipcRenderer.invoke('milo:notify', { title, body, kind });
   },
   windowAction: action => {
     if (WINDOW_ACTIONS.includes(action)) ipcRenderer.send('milo:window-action', action);

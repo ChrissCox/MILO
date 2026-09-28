@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import { appendFile, cp, mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -140,6 +141,64 @@ async function finishLiveTurn(text) {
   await writeRegistry(liveRegistry, process.pid, LIVE_ID, LIVE_CWD, LIVE_TITLE, 'idle', liveExtra());
 }
 
+// ---------------------------------------------------------------------------
+// Phase 3 fixtures: real signals behind real rifts, all made up.
+
+// A Codex thread whose token_count carries a real-shaped rate_limits reading, stamped after the
+// fixture's own 2026-09-24 reading so it's the newest. Later readings are appended to the same file.
+const TIDE_ID = '01a0e0ff-0000-7000-8000-0000000000f1';
+let tideRollout = null;
+const codexReading = (usedPercent, at) => ({
+  timestamp: iso(at), type: 'event_msg',
+  payload: {
+    type: 'token_count', info: null,
+    rate_limits: { limit_id: 'codex', limit_name: null, primary: { used_percent: usedPercent, window_minutes: 10080, resets_at: Math.floor((Date.now() + 3 * DAY) / 1000) }, secondary: null, credits: null, individual_limit: null, spend_control_reached: null, plan_type: 'plus', rate_limit_reached_type: null },
+  },
+});
+async function writeCodexReading(usedPercent) {
+  const now = Date.now();
+  if (!tideRollout) {
+    const day = new Date(now - 5 * 60_000);
+    const folder = path.join(codexHome, 'sessions', String(day.getFullYear()), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0'));
+    await mkdir(folder, { recursive: true });
+    tideRollout = path.join(folder, `rollout-${iso(now - 5 * 60_000).slice(0, 19).replace(/:/g, '-')}-${TIDE_ID}.jsonl`);
+    const cwd = 'C:\\Users\\demo\\Projects\\Tide';
+    await writeFile(tideRollout, jsonl([
+      { timestamp: iso(now - 5 * 60_000), type: 'session_meta', payload: { session_id: TIDE_ID, id: TIDE_ID, timestamp: iso(now - 5 * 60_000), cwd, originator: 'Codex Desktop', cli_version: '0.140.0-demo', source: 'vscode', thread_source: 'user' } },
+      { timestamp: iso(now - 4 * 60_000), type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'Chart the tide tables for the harbour.' }] } },
+      { timestamp: iso(now - 4 * 60_000 + 500), type: 'event_msg', payload: { type: 'task_started', turn_id: 'tide-1' } },
+      codexReading(usedPercent, now - 3 * 60_000),
+      { timestamp: iso(now - 2 * 60_000), type: 'event_msg', payload: { type: 'task_complete', turn_id: 'tide-1' } },
+    ]), 'utf8');
+    return;
+  }
+  await appendFile(tideRollout, jsonl([codexReading(usedPercent, now)]), 'utf8');
+}
+
+// A session that has waited on Chris for 25 hours: needs-you only while a live process owns it,
+// so its registry names a sleeper child process (killed once the rift should seal, and in finally).
+const KNOCK_ID = '5f0c2a8e-7d41-4b6a-9c3e-1a2b3c4d5e09';
+const KNOCK_TITLE = 'Letters to answer';
+const KNOCK_CWD = 'C:\\Projects\\Post';
+const sleepers = [];
+function spawnSleeper() {
+  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 36e5)'], { stdio: 'ignore', windowsHide: true });
+  sleepers.push(child);
+  return child;
+}
+async function seedKnock(pid) {
+  const now = Date.now();
+  const transcript = path.join(claudeHome, 'projects', 'C--Projects-Post', `${KNOCK_ID}.jsonl`);
+  await mkdir(path.dirname(transcript), { recursive: true });
+  await writeFile(transcript, jsonl([
+    userTurn(KNOCK_ID, KNOCK_CWD, now - 26 * HOUR, 'Draft replies to the letters on my desk.'),
+    assistantTurn(KNOCK_ID, KNOCK_CWD, now - 26 * HOUR + 60_000, 'Which letter should I start with?', 'end_turn'),
+  ]), 'utf8');
+  await writeRegistry(path.join(claudeHome, 'sessions', `${pid}.json`), pid, KNOCK_ID, KNOCK_CWD, KNOCK_TITLE, 'waiting', {
+    startedAt: now - 27 * HOUR, updatedAt: now - 25 * HOUR, statusUpdatedAt: now - 25 * HOUR,
+  });
+}
+
 await seedHomes();
 await seedSignals();
 
@@ -179,8 +238,8 @@ function watchPage(window) {
   window.setDefaultTimeout(10_000);
 }
 
-async function launch(appPath = repo) {
-  application = await _electron.launch({ executablePath: electronPath, args: [appPath], cwd: appPath, env: environment, timeout: 30_000 });
+async function launch(appPath = repo, extraEnv = {}) {
+  application = await _electron.launch({ executablePath: electronPath, args: [appPath], cwd: appPath, env: { ...environment, ...extraEnv }, timeout: 30_000 });
   application.process().stderr?.on('data', chunk => diagnostics.push(String(chunk)));
   application.on('window', watchPage);
   page = await application.firstWindow();
@@ -285,7 +344,7 @@ try {
     assert.equal(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1);
     assert.equal(await page.evaluate(() => typeof require), 'undefined', 'No Node in the renderer');
     assert.deepEqual(await page.evaluate(() => Object.keys(window.milo).sort()),
-      ['architect', 'finishClose', 'loadState', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction']);
+      ['architect', 'clock', 'content', 'finishClose', 'loadState', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction']);
     assert.deepEqual(await page.evaluate(() => Object.keys(window.milo.architect).sort()),
       ['cancel', 'design', 'localSuggestions', 'onAsking', 'status', 'suggest']);
     const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content');
@@ -337,6 +396,9 @@ try {
     const state = await savedState(value => Number.isFinite(value?.lastSeenAt) && value.lastGreetedDay);
     assert.ok(Date.now() - state.lastSeenAt < 5 * 60_000, 'lastSeenAt is set at launch');
     assert.equal(state.lastGreetedDay, dayKey(Date.now()));
+    // Phase 3: run late at night, the busy session opens a Nocturne rift, which can ring its bell
+    // after the greeting. That's real behaviour; clear it so the alert checks start quiet.
+    await dismissBubbles(3000);
   });
 
   await check('the watchtower groups sessions by status and keeps markup as text', async () => {
@@ -503,6 +565,33 @@ try {
     assert.ok(await listWidth() <= 1, 'and closes it');
   });
 
+  await check('a crew chip keeps keyboard focus through snapshots, and when its words change', async () => {
+    await dismissBubbles();
+    const send = next => application.evaluate(({ BrowserWindow }, value) => BrowserWindow.getAllWindows()[0].webContents.send('milo:snapshot', value), next);
+    const focusedChip = () => page.evaluate(() => document.activeElement?.dataset?.crew || document.activeElement?.tagName);
+    const base = await scan();
+    await page.locator('#crew .crew-chip[data-crew="codex"]').focus();
+    // The same crew again (as every push, and the minute's tick, bring): the strip stays as it is.
+    const chip = await page.locator('#crew .crew-chip[data-crew="codex"]').elementHandle();
+    await send({ ...base, scannedAt: base.scannedAt + 1000 });
+    await page.waitForTimeout(400);
+    assert.equal(await focusedChip(), 'codex', 'focus stays on the Codex chip through a snapshot');
+    assert.equal(await chip.evaluate(node => node.isConnected), true, 'the chip under the pointer is the same one');
+    // Codex's words change (its sessions gone and its folder unread): the strip is redrawn, and
+    // focus follows the Codex chip rather than dropping to the page.
+    const before = await page.locator('#crew .crew-chip[data-crew="codex"]').getAttribute('aria-label');
+    await send({ ...base, scannedAt: base.scannedAt + 2000, sessions: base.sessions.filter(s => s.agent !== 'codex'), sources: { ...base.sources, codex: { ...base.sources.codex, ok: false } } });
+    await poll(async () => (await page.locator('#crew .crew-chip[data-crew="codex"]').getAttribute('aria-label')) !== before, 'the Codex chip to change its words');
+    assert.equal(await chip.evaluate(node => node.isConnected), false, 'the strip was redrawn');
+    assert.equal(await focusedChip(), 'codex', 'focus follows the Codex chip');
+    // Tab moves on from Codex, not back to the first chip.
+    await page.keyboard.press('Tab');
+    assert.notEqual(await focusedChip(), 'claude', 'the next Tab carries on from Codex');
+    await send({ ...(await scan()), scannedAt: base.scannedAt + 3000 });
+    await poll(async () => (await page.locator('#crew .crew-chip[data-crew="codex"]').getAttribute('aria-label')) === before, 'the Codex chip to read as before');
+    await page.evaluate(() => document.activeElement?.blur());
+  });
+
   await check('map tips never cover the crew strip or the Places button', async () => {
     // From the pondside plot, Birch hollow sits just under the crew strip. Motion is off while
     // Milo gets there, so the camera lands at once however fast a background window gets frames.
@@ -555,7 +644,8 @@ try {
   await check('every plot starts empty with three ideas from Milo', async () => {
     const listed = await page.locator('#place-list [data-place]').evaluateAll(nodes => nodes.map(node => [node.dataset.place, node.dataset.kind]));
     assert.deepEqual(listed.filter(([, kind]) => kind === 'plot').map(([id]) => id), PLOTS);
-    assert.deepEqual(listed.filter(([, kind]) => kind !== 'plot').map(([id]) => id).sort(), ['camp', 'harbor', 'watchtower']);
+    // Phase 3 adds the Hearth to the vale's places (and the War Table once the Stockade stands).
+    assert.deepEqual(listed.filter(([, kind]) => kind !== 'plot').map(([id]) => id).sort(), ['camp', 'harbor', 'hearth', 'watchtower']);
     for (const id of PLOTS) {
       await openPlace(id);
       await plotView(id, 'empty').waitFor();
@@ -1016,6 +1106,1081 @@ try {
     await page.screenshot({ path: path.join(artifacts, 'building-after-restart.png') });
   });
 
+  // ---------------------------------------------------------------------------
+  // Phase 3: the Hearth and the Wilds (CONTRACT-PHASE3 §9 H). Motion is off for these, so every
+  // arrow key is one step and walks land at once.
+
+  const area = () => page.locator('#stage').getAttribute('data-area');
+  const closePanelNow = async () => {
+    if (await page.locator('#panel').isHidden()) return;
+    await page.locator('#panel .panel-close').click();
+    await poll(async () => await page.locator('#panel').isHidden(), 'the panel to close');
+  };
+  const stepKeys = async (from, steps) => {
+    let at = from;
+    for (const step of steps) {
+      const key = step.x > at.x ? 'ArrowRight' : step.x < at.x ? 'ArrowLeft' : step.y > at.y ? 'ArrowDown' : 'ArrowUp';
+      await page.keyboard.press(key);
+      at = step;
+    }
+    return at;
+  };
+  const openPlacesList = async () => {
+    const toggle = page.locator('#places-toggle');
+    if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  };
+  // An entry the world may still be filling in (today's wild rifts come in idle time): the list
+  // is opened afresh until it's there.
+  const listEntry = async (id, timeout = 20_000) => {
+    const entry = page.locator(`#place-list [data-entity="${id}"]`);
+    await poll(async () => {
+      await openPlacesList();
+      if (await entry.count()) return true;
+      await page.locator('#places-toggle').click();
+      await page.waitForTimeout(300);
+      return false;
+    }, `${id} in the place list`, timeout);
+    return entry;
+  };
+  const activeName = () => page.evaluate(() => {
+    const el = document.activeElement;
+    return el ? `${el.tagName}${el.id ? `#${el.id}` : ''}` : 'none';
+  });
+  // Keyboard focus never falls to the page's body after a move takes away what had it.
+  const assertFocusKept = async label => {
+    await page.waitForTimeout(250);
+    const name = await activeName();
+    assert.notEqual(name, 'BODY', `${label}: focus rests somewhere, not on the page's body`);
+    return name;
+  };
+  // Home from the place list, from the keyboard (as a screen-reader user would).
+  const travelHome = async () => {
+    if ((await area()) === 'vale') return;
+    await openPlacesList();
+    await page.locator('#place-list [data-entity="home"]').focus();
+    await page.keyboard.press('Enter');
+    await poll(async () => (await area()) === 'vale', 'Milo to travel home', 20_000);
+    await assertFocusKept('Travel home from the place list');
+  };
+  // 1000×700: nothing scrolls the window or a panel sideways, and the box stays inside.
+  async function fitsAt1000(selector, label) {
+    const report = await page.evaluate(sel => {
+      const node = document.querySelector(sel);
+      const box = node.getBoundingClientRect();
+      const body = node.querySelector('#panel-body') || node;
+      const wide = [...node.querySelectorAll('*')].filter(child => child.getBoundingClientRect().right > box.right + 1 && child.getClientRects().length)
+        .map(child => child.className || child.tagName).slice(0, 6);
+      return {
+        scroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
+        overflow: body.scrollWidth > body.clientWidth + 1,
+        box: { left: box.left, top: box.top, right: box.right, bottom: box.bottom },
+        wide,
+      };
+    }, selector);
+    assert.ok(report.scroll[0] <= 1000 && report.scroll[1] <= 700, `No window overflow with ${label}: ${JSON.stringify(report.scroll)}`);
+    assert.equal(report.overflow, false, `${label} doesn't scroll sideways: ${report.wide.join(', ')}`);
+    assert.ok(report.box.left >= -1 && report.box.top >= -1 && report.box.right <= 1001 && report.box.bottom <= 701, `${label} stays inside: ${JSON.stringify(report.box)}`);
+  }
+
+  // From the keyboard, Tab reaches every control in `selector` in turn, and each shows a focus
+  // ring: an outline (a radio's ring may be drawn round its whole option) that no scrolling box
+  // cuts off at the sides. → the names of the controls reached, in order.
+  async function assertFocusRings(selector, label, { least = 1 } = {}) {
+    await page.evaluate(sel => {
+      const probe = document.createElement('span');
+      probe.tabIndex = -1;
+      probe.dataset.focusProbe = 'true';
+      document.querySelector(sel).prepend(probe);
+      probe.focus();
+    }, selector);
+    const reached = [];
+    for (let i = 0; i < 120; i += 1) {
+      await page.keyboard.press('Tab');
+      const info = await page.evaluate(sel => {
+        const root = document.querySelector(sel);
+        const el = document.activeElement;
+        if (!el || !root.contains(el) || el.dataset.focusProbe) return null;
+        const ringOf = node => {
+          const style = getComputedStyle(node);
+          const width = parseFloat(style.outlineWidth) || 0;
+          return style.outlineStyle !== 'none' && width >= 1 ? { node, reach: width + (parseFloat(style.outlineOffset) || 0) } : null;
+        };
+        const ring = ringOf(el) || (el.matches('input') && el.closest('label') ? ringOf(el.closest('label')) : null);
+        let clipped = null;
+        if (ring) {
+          const box = ring.node.getBoundingClientRect();
+          for (let up = ring.node.parentElement; up && up !== document.body; up = up.parentElement) {
+            if (!/hidden|auto|scroll|clip/.test(getComputedStyle(up).overflowX)) continue;
+            const outer = up.getBoundingClientRect();
+            const left = outer.left + up.clientLeft;
+            if (box.left - ring.reach < left - 0.5 || box.right + ring.reach > left + up.clientWidth + 0.5) { clipped = up.id || up.className || up.tagName; break; }
+          }
+        }
+        const name = el.dataset.focusKey || el.dataset.action || el.dataset.marker || el.id || el.getAttribute('aria-label') || el.textContent || el.tagName;
+        return { name: String(name).trim().replace(/\s+/g, ' ').slice(0, 48), keyboard: el.matches(':focus-visible'), ring: Boolean(ring), clipped };
+      }, selector);
+      if (!info) {
+        // Past the last one: step back, so focus rests where a keyboard user would leave it.
+        if (reached.length) await page.keyboard.press('Shift+Tab');
+        break;
+      }
+      if (reached.includes(info.name) && reached.at(-1) !== info.name) break;
+      reached.push(info.name);
+      assert.equal(info.keyboard, true, `${label}: ${info.name} takes keyboard focus`);
+      assert.equal(info.ring, true, `${label}: ${info.name} shows a focus ring`);
+      assert.equal(info.clipped, null, `${label}: ${info.name}'s ring isn't cut off by ${info.clipped}`);
+    }
+    await page.evaluate(() => document.querySelectorAll('[data-focus-probe]').forEach(probe => probe.remove()));
+    assert.ok(reached.length >= least, `${label}: Tab reached ${reached.length} controls (${reached.join(', ')})`);
+    return reached;
+  }
+
+  let litLantern = null;
+  await check('Milo walks out of the north gate into the wilds, and back in', async () => {
+    await dismissBubbles();
+    await openPlace('camp');
+    const motion = page.locator('[data-setting="motion"]');
+    if (await motion.getAttribute('aria-checked') === 'true') await motion.click();
+    await savedState(value => value.settings.motion === false);
+    // Every control at camp, in the crew strip and in the place list shows its ring from the keyboard.
+    await assertFocusRings('#panel', 'the camp panel', { least: 6 });
+    await assertFocusRings('#crew', 'the crew strip', { least: 2 });
+    await assertFocusRings('#places', 'the place list', { least: 1 });
+    const home = await page.evaluate(async () => (await import('./src/world/map.js')).placeById('camp').door);
+    await savedState(value => value.milo?.tile?.x === home.x && value.milo.tile.y === home.y);
+    await closePanelNow();
+    const route = await page.evaluate(async from => (await import('./src/world/map.js')).findPath(from, { x: 32, y: 0 }), home);
+    assert.ok(route.length > 0, 'a way to the north gate');
+    await page.locator('canvas#world').focus();
+    let at = await stepKeys(home, route);
+    assert.equal((await area()) || 'vale', 'vale', 'still inside at the gap in the trees');
+    at = await stepKeys(at, [{ x: 32, y: -1 }, { x: 32, y: -2 }, { x: 32, y: -3 }]);
+    await poll(async () => (await area()) === 'wilds', 'Milo to be out in the wilds');
+    // The shell looks places up in the engine's own world: one worldgen, its roads laid out once.
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.wilds), 'shared', 'the shell shares the engine’s worldgen');
+    const out = await savedState(value => value.wilds?.at?.x === 32 && value.wilds.at.y === -3);
+    assert.ok(out.milo.tile.y >= 0 && out.milo.tile.x >= 0, 'milo.tile stays a vale tile; the wilds go in wilds.at');
+    assert.match(await page.locator('canvas#world').getAttribute('aria-label'), /^Milo's world, out in /);
+    assert.doesNotMatch(await page.locator('#titlebar-status').textContent(), /^Keeping watch/);
+    await openPlacesList();
+    assert.match(await page.locator('#place-list').textContent(), /Travel home/, 'out here the list is what’s near, and the way home');
+    await page.locator('#places-toggle').click();
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'wilds-north-gate.png') });
+    await page.locator('canvas#world').focus();
+    at = await stepKeys(at, [{ x: 32, y: -2 }, { x: 32, y: -1 }, { x: 32, y: 0 }, { x: 32, y: 1 }]);
+    await poll(async () => (await area()) === 'vale', 'Milo to be home in the vale');
+    await savedState(value => value.milo?.tile?.x === 32 && value.milo.tile.y === 1);
+    assert.match(await page.locator('canvas#world').getAttribute('aria-label'), /^Milo's world\. A pixel map with Milo's camp/);
+    // Without seeing the map: the vale says where its gates are, and its place list walks Milo
+    // out through one (no lantern lit and no rift open yet).
+    assert.match(await page.locator('canvas#world').getAttribute('aria-label'), /gates in the tree line, north, west, east and south-west, lead out to the wilds/);
+    await openPlacesList();
+    const gates = page.locator('#place-list [data-kind="gate"]');
+    assert.deepEqual(await gates.evaluateAll(buttons => buttons.map(button => button.dataset.entity)), ['gate:n', 'gate:w', 'gate:e', 'gate:sw']);
+    assert.match((await page.locator('#place-list [data-entity="gate:n"]').textContent()).replace(/\s+/g, ' '), /^North gate To the Whisperwood$/);
+    await page.locator('#place-list [data-entity="gate:n"]').focus();
+    await page.keyboard.press('Enter');
+    await poll(async () => (await area()) === 'wilds', 'Milo to walk out of the north gate from the place list');
+    await savedState(value => value.wilds?.at?.x === 32 && value.wilds.at.y === -3);
+    assert.equal(await assertFocusKept('the north gate from the place list'), 'CANVAS#world', 'the arrow keys walk Milo on from there');
+    at = await stepKeys({ x: 32, y: -3 }, [{ x: 32, y: -2 }, { x: 32, y: -1 }, { x: 32, y: 0 }, { x: 32, y: 1 }]);
+    await poll(async () => (await area()) === 'vale', 'Milo to be home in the vale again');
+    await savedState(value => value.milo?.tile?.x === 32 && value.milo.tile.y === 1);
+  });
+
+  await check('a sleeping lantern out in the wilds can be lit, rested at, and travelled home from', async () => {
+    await page.locator('canvas#world').focus();
+    let at = await stepKeys({ x: 32, y: 1 }, [{ x: 32, y: 0 }, { x: 32, y: -1 }]);
+    await poll(async () => (await area()) === 'wilds', 'Milo to be out of the gate');
+    // The nearest lantern on the old roads, and a way there, from the wilds' own modules.
+    const plan = await page.evaluate(async from => {
+      const content = await window.milo.content();
+      const { createWorldgen } = await import('./src/world/worldgen.js');
+      const { createWilds } = await import('./src/world/wilds.js');
+      const { createNav } = await import('./src/world/nav.js');
+      const worldgen = createWorldgen({ seed: 'hushlands', regionWords: content.riftgen.regionWords });
+      const wilds = createWilds({ worldgen, maxChunks: 32 });
+      const nav = createNav({ worldgen, wildBlocked: (x, y) => wilds.blocked(x, y), extraBlocked: (x, y) => wilds.ringBlocked(x, y, 1) });
+      const lanterns = wilds.fixedPois().filter(p => p.type === 'lantern' && !p.region)
+        .sort((a, b) => Math.hypot(a.x - from.x, a.y - from.y) - Math.hypot(b.x - from.x, b.y - from.y));
+      for (const lantern of lanterns.slice(0, 4)) {
+        const steps = nav.findPath(from, { x: lantern.x, y: lantern.y });
+        if (steps.length && steps.length < 100) return { lantern: { id: lantern.id, x: lantern.x, y: lantern.y }, steps };
+      }
+      return null;
+    }, at);
+    assert.ok(plan, 'a lantern within walking distance of the north gate');
+    at = await stepKeys(at, plan.steps);
+    await savedState(value => Math.abs(value.wilds?.at?.x - plan.lantern.x) <= 6 && Math.abs(value.wilds.at.y - plan.lantern.y) <= 6);
+    await dismissBubbles(1500);
+    // It's in the place list now it's near; choosing it walks the last steps and opens it.
+    await openPlacesList();
+    const entry = page.locator(`#place-list [data-entity="${plan.lantern.id}"]`);
+    await entry.waitFor({ timeout: 10_000 });
+    await entry.click();
+    await panel(plan.lantern.id).waitFor({ timeout: 15_000 });
+    assert.match(await page.locator('#panel-title').textContent(), /lantern/i);
+    assert.ok((await page.locator('#panel .wild-line').first().textContent()).trim().length > 10, 'it has something to say');
+    await page.locator('#panel [data-action="light"]').click();
+    await savedState(value => Number.isFinite(value.wilds?.lanterns?.[plan.lantern.id]));
+    // As it catches, Milo's words and the lantern's description are two different lines.
+    await page.locator('#panel .milo-says').waitFor();
+    const lighting = (await page.locator('#panel .milo-says').textContent()).trim();
+    const described = (await page.locator('#panel .wild-line').allTextContents()).map(text => text.trim());
+    assert.ok(lighting.length > 10 && described.length >= 1, 'Milo speaks, and the lantern is described');
+    assert.ok(!described.includes(lighting), `the panel never says the same thing twice (${lighting})`);
+    await page.locator('#panel [data-action="rest"]').click();
+    await savedState(value => value.wilds?.wake === plan.lantern.id);
+    assert.equal(await page.locator('#panel [data-action="rest"]').isDisabled(), true, 'Milo is resting here now');
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /!/);
+    assert.doesNotMatch(await page.locator('#panel .milo-says, #panel .setting-hint').allTextContents().then(t => t.join(' ')), /wake/i, 'resting promises nothing the game doesn’t do');
+    // Home always leads the travel list, so the lantern he rests at comes right after it.
+    assert.match(await page.locator('#panel [data-group="actions"] .setting-hint').textContent(), /right after home on his travel lists/);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'lantern-lit.png') });
+    await assertFocusRings('#panel', 'the lantern panel', { least: 2 });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 700));
+    await page.waitForFunction(() => innerWidth === 1000 && innerHeight === 700);
+    await page.waitForTimeout(400);
+    await fitsAt1000('#panel', 'a lantern panel');
+    await page.screenshot({ path: path.join(artifacts, 'layout-1000x700-lantern.png') });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 820));
+    await page.waitForFunction(() => innerWidth === 1280);
+    litLantern = plan.lantern;
+    // A tree nearby: choosing it walks Milo over, he chops it, and the logs go in the satchel.
+    const logs = materials => (materials?.birch || 0) + (materials?.ash || 0) + (materials?.pine || 0);
+    const before = await savedState();
+    await openPlacesList();
+    const tree = page.locator('#place-list [data-entity^="tree:"]').first();
+    await tree.waitFor({ timeout: 10_000 });
+    const treeId = await tree.getAttribute('data-entity');
+    await tree.click();
+    const chopped = await savedState(value => Number.isFinite(value.wilds?.felled?.[treeId]));
+    const gained = logs(chopped.satchel.materials) - logs(before.satchel.materials);
+    assert.ok(gained >= 2 && gained <= 7, `a tree gives 2 to 7 logs (${gained})`);
+    await dismissBubbles(1500);
+    // Its panel opened from the place list, by the keyboard, then Travel home from it: the list
+    // entry it came from goes with the wilds, and focus lands on the world, never the page's body.
+    await closePanelNow();
+    await openPlacesList();
+    const again = page.locator(`#place-list [data-entity="${plan.lantern.id}"]`);
+    await again.waitFor({ timeout: 10_000 });
+    await again.focus();
+    await page.keyboard.press('Enter');
+    await panel(plan.lantern.id).waitFor({ timeout: 15_000 });
+    await page.locator('#panel [data-action="travel"][data-target="home"]').focus();
+    await page.keyboard.press('Enter');
+    await poll(async () => (await area()) === 'vale', 'Milo to travel home', 20_000);
+    await assertFocusKept('Travel home from a lantern’s panel');
+  });
+
+  const capacityRow = () => page.locator('#panel [data-group="rifts"] .rift-row[data-real-kind="capacity"]');
+  const knockRow = () => page.locator('#panel [data-group="rifts"] .rift-row[data-real-kind="knocking"]');
+
+  await check('real rifts open on the frontier from their real signals, each naming its cause, never in the ward or the vale', async () => {
+    await dismissBubbles();
+    const sleeper = spawnSleeper();
+    await seedKnock(sleeper.pid);
+    await writeCodexReading(91);
+    const snapshot = await waitForScanWhere(value => value.capacity?.codex?.usedPercent === 91
+      && value.sessions.some(session => session.id === `claude:${KNOCK_ID}` && session.status === 'needs-you'), 'the Codex reading and the waiting session');
+    assert.ok(snapshot.sessions.find(session => session.id === `claude:${KNOCK_ID}`).waitingSince <= Date.now() - 24 * HOUR);
+    await openPlace('watchtower');
+    await capacityRow().waitFor({ timeout: 15_000 });
+    await knockRow().waitFor({ timeout: 15_000 });
+    assert.match(await capacityRow().locator('.rift-cause').textContent(), /^Codex has used 91% of its weekly allowance\. It refills (today|tomorrow|on \w+) at \d\d:\d\d\.$/);
+    assert.equal((await knockRow().locator('.rift-cause').textContent()).trim(), `“${KNOCK_TITLE}” has waited on you for 25 hours.`);
+    assert.match(await capacityRow().locator('.rift-meta').textContent(), /^\d+ tiles out, toward Cinderforge$/);
+    // Where each one stands: out past the Hearthward, never in the vale.
+    const spots = await page.locator('#panel [data-group="rifts"] .rift-row[data-x]').evaluateAll(rows => rows.map(row => ({ id: row.dataset.riftId, x: Number(row.dataset.x), y: Number(row.dataset.y) })));
+    assert.ok(spots.length >= 2, `rift rows carry their tiles: ${JSON.stringify(spots)}`);
+    const checked = await page.evaluate(async list => {
+      const content = await window.milo.content();
+      const saved = await window.milo.loadState();
+      const { createWorldgen } = await import('./src/world/worldgen.js');
+      const { wardRadius } = await import('./src/hearth.js');
+      const worldgen = createWorldgen({ seed: saved.wilds.seed, regionWords: content.riftgen.regionWords });
+      const ward = wardRadius(saved, content.fortress);
+      return list.map(spot => ({ ...spot, inHeart: worldgen.inHeart(spot.x, spot.y), beyond: worldgen.heartDistance(spot.x, spot.y) - ward }));
+    }, spots);
+    for (const spot of checked) {
+      assert.equal(spot.inHeart, false, `${spot.id} is not in the vale`);
+      assert.ok(spot.beyond > 0, `${spot.id} is outside the ward (${spot.beyond})`);
+    }
+    await savedState(value => Object.keys(value.rifts?.open || {}).some(key => key.startsWith('capacity:codex:')) && value.rifts.open[`knock:claude:${KNOCK_ID}`]);
+    // A rift names the real cause, and never a word from a transcript.
+    const rows = await page.locator('#panel [data-group="rifts"]').textContent();
+    for (const secret of ['Draft replies', 'Which letter', 'Chart the tide']) assert.ok(!rows.includes(secret), `${secret} stays in its transcript`);
+    assert.doesNotMatch(rows, /!/);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'watchtower-rifts.png') });
+    await assertFocusRings('#panel', 'the watchtower with its rifts', { least: 5 });
+    await dismissBubbles();
+  });
+
+  await check('a row’s Let go asks first, and Escape or Keep it hands focus back to that row', async () => {
+    const riftId = await capacityRow().getAttribute('data-rift-id');
+    for (const how of ['Escape', 'Keep it']) {
+      await capacityRow().locator('[data-action="rift-let-go"]').click();
+      await capacityRow().locator('.confirm[role="alertdialog"]').waitFor();
+      assert.equal(await page.evaluate(() => document.activeElement?.dataset.action), 'rift-let-go-cancel', 'Keep it is the safe default');
+      if (how === 'Escape') await page.keyboard.press('Escape');
+      else await capacityRow().locator('[data-action="rift-let-go-cancel"]').click();
+      await poll(async () => (await page.locator('#panel .confirm').count()) === 0, `${how} to step back out of letting go`);
+      assert.equal(await page.evaluate(() => document.activeElement?.dataset.focusKey), `let-go-${riftId}`, `after ${how}, focus is back on the row’s Let go`);
+      assert.equal(await page.locator('#panel').isVisible(), true, 'the watchtower stays open');
+    }
+    assert.equal(await capacityRow().count(), 1, 'nothing was let go');
+  });
+
+  await check('warding a rift holds it for three days, and the ward is saved', async () => {
+    await capacityRow().locator('[data-action="rift-ward"]').click();
+    const saved = await savedState(value => Object.keys(value.rifts?.warded || {}).some(key => key.startsWith('capacity:codex:')));
+    const [, ward] = Object.entries(saved.rifts.warded).find(([key]) => key.startsWith('capacity:'));
+    const days = (ward.until - Date.now()) / DAY;
+    assert.ok(days > 2.9 && days <= 3.01, `three days (${days.toFixed(2)})`);
+    await poll(async () => (await capacityRow().getAttribute('data-warded')) === 'true', 'the row to show its ward');
+    assert.equal(await capacityRow().locator('[data-action="rift-unward"]').count(), 1);
+    // The ward holds it at the stage it had: that stage, then the ward, in plain words.
+    assert.match(await capacityRow().locator('.stage-tag').textContent(), /^(Hairline|Open|Gaping) · warded$/);
+  });
+
+  await check('a rift’s panel says why and how to mend it, and Milo can step through into its Elsewhere and come home', async () => {
+    const riftId = await capacityRow().getAttribute('data-rift-id');
+    await capacityRow().locator('[data-action="rift-open"]').click();
+    await panel(riftId).waitFor();
+    assert.match(await page.locator('#panel [data-section="why"]').textContent(), /Codex has used 91%/);
+    assert.match(await page.locator('#panel [data-section="mend"]').textContent(), /Give Codex a rest, or wait for the refill\./);
+    assert.ok(await page.locator('#panel .rift-tags .genre-chip').count() >= 1);
+    // Its tags: the stage the ward holds, and what real thing it stands for.
+    assert.match(await page.locator('#panel .rift-tags .stage-tag').textContent(), /^(Hairline|Open|Gaping) · warded$/);
+    assert.equal((await page.locator('#panel .rift-tags .kind-tag').textContent()).trim(), 'Crew capacity');
+    assert.equal(await page.locator('#panel [data-action="rift-unward"]').count(), 1);
+    assert.equal(await page.locator('#panel [data-action="rift-let-go"]').count(), 1);
+    // Every rift panel names its Tale-lead and says where it is (it steps out once the rift gapes).
+    const lead = page.locator('#panel [data-section="lead"]');
+    assert.equal(await lead.count(), 1, 'the Tale-lead is named');
+    assert.match(await lead.getAttribute('data-lead'), /^(waiting|out)$/);
+    assert.ok((await lead.locator('strong').textContent()).trim().length > 2, 'by name');
+    const art = await page.evaluate(() => {
+      const canvas = document.querySelector('#panel canvas[data-scene="rift"]');
+      return canvas ? { width: canvas.width, pixel: Number(canvas.dataset.pixel), label: canvas.getAttribute('aria-label') } : null;
+    });
+    assert.ok(art && art.width >= 100 && art.pixel >= 1, `the tear is drawn: ${JSON.stringify(art)}`);
+    // Let go asks first, and Keep it is the safe default.
+    await page.locator('#panel [data-action="rift-let-go"]').click();
+    await page.locator('#panel .confirm[role="alertdialog"]').waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement?.dataset.action), 'rift-let-go-cancel');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#panel .confirm').count(), 0, 'Escape steps back out of letting go');
+    assert.equal(await page.locator('#panel').isVisible(), true);
+    const reached = await assertFocusRings('#panel', 'a rift panel', { least: 4 });
+    assert.deepEqual(reached.slice(-3), ['panel-step', 'panel-unward', 'panel-let-go'], 'Tab reaches each of its actions');
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'rift-panel.png') });
+    await page.locator('#panel [data-action="rift-step"]').click();
+    await poll(async () => (await area()) === 'elsewhere', 'Milo to step through into the Elsewhere', 30_000);
+    const banner = page.locator('#elsewhere-banner');
+    await banner.waitFor();
+    assert.match(await banner.textContent(), /Inside/);
+    assert.match(await page.locator('#titlebar-status').textContent(), /^Inside /);
+    assert.doesNotMatch(await page.locator('#titlebar-status').textContent(), /^Inside The /, 'a name mid-sentence reads “the …”');
+    assert.match(await page.locator('canvas#world').getAttribute('aria-label'), /inside/i);
+    assert.doesNotMatch(await page.locator('canvas#world').getAttribute('aria-label'), /inside The /);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'elsewhere.png') });
+    // Another rift's panel, reached from inside (a crew chip, then the watchtower): no way there
+    // from a pocket world, so it offers Leave first, and after leaving it offers Step through.
+    await page.locator('#crew .crew-chip[data-crew="claude"]').click();
+    await panel('watchtower').waitFor();
+    const knockId = await knockRow().getAttribute('data-rift-id');
+    await knockRow().locator('[data-action="rift-open"]').click();
+    await panel(knockId).waitFor();
+    assert.equal(await page.locator('#panel [data-action="rift-step"]').count(), 0, 'no Step through from inside another rift');
+    assert.equal(await page.locator('#panel [data-action="rift-leave"]').count(), 1, 'Leave comes first');
+    assert.match(await page.locator('#panel .milo-says').textContent(), /Leave it first/);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'rift-panel-from-elsewhere.png') });
+    await page.locator('#panel [data-action="rift-leave"]').click();
+    await poll(async () => (await area()) === 'wilds', 'Milo to come back out of the rift', 20_000);
+    assert.equal(await banner.isVisible(), false);
+    await page.locator(`#panel[data-place="${knockId}"] [data-action="rift-step"]`).waitFor({ timeout: 10_000 });
+    assert.equal(await page.locator('#panel [data-action="rift-leave"]').count(), 0);
+    await closePanelNow();
+    await travelHome();
+  });
+
+  await check('Oriel’s letter opens a crack past the north gate; stitching it in its Elsewhere moves the Prologue on', async () => {
+    await dismissBubbles();
+    const tracker = page.locator('#tracker');
+    await assertFocusRings('#tracker', 'the story card', { least: 3 });
+    assert.equal((await tracker.locator('.tracker-title').textContent()).trim(), 'A Letter by Paper Bird');
+    await tracker.locator('[data-action="letter-read"]').click();
+    await panel('story').waitFor();
+    await page.locator('#panel .letter-section blockquote').waitFor();
+    await savedState(value => Number.isFinite(value.story?.letterReadAt));
+    await dismissBubbles();
+    await openPlace('watchtower');
+    const crack = page.locator('#panel [data-group="rifts"] .rift-row[data-rift-kind="story"]');
+    await crack.waitFor({ timeout: 15_000 });
+    assert.match(await crack.locator('.rift-meta').textContent(), /past the north gate$/);
+    assert.equal(await crack.locator('[data-action="rift-let-go"]').count(), 0, 'the story’s crack can’t be let go');
+    await crack.locator('[data-action="rift-open"]').click();
+    await page.locator('#panel [data-action="rift-step"]').click();
+    await poll(async () => (await area()) === 'elsewhere', 'Milo to step into the crack', 30_000);
+    // Inside, the seam is listed wherever it is, and walking to it opens the rift with Stitch.
+    await openPlacesList();
+    await page.locator('#place-list [data-entity="stitch"]').click();
+    const stitch = page.locator('#panel [data-action="rift-stitch"]');
+    await stitch.waitFor({ timeout: 15_000 });
+    // In here, Milo has already stepped through: what's left is the seam.
+    assert.equal((await page.locator('#panel [data-section="mend"] .rift-text').textContent()).trim(), 'Stitch the seam from in here.');
+    // At 1000×700, the banner and the rift's panel both fit, and the panel never covers Leave.
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 700));
+    await page.waitForFunction(() => innerWidth === 1000 && innerHeight === 700);
+    await page.waitForTimeout(400);
+    await fitsAt1000('#panel', 'a rift panel inside its Elsewhere');
+    await fitsAt1000('#elsewhere-banner', 'the Elsewhere banner');
+    const leaveFree = await page.evaluate(() => {
+      const leave = document.querySelector('#elsewhere-banner [data-action="leave-elsewhere"]');
+      const box = leave.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return Boolean(hit && leave.contains(hit)) && box.width > 0;
+    });
+    assert.ok(leaveFree, 'Leave stays in the open with a panel beside it');
+    await assertFocusRings('#elsewhere-banner', 'the Elsewhere banner');
+    await page.screenshot({ path: path.join(artifacts, 'layout-1000x700-elsewhere.png') });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 820));
+    await page.waitForFunction(() => innerWidth === 1280);
+    await stitch.click();
+    const mended = await savedState(value => Number.isFinite(value.story?.prologue?.done?.['first-crack']));
+    assert.equal(mended.rifts.stitched.story, 1);
+    // Mended: nothing is left to mend, so the panel no longer asks for it.
+    await poll(async () => /^Mended\./.test((await page.locator('#panel .milo-says').textContent()).trim()), 'the panel to say it’s mended');
+    assert.equal(await page.locator('#panel [data-section="mend"]').count(), 0, 'no “To mend it” once it’s mended');
+    // The lantern lit earlier counts at once, so the story moves on to the Stockade.
+    await poll(async () => (await tracker.locator('.tracker-title').textContent()).trim() === 'Walls of Birch and Ash', 'the story card to move on');
+    assert.ok(Number.isFinite((await savedState(value => Number.isFinite(value.story?.prologue?.done?.lantern))).story.prologue.done.lantern));
+    // Out by the place list's Leave, from the keyboard: that entry goes with the Elsewhere, and
+    // focus lands on the world rather than the page's body.
+    await dismissBubbles();
+    await openPlacesList();
+    await page.locator('#place-list [data-entity="leave"]').focus();
+    await page.keyboard.press('Enter');
+    await poll(async () => (await area()) === 'wilds', 'Milo to come back out of the crack', 20_000);
+    assert.equal(await assertFocusKept('Leave from the place list'), 'CANVAS#world');
+    await dismissBubbles();
+    await travelHome();
+  });
+
+  await check('the Hearth panel shows real counts', async () => {
+    await dismissBubbles();
+    await openPlace('hearth');
+    const saved = await savedState();
+    for (const [kind, have] of [['crew-sessions-finished', saved.tally.sessionsFinished], ['buildings-designed', saved.tally.buildingsDesigned], ['days-with-milo', saved.tally.daysSeen]]) {
+      assert.equal(await page.locator(`#panel [data-req="${kind}"]`).getAttribute('data-have'), String(have), `${kind} reads the real count`);
+    }
+    assert.ok(saved.tally.buildingsDesigned >= 3, `every first design was counted (${saved.tally.buildingsDesigned})`);
+    assert.ok(saved.tally.sessionsFinished >= 1, 'sessions MILO watched finish were counted');
+    // A met requirement reads Done with its check, never '4 of 1'; no row counts past its need.
+    const designed = page.locator('#panel [data-req="buildings-designed"]');
+    assert.equal(await designed.getAttribute('data-level-state'), 'proven');
+    assert.equal((await designed.locator('.level-tag').textContent()).trim(), 'Done');
+    assert.equal(await designed.locator('.tick-check').count(), 1);
+    for (const tag of await page.locator('#panel .levels .level-tag').allTextContents()) {
+      const count = /^(\d+) of (\d+)$/.exec(tag.trim());
+      if (count) assert.ok(Number(count[1]) <= Number(count[2]), `no row counts past its need: ${tag.trim()}`);
+    }
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /Phase \d/, 'no build phases in the game’s words');
+    assert.equal(await page.locator('#panel .mats [data-material="birch"]').getAttribute('data-need'), '80');
+    assert.equal(await page.locator('#panel .mats [data-material="ash"]').getAttribute('data-need'), '30');
+    assert.equal(await page.locator('#panel [data-action="raise"]').count(), 0, 'the Stockade isn’t ready yet');
+    assert.match(await page.locator('#panel [data-note="not-ready"]').textContent(), /^Not yet\. Still to do: /);
+    assert.equal(await page.locator('#panel canvas[data-scene="hearth"]').count(), 1);
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /!/);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'hearth.png') });
+    await assertFocusRings('#panel', 'the Hearth panel', { least: 2 });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: path.join(artifacts, 'hearth-end.png') });
+    await page.locator('#panel-body').evaluate(body => { body.scrollTop = 0; });
+  });
+
+  await check('at 1000×700 the Hearth, the rift list and panel, the Prologue and the map fit without sideways scrolling', async () => {
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 700));
+    await page.waitForFunction(() => innerWidth === 1000 && innerHeight === 700);
+    await page.waitForTimeout(400);
+    await fitsAt1000('#panel', 'the Hearth panel');
+    await openPlace('watchtower');
+    await knockRow().waitFor();
+    await page.waitForTimeout(300);
+    await fitsAt1000('#panel', 'the watchtower with its rifts');
+    const knockId = await knockRow().getAttribute('data-rift-id');
+    await knockRow().locator('[data-action="rift-open"]').click();
+    await panel(knockId).waitFor();
+    await page.waitForTimeout(350);
+    await fitsAt1000('#panel', 'a rift panel');
+    await page.screenshot({ path: path.join(artifacts, 'layout-1000x700-rift.png') });
+    await page.locator('#tracker [data-action="tracker-open"]').click();
+    await panel('story').waitFor();
+    await page.waitForTimeout(350);
+    await fitsAt1000('#panel', 'the Prologue');
+    await fitsAt1000('#tracker', 'the story card');
+    await closePanelNow();
+    await page.locator('canvas#world').focus();
+    await page.keyboard.press('m');
+    await page.locator('#map-view').waitFor({ state: 'visible' });
+    await page.waitForTimeout(500);
+    await fitsAt1000('#map-view', 'the map');
+    await assertFocusRings('#map-view', 'the map', { least: 5 });
+    await page.screenshot({ path: path.join(artifacts, 'layout-1000x700-map.png') });
+    await page.keyboard.press('Escape');
+    await page.locator('#map-view').waitFor({ state: 'hidden' });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 820));
+    await page.waitForFunction(() => innerWidth === 1280);
+  });
+
+  await check('a rift seals itself once its real signal clears', async () => {
+    await writeCodexReading(20);
+    for (const child of sleepers) { try { child.kill(); } catch { /* gone */ } }
+    await waitForScanWhere(value => value.capacity?.codex?.usedPercent === 20
+      && !value.sessions.some(session => session.id === `claude:${KNOCK_ID}` && session.status === 'needs-you'), 'the reading to fall and the waiting session to end');
+    const saved = await savedState(value => (value.rifts?.history || []).some(entry => entry.key?.startsWith('capacity:codex:') && entry.how === 'sealed')
+      && value.rifts.history.some(entry => entry.key === `knock:claude:${KNOCK_ID}` && entry.how === 'sealed'));
+    assert.ok(saved.rifts.stitched.real >= 2, 'both count as mended');
+    assert.equal(Object.keys(saved.rifts.open).filter(key => key.startsWith('capacity:') || key.startsWith('knock:')).length, 0);
+    // The ward's mark may stay until it lapses, but it belonged to the episode that just sealed.
+    for (const [key, ward] of Object.entries(saved.rifts.warded).filter(([key]) => key.startsWith('capacity:'))) {
+      const closed = saved.rifts.history.find(entry => entry.key === key && entry.how === 'sealed');
+      assert.ok(closed && closed.closedAt >= ward.since, 'a leftover ward belongs to the sealed episode');
+    }
+    await openPlace('watchtower');
+    await poll(async () => (await capacityRow().count()) === 0 && (await knockRow().count()) === 0, 'the rows to go');
+    const sealed = bubble('sealed');
+    await sealed.waitFor({ timeout: 10_000 });
+    assert.match(await sealed.textContent(), /sealed/);
+    assert.doesNotMatch(await sealed.textContent(), /!/);
+    await dismissBubbles();
+  });
+
+  // MILO's clock reads 03:00 for these relaunches: five hours past the evening bell.
+  const night = new Date();
+  night.setHours(3, 0, 0, 0);
+  if (night.getTime() <= Date.now() + HOUR) night.setDate(night.getDate() + 1);
+  const rung = () => application.evaluate(() => globalThis.__miloNotifyDecisions.filter(entry => entry.title === 'A rift is at the walls'));
+
+  await check('past the evening bell a Nocturne opens, and at the Camp it rings as Milo’s bubble alone', async () => {
+    await close();
+    const stateFile = path.join(dataDirectory, 'state.json');
+    const onDisk = JSON.parse(await readFile(stateFile, 'utf8'));
+    assert.equal(onDisk.hearth?.tier ?? 1, 1, 'still the Camp');
+    await writeFile(stateFile, JSON.stringify({
+      ...onDisk, settings: { ...onDisk.settings, eveningBell: '22:00', gateBell: true, wardPost: null, notifications: true },
+    }, null, 2), 'utf8');
+    // The live session is busy again.
+    await appendFile(liveTranscript, jsonl([userTurn(LIVE_ID, LIVE_CWD, Date.now(), 'One more row of lanterns by the gate.')]), 'utf8');
+    await writeRegistry(liveRegistry, process.pid, LIVE_ID, LIVE_CWD, LIVE_TITLE, 'busy', liveExtra());
+    await launch(repo, { MILO_NOW: night.toISOString() });
+    // Through the greeting to the bell: a bubble, and no desktop note at tier 1.
+    const bell = bubble('bell');
+    await poll(async () => {
+      if (await bell.isVisible()) return true;
+      if (await page.locator('#bubble').isVisible()) {
+        const buttons = page.locator('#bubble [data-bubble-action]');
+        const count = await buttons.count();
+        if (count) await buttons.nth(count - 1).click({ timeout: 1000 }).catch(() => {});
+      }
+      return false;
+    }, 'the tier-1 bell’s bubble', 30_000);
+    assert.equal((await bell.locator('.bubble-title').textContent()).trim(), 'A rift is at the walls');
+    assert.match(await bell.textContent(), /evening bell/);
+    assert.doesNotMatch(await bell.textContent(), /!/);
+    const saved = await savedState(value => Object.keys(value.rifts?.belled || {}).some(key => key.startsWith('night:')));
+    assert.ok(Object.keys(saved.rifts.open).some(key => key.startsWith('night:')), 'the Nocturne is open');
+    assert.deepEqual(await rung(), [], 'no Gate Bell note is even asked for before the Stockade');
+    assert.equal((await application.evaluate(() => globalThis.__miloNotifications.filter(toast => toast.title === 'A rift is at the walls'))).length, 0);
+    await dismissBubbles();
+  });
+
+  await check('with the Stockade up the Gate Bell rings once, its own switch deciding the note even with Alerts off', async () => {
+    await close();
+    const stateFile = path.join(dataDirectory, 'state.json');
+    const onDisk = JSON.parse(await readFile(stateFile, 'utf8'));
+    // The Stockade is up, Alerts are off, and tonight's bell is forgotten, so it rings again.
+    const belled = Object.fromEntries(Object.entries(onDisk.rifts?.belled || {}).filter(([key]) => !key.startsWith('night:')));
+    await writeFile(stateFile, JSON.stringify({
+      ...onDisk, hearth: { ...onDisk.hearth, tier: 2 }, rifts: { ...onDisk.rifts, belled },
+      settings: { ...onDisk.settings, eveningBell: '22:00', gateBell: true, wardPost: null, notifications: false },
+    }, null, 2), 'utf8');
+    await launch(repo, { MILO_NOW: night.toISOString() });
+    await poll(async () => (await rung()).length >= 1, 'the Gate Bell to ring', 30_000);
+    assert.equal((await rung())[0].kind, 'gate-bell');
+    // More passes of the rift loop (every snapshot runs one) don't ring it again.
+    const base = await scan();
+    for (let i = 1; i <= 2; i += 1) {
+      await application.evaluate(({ BrowserWindow }, next) => BrowserWindow.getAllWindows()[0].webContents.send('milo:snapshot', next), { ...base, scannedAt: base.scannedAt + i * 1000 });
+      await page.waitForTimeout(500);
+    }
+    assert.equal((await rung()).length, 1, 'the Gate Bell rings once');
+    const [decision] = await rung();
+    const toasts = await application.evaluate(() => globalThis.__miloNotifications.filter(toast => toast.title === 'A rift is at the walls'));
+    if (decision.focused) assert.equal(toasts.length, 0, 'no desktop note while MILO has focus');
+    else assert.equal(toasts.length, 1, 'one desktop note while MILO is in the background');
+    const saved = await savedState(value => Object.keys(value.rifts?.belled || {}).some(key => key.startsWith('night:')));
+    assert.ok(Object.keys(saved.rifts.open).some(key => key.startsWith('night:')), 'the Nocturne is open');
+    await dismissBubbles();
+  });
+
+  await check('the War Table lists every rift with its real cause, and holds the defences', async () => {
+    await openPlacesList();
+    assert.equal(await page.locator('#place-list [data-place="war-table"]').count(), 1, 'the War Table stands with the Stockade');
+    await openPlace('war-table');
+    const walls = page.locator('#panel [data-group="walls"] .rift-row[data-real-kind="nocturne"]');
+    await walls.waitFor({ timeout: 15_000 });
+    assert.match(await walls.locator('.rift-cause').textContent(), /^Claude was still working at 0[2-4]:\d\d, past your evening bell \(22:00\)\.$/);
+    assert.ok(await page.locator('#panel [data-group="bright"] .rift-row').count() >= 1, 'new buildings shine as bright rifts');
+    assert.ok(await page.locator('#panel [data-group="closed"] .rift-row').count() >= 2, 'the sealed rifts are recently closed');
+    assert.equal(await page.locator('#panel canvas[data-scene="war-map"]').count(), 1);
+    await page.locator('#panel label[for="ward-post-patient-knock"]').click();
+    await savedState(value => value.settings.wardPost === 'patient-knock');
+    await page.locator('#panel #evening-bell').selectOption('23:00');
+    await savedState(value => value.settings.eveningBell === '23:00');
+    await page.locator('#panel #evening-bell').selectOption('');
+    // With the bell off, tonight's Nocturne closes quietly: never a seal, and Milo says why.
+    const nightOff = await savedState(value => value.settings.eveningBell === null && !Object.keys(value.rifts?.open || {}).some(key => key.startsWith('night:')));
+    assert.equal(nightOff.rifts.history.find(entry => entry.key?.startsWith('night:'))?.how, 'closed', 'closed, not sealed');
+    await poll(async () => {
+      if (!(await page.locator('#bubble').isVisible())) return false;
+      if (/With the bell off, tonight’s Nocturne closes quietly\./.test(await page.locator('#bubble').textContent())) return true;
+      const buttons = page.locator('#bubble [data-bubble-action]');
+      const count = await buttons.count();
+      if (count) await buttons.nth(count - 1).click({ timeout: 1000 }).catch(() => {});
+      return false;
+    }, 'Milo to say the Nocturne closed quietly', 15_000);
+    assert.equal(await bubble('rift').isVisible(), true);
+    assert.equal(await page.locator('#panel [data-group="walls"] .rift-row[data-real-kind="nocturne"]').count(), 0);
+    await page.locator('#panel #evening-bell').selectOption('22:00');
+    await savedState(value => value.settings.eveningBell === '22:00' && Object.keys(value.rifts?.open || {}).some(key => key.startsWith('night:')));
+    await dismissBubbles();
+    await page.locator('#panel label[for="ward-post-none"]').click();
+    await savedState(value => value.settings.wardPost === null);
+    // A background refresh (a snapshot, the rift loop) with nothing new to show leaves the panel's
+    // dropdown in place, so a list Chris has open never closes under him.
+    await page.waitForTimeout(600);
+    await page.evaluate(() => { window.__bellSelect = document.querySelector('#panel #evening-bell'); window.__bellSelect.focus(); });
+    const latest = await scan();
+    for (let i = 1; i <= 2; i += 1) {
+      await application.evaluate(({ BrowserWindow }, next) => BrowserWindow.getAllWindows()[0].webContents.send('milo:snapshot', next), { ...latest, scannedAt: latest.scannedAt + 60_000 + i * 1000 });
+      await page.waitForTimeout(400);
+    }
+    assert.equal(await page.evaluate(() => window.__bellSelect.isConnected && document.activeElement === window.__bellSelect), true, 'the evening bell’s dropdown stays put through snapshots');
+    // News that does change the table (a capacity rift opening) waits while the dropdown is in
+    // hand, and shows as soon as Chris is done with it.
+    const resetsAt = latest.scannedAt + 2 * DAY;
+    const pressing = { ...latest, scannedAt: latest.scannedAt + 90_000, capacity: { codex: { usedPercent: 92, resetsAt, windowMinutes: 10080, at: latest.scannedAt } } };
+    await application.evaluate(({ BrowserWindow }, next) => BrowserWindow.getAllWindows()[0].webContents.send('milo:snapshot', next), pressing);
+    await savedState(value => Boolean(value.rifts?.open?.[`capacity:codex:${resetsAt}`]));
+    await page.waitForTimeout(300);
+    assert.equal(await page.evaluate(() => window.__bellSelect.isConnected && document.activeElement === window.__bellSelect), true, 'the dropdown stays in hand while news waits');
+    assert.equal(await page.locator('#panel .rift-row[data-real-kind="capacity"]').count(), 0, 'the new row waits too');
+    await page.locator('#panel-title').focus();
+    await page.locator('#panel .rift-row[data-real-kind="capacity"]').waitFor({ timeout: 5000 });
+    assert.equal(await page.evaluate(() => window.__bellSelect.isConnected), false, 'then the table catches up');
+    // The reading falls back, and the rift seals.
+    await application.evaluate(({ BrowserWindow }, next) => BrowserWindow.getAllWindows()[0].webContents.send('milo:snapshot', next), { ...latest, scannedAt: latest.scannedAt + 120_000 });
+    await savedState(value => !value.rifts?.open?.[`capacity:codex:${resetsAt}`]);
+    await dismissBubbles();
+    const gateBell = page.locator('#panel [data-setting="gateBell"]');
+    assert.equal(await gateBell.getAttribute('aria-checked'), 'true');
+    await gateBell.click();
+    await savedState(value => value.settings.gateBell === false);
+    await page.locator('#panel [data-setting="gateBell"]').click();
+    await savedState(value => value.settings.gateBell === true);
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /!/);
+    await page.waitForTimeout(600);
+    await page.screenshot({ path: path.join(artifacts, 'war-table.png') });
+    await assertFocusRings('#panel', 'the War Table', { least: 8 });
+    await page.locator('#panel-body').evaluate(body => { body.scrollTop = 0; });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: path.join(artifacts, 'war-table-top.png') });
+    // The frontier map fills its frame edge to edge with land and water (no flat bars either
+    // side), at a whole number of pixels a tile.
+    const mapFill = async () => {
+      await poll(() => page.evaluate(() => Boolean(document.querySelector('#panel canvas[data-scene="war-map"]')?.dataset.pixel)), 'the frontier map to be painted');
+      const fill = await page.evaluate(() => {
+        const canvas = document.querySelector('#panel canvas[data-scene="war-map"]');
+        const frame = canvas.parentElement.getBoundingClientRect();
+        const box = canvas.getBoundingClientRect();
+        return { frame: frame.width, left: box.left - frame.left, right: frame.right - box.right, pixel: Number(canvas.dataset.pixel) };
+      });
+      assert.ok(fill.left <= 0.5 && fill.right <= 0.5, `the map fills its frame: ${JSON.stringify(fill)}`);
+      assert.ok(Number.isInteger(fill.pixel) && fill.pixel >= 1, `whole pixels: ${fill.pixel}`);
+    };
+    await mapFill();
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 700));
+    await page.waitForFunction(() => innerWidth === 1000 && innerHeight === 700);
+    await page.waitForTimeout(500);
+    await fitsAt1000('#panel', 'the War Table');
+    await mapFill();
+    await page.screenshot({ path: path.join(artifacts, 'layout-1000x700-war-table.png') });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 820));
+    await page.waitForFunction(() => innerWidth === 1280);
+  });
+
+  await check('a bright rift is visited, not let go, and leaves its gifts once', async () => {
+    // A building finished this week shines out on the frontier. Visit walks Milo out to it.
+    const brightRow = page.locator('#panel [data-group="bright"] .rift-row').first();
+    const brightId = await brightRow.getAttribute('data-rift-id');
+    await brightRow.locator('[data-action="rift-open"]').click();
+    await panel(brightId).waitFor();
+    assert.equal(await page.locator('#panel [data-action="rift-let-go"]').count(), 0, 'a bright rift can’t be let go');
+    assert.equal(await page.locator('#panel [data-action="rift-let-be"]').count(), 1, 'only let be');
+    assert.equal(await page.locator('#panel [data-section="lead"]').count(), 1, 'its Tale-lead is named');
+    await page.locator('#panel [data-action="rift-visit"]').click();
+    await savedState(value => Number.isFinite(value.rifts?.visited?.[brightId]));
+    const says = page.locator('#panel .milo-says');
+    await poll(async () => /in your satchel|brighter for the visit/.test(await says.textContent()), 'Milo to say what the visit left', 20_000);
+    assert.equal(await area(), 'wilds', 'Milo walked out to it');
+    // A second visit is welcome, and gives nothing more.
+    await page.locator('#panel [data-action="rift-visit"]').click();
+    await poll(async () => /visited already/.test(await says.textContent()), 'Milo to say he has been already');
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /!/);
+    // What it leaves is in the satchel now, and the panel says so.
+    if (await page.locator('#panel [data-section="loot"]').count()) {
+      assert.equal(await page.locator('#panel [data-section="loot"]').getAttribute('data-taken'), 'true');
+    }
+    await closePanelNow();
+    await dismissBubbles();
+    await travelHome();
+  });
+
+  await check('a rift that seals while Milo walks out to it is never stepped into, and its panel says it closed', async () => {
+    await dismissBubbles();
+    // Motion on for this one, so the walk out takes a while.
+    await openPlace('camp');
+    const motion = page.locator('[data-setting="motion"]');
+    if (await motion.getAttribute('aria-checked') !== 'true') await motion.click();
+    await savedState(value => value.settings.motion === true);
+    await closePanelNow();
+    const send = next => application.evaluate(({ BrowserWindow }, value) => BrowserWindow.getAllWindows()[0].webContents.send('milo:snapshot', value), next);
+    const latest = await scan();
+    // A window of its own, days from any other the state knows (a refill within minutes of one
+    // it knows would be read as that same window).
+    const resetsAt = latest.scannedAt + 5 * DAY + 11 * HOUR;
+    const key = `capacity:codex:${resetsAt}`;
+    await send({ ...latest, scannedAt: latest.scannedAt + 60_000, capacity: { codex: { usedPercent: 93, resetsAt, windowMinutes: 10080, at: latest.scannedAt } } });
+    await savedState(value => Boolean(value.rifts?.open?.[key]));
+    await dismissBubbles();
+    await openPlace('war-table');
+    const row = page.locator('#panel .rift-row[data-real-kind="capacity"]');
+    await row.waitFor({ timeout: 10_000 });
+    const riftId = await row.getAttribute('data-rift-id');
+    await row.locator('[data-action="rift-open"]').click();
+    await panel(riftId).waitFor();
+    await page.locator('#panel [data-action="rift-step"]').click();
+    await poll(async () => /sets off/.test(await page.locator('#panel .milo-says').textContent().catch(() => '')), 'Milo to set off');
+    // On the way, the real thing clears: the rift seals.
+    await send({ ...latest, scannedAt: latest.scannedAt + 120_000 });
+    await savedState(value => !value.rifts?.open?.[key]);
+    await poll(async () => /This rift has closed/.test(await page.locator(`#panel[data-place="${riftId}"] .milo-says`).textContent().catch(() => '')), 'the panel to say the rift closed, not that he sets off', 10_000);
+    assert.equal(await page.locator('#panel [data-action="rift-step"]').count(), 0, 'nothing to step into');
+    // He walks on to where it stood, stops, and steps into nothing.
+    await poll(async () => (await area()) !== 'vale', 'Milo to be out past the walls', 30_000);
+    await poll(async () => {
+      const first = (await page.evaluate(() => window.milo.loadState())).wilds?.at;
+      await page.waitForTimeout(1800);
+      const second = (await page.evaluate(() => window.milo.loadState())).wilds?.at;
+      return first && second && first.x === second.x && first.y === second.y;
+    }, 'Milo to stop where the rift stood', 40_000);
+    await page.waitForTimeout(2500);
+    assert.notEqual(await area(), 'elsewhere', 'no Elsewhere behind a sealed rift');
+    assert.equal(await page.locator('#elsewhere-banner').isVisible(), false);
+    if (await page.locator(`#panel[data-place="${riftId}"]`).count()) {
+      assert.match(await page.locator('#panel .milo-says').textContent(), /This rift has closed/);
+    }
+    await closePanelNow();
+    await dismissBubbles();
+    await travelHome();
+    await openPlace('camp');
+    await page.locator('[data-setting="motion"]').click();
+    await savedState(value => value.settings.motion === false);
+    await closePanelNow();
+    await dismissBubbles();
+  });
+
+  await check('a lit lantern is still lit after a restart, and the map travels Milo to it', async () => {
+    assert.ok(litLantern, 'a lantern was lit earlier');
+    const saved = await savedState(value => Number.isFinite(value.wilds?.lanterns?.[litLantern.id]));
+    assert.equal(saved.wilds.wake, litLantern.id);
+    await page.locator('canvas#world').focus();
+    await page.keyboard.press('m');
+    await page.locator('#map-view').waitFor({ state: 'visible' });
+    await page.locator(`#map-view [data-marker="${litLantern.id}"]`).waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: path.join(artifacts, 'map.png') });
+    // Its button in the travel list asks first, then takes Milo there with a calm fade.
+    await page.locator(`#map-view .map-travel [data-marker="${litLantern.id}"]`).click();
+    await page.locator('#map-view .map-ask-go').click();
+    await page.locator('#map-view').waitFor({ state: 'hidden' });
+    await poll(async () => (await area()) === 'wilds', 'Milo to arrive at the lantern', 20_000);
+    await savedState(value => Math.abs(value.wilds?.at?.x - litLantern.x) <= 2 && Math.abs(value.wilds.at.y - litLantern.y) <= 2);
+  });
+
+  // Where Milo stands in the wilds, once the saved tile has stopped changing (steps are saved on a
+  // short debounce).
+  const standingAt = () => poll(async () => {
+    const first = (await page.evaluate(() => window.milo.loadState())).wilds?.at;
+    await page.waitForTimeout(1800);
+    const second = (await page.evaluate(() => window.milo.loadState())).wilds?.at;
+    return first && second && first.x === second.x && first.y === second.y ? second : null;
+  }, 'Milo to stand still', 20_000);
+
+  // The land round Milo, from the wilds' own modules, as the engine sees it at this tier.
+  const wildsPlan = (task, extra = {}) => page.evaluate(async ({ task, extra }) => {
+    const content = await window.milo.content();
+    const saved = await window.milo.loadState();
+    const { offset } = await window.milo.clock();
+    const { createWorldgen } = await import('./src/world/worldgen.js');
+    const { createWilds } = await import('./src/world/wilds.js');
+    const { createNav } = await import('./src/world/nav.js');
+    const { createRiftgen } = await import('./src/world/riftgen.js');
+    const { wildRiftsForChunk, dayNumber } = await import('./src/rifts.js');
+    const { hearthTier, wardRadius } = await import('./src/hearth.js');
+    const tier = hearthTier(saved);
+    const worldgen = createWorldgen({ seed: saved.wilds.seed, regionWords: content.riftgen.regionWords });
+    const wilds = createWilds({ worldgen, maxChunks: 96 });
+    const nav = createNav({ worldgen, wildBlocked: (x, y) => wilds.blocked(x, y), extraBlocked: (x, y) => wilds.ringBlocked(x, y, tier) });
+    const from = extra.from;
+    const day = dayNumber(Date.now() + offset);
+    const near = (list) => list.sort((a, b) => Math.hypot(a.x - from.x, a.y - from.y) - Math.hypot(b.x - from.x, b.y - from.y));
+    const walk = (target, limit) => {
+      for (const [dx, dy] of [[0, 1], [-1, 0], [1, 0], [0, -1]]) {
+        const steps = nav.findPath(from, { x: target.x + dx, y: target.y + dy });
+        if (steps.length && steps.length <= limit) return steps;
+      }
+      return null;
+    };
+    if (task === 'poi') {
+      const box = { x: from.x - 40, y: from.y - 40, w: 80, h: 80 };
+      // entitiesIn reads cached chunks only.
+      for (let cy = Math.floor(box.y / 32); cy <= Math.floor((box.y + box.h) / 32); cy += 1) {
+        for (let cx = Math.floor(box.x / 32); cx <= Math.floor((box.x + box.w) / 32); cx += 1) wilds.chunk(cx, cy);
+      }
+      const state = { tier, lit: Object.keys(saved.wilds.lanterns || {}), opened: Object.keys(saved.wilds.opened || {}), notes: Object.keys(saved.wilds.notes || {}), glimmers: Object.keys(saved.wilds.glimmers || {}), felled: [], day };
+      const pois = near(wilds.entitiesIn(box, state).filter(e => e.kind === 'poi' && extra.types.includes(e.poiType ?? e.type)));
+      for (const poi of pois.slice(0, 8)) {
+        const steps = walk(poi, 60);
+        if (steps) return { poi: { id: poi.id, type: poi.poiType ?? poi.type, x: poi.x, y: poi.y }, steps };
+      }
+      return null;
+    }
+    const riftgen = createRiftgen({ words: content.riftgen, genres: content.genres });
+    const ward = wardRadius(saved, content.fortress);
+    const cx0 = Math.floor(from.x / 32);
+    const cy0 = Math.floor(from.y / 32);
+    const found = [];
+    for (let cy = cy0 - 3; cy <= cy0 + 3; cy += 1) {
+      for (let cx = cx0 - 3; cx <= cx0 + 3; cx += 1) {
+        found.push(...wildRiftsForChunk({ worldgen, riftgen, cx, cy, day, wardRadius: ward, closed: saved.rifts?.closedWild || {}, isFree: nav.walkable }));
+      }
+    }
+    for (const rift of near(found).slice(0, 10)) {
+      const steps = walk(rift, 140);
+      // Stop short of its strays (they roam a few tiles round the tear and could stand in the way
+      // of a planned step); the place list walks the rest.
+      if (steps) return { rift: { id: rift.id, x: rift.x, y: rift.y, stage: rift.stage }, steps: steps.slice(0, Math.max(0, steps.length - 6)) };
+    }
+    return null;
+  }, { task, extra });
+
+  await check('a place in the wilds opens with its one action, and fits 1000×700', async () => {
+    const from = await standingAt();
+    const plan = await wildsPlan('poi', { from, types: ['chest', 'ruin', 'note', 'statue'] });
+    assert.ok(plan, 'a chest, ruin, note or statue within walking distance of the lantern');
+    await page.locator('canvas#world').focus();
+    await stepKeys(from, plan.steps);
+    await savedState(value => Math.abs(value.wilds?.at?.x - plan.poi.x) <= 2 && Math.abs(value.wilds.at.y - plan.poi.y) <= 2);
+    await dismissBubbles(1500);
+    await openPlacesList();
+    const entry = page.locator(`#place-list [data-entity="${plan.poi.id}"]`);
+    await entry.waitFor({ timeout: 10_000 });
+    await entry.click();
+    await panel(plan.poi.id).waitFor({ timeout: 15_000 });
+    const action = page.locator('#panel [data-action^="poi-"]');
+    assert.equal(await action.count(), 1, `the ${plan.poi.type} has its one action`);
+    assert.equal(await page.locator('#panel canvas[data-scene="poi"]').count(), 1, 'and its picture');
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1000, 700));
+    await page.waitForFunction(() => innerWidth === 1000 && innerHeight === 700);
+    await page.waitForTimeout(400);
+    await fitsAt1000('#panel', `a ${plan.poi.type} panel`);
+    await page.screenshot({ path: path.join(artifacts, 'layout-1000x700-place.png') });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1280, 820));
+    await page.waitForFunction(() => innerWidth === 1280);
+    await action.click();
+    const kept = { chest: 'opened', ruin: 'opened', note: 'notes', statue: 'glimmers' }[plan.poi.type];
+    await savedState(value => Number.isFinite(value.wilds?.[kept]?.[plan.poi.id]));
+    await poll(async () => (await page.locator('#panel [data-action^="poi-"]:not([disabled])').count()) === 0, 'the action to be done');
+    assert.doesNotMatch(await page.locator('#panel').textContent(), /!/);
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'place-done.png') });
+    await assertFocusRings('#panel', 'a place panel');
+    await closePanelNow();
+    await dismissBubbles();
+  });
+
+  await check('a wild rift can be stepped into, stitched, and gone deeper into', async () => {
+    const from = await standingAt();
+    const plan = await wildsPlan('rift', { from });
+    assert.ok(plan, 'a wild rift within walking distance today');
+    await page.locator('canvas#world').focus();
+    await stepKeys(from, plan.steps);
+    await dismissBubbles(1500);
+    const entry = await listEntry(plan.rift.id);
+    await entry.click();
+    await panel(plan.rift.id).waitFor({ timeout: 15_000 });
+    assert.equal(await page.locator('#panel [data-section="lead"]').count(), 1, 'its Tale-lead is named');
+    await page.locator('#panel [data-action="rift-step"]').click();
+    await poll(async () => (await area()) === 'elsewhere', 'Milo to step into the wild rift', 30_000);
+    await openPlacesList();
+    await page.locator('#place-list [data-entity="stitch"]').click();
+    await page.locator('#panel [data-action="rift-stitch"]').click({ timeout: 15_000 });
+    await savedState(value => Number.isFinite(value.rifts?.closedWild?.[plan.rift.id]));
+    const deeper = page.locator('#panel [data-action="rift-deeper"]');
+    await deeper.waitFor({ timeout: 10_000 });
+    // Stitched: nothing left to mend, and what it leaves is in the satchel already.
+    assert.equal(await page.locator('#panel [data-section="mend"]').count(), 0, 'no “To mend it” once it’s mended');
+    const loot = page.locator('#panel [data-section="loot"]');
+    if (await loot.count()) {
+      assert.equal(await loot.getAttribute('data-taken'), 'true');
+      assert.equal((await loot.locator('h3').textContent()).trim(), 'What it left');
+    }
+    const bannerText = () => page.locator('#elsewhere-banner').textContent();
+    const depthOf = async () => Number(/Depth (\d+)/.exec(await bannerText())?.[1] ?? NaN);
+    const before = await bannerText();
+    const depth = await depthOf();
+    await dismissBubbles(1500);
+    await deeper.click();
+    // A new rift beneath the first: another name on the banner, and a greater depth.
+    await poll(async () => (await bannerText()) !== before && (Number.isNaN(depth) || (await depthOf()) > depth), `the banner to show the rift beneath (${before})`, 30_000);
+    assert.equal(await area(), 'elsewhere');
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'elsewhere-deeper.png') });
+    // The banner's Leave, from the keyboard: the banner goes, and focus lands on the world.
+    await page.locator('#elsewhere-banner [data-action="leave-elsewhere"]').focus();
+    await page.keyboard.press('Enter');
+    await poll(async () => (await area()) === 'wilds', 'Milo to come back out', 20_000);
+    assert.equal(await assertFocusKept('the banner’s Leave'), 'CANVAS#world');
+    await dismissBubbles();
+    await travelHome();
+  });
+
+  await check('with every count met, Raise the Stockade spends the logs and puts up the War Table', async () => {
+    await close();
+    const stateFile = path.join(dataDirectory, 'state.json');
+    const onDisk = JSON.parse(await readFile(stateFile, 'utf8'));
+    // Back to the Camp, with a week of days, twenty finished sessions and the logs gathered.
+    await writeFile(stateFile, JSON.stringify({
+      ...onDisk,
+      hearth: { tier: 1, raisedAt: {} },
+      tally: { ...onDisk.tally, sessionsFinished: Math.max(20, onDisk.tally.sessionsFinished), daysSeen: Math.max(7, onDisk.tally.daysSeen) },
+      satchel: { ...onDisk.satchel, materials: { birch: 85, ash: 30, pine: 2 } },
+      settings: { ...onDisk.settings, eveningBell: null },
+    }, null, 2), 'utf8');
+    await launch();
+    await dismissBubbles();
+    await openPlacesList();
+    assert.equal(await page.locator('#place-list [data-place="war-table"]').count(), 0, 'no War Table at the Camp');
+    await openPlace('hearth');
+    for (const kind of ['crew-sessions-finished', 'buildings-designed', 'days-with-milo']) {
+      assert.equal(await page.locator(`#panel [data-req="${kind}"]`).getAttribute('data-level-state'), 'proven', `${kind} is met`);
+    }
+    const raise = page.locator('#panel [data-action="raise"]');
+    assert.equal((await raise.textContent()).trim(), 'Raise the Stockade');
+    await raise.click();
+    const saved = await savedState(value => value.hearth?.tier === 2);
+    assert.ok(Number.isFinite(saved.hearth.raisedAt.stockade ?? Object.values(saved.hearth.raisedAt)[0]), 'when it was raised');
+    assert.deepEqual(saved.satchel.materials, { birch: 5, ash: 0, pine: 2 }, 'the Stockade took 80 birch and 30 ash');
+    const raised = bubble('hearth');
+    await raised.waitFor({ timeout: 10_000 });
+    assert.match(await raised.locator('.bubble-title').textContent(), /^The Stockade is raised$/);
+    assert.doesNotMatch(await raised.textContent(), /!/);
+    // It says what the wilds raise: the bell and banners by the north gate, never on the watchtower.
+    assert.match(await raised.textContent(), /Gate Bell and the banners stand by the north gate/);
+    assert.doesNotMatch(await raised.textContent(), /watchtower|in its gatehouse/);
+    await poll(async () => /Tier 2/.test(await page.locator('#panel .hearth-tier').textContent()), 'the Hearth panel to show the Stockade');
+    assert.equal(await page.locator('#tracker').isHidden(), true, 'with the Stockade up once, the Prologue is done and its card tucked away');
+    await openPlacesList();
+    assert.equal(await page.locator('#place-list [data-place="war-table"]').count(), 1, 'the War Table stands now');
+    await page.locator('#places-toggle').click();
+    await settle();
+    await page.screenshot({ path: path.join(artifacts, 'stockade-raised.png') });
+    await dismissBubbles();
+    // What the Hold needs arrives later: each such row says Later, and the Hearth vouches only for
+    // counts MILO keeps.
+    const hold = page.locator('#panel [data-group="next"]');
+    await hold.scrollIntoViewIfNeeded();
+    for (const tag of await hold.locator('.reqs .level-tag').allTextContents()) assert.equal(tag.trim(), 'Later');
+    assert.doesNotMatch(await page.locator('#panel .privacy-note').textContent(), /Every count here is real/);
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: path.join(artifacts, 'hearth-next-tier.png') });
+  });
+
+  await check('inside a wild rift’s Elsewhere as midnight passes, its chest and its seam still answer', async () => {
+    await close();
+    // A fresh save of its own, on a clock that starts 90 s before the next midnight (launching
+    // and walking out to a wild rift take most of that).
+    const nightDir = path.join(root, 'midnight');
+    await mkdir(nightDir, { recursive: true });
+    const turn = new Date();
+    turn.setDate(turn.getDate() + 1);
+    turn.setHours(0, 0, 0, 0);
+    const midnight = turn.getTime();
+    const start = midnight - 90_000;
+    await writeFile(path.join(nightDir, 'state.json'), JSON.stringify({
+      version: 1, user: { name: 'Chris' }, milo: { name: 'Milo', tile: { x: 32, y: 1 } }, lastSeenAt: start - 60_000, lastGreetedDay: null,
+      settings: { motion: false, notifications: false, greeting: false, designer: 'kit', eveningBell: null, gateBell: true, wardPost: null },
+      skills: {}, panel: null, plots: {},
+    }), 'utf8');
+    await launch(repo, { MILO_DATA_DIR: nightDir, MILO_NOW: new Date(start).toISOString() });
+    const clock = () => page.evaluate(async () => Date.now() + (await window.milo.clock()).offset);
+    await dismissBubbles(1500);
+    await page.locator('canvas#world').focus();
+    const at = await stepKeys({ x: 32, y: 1 }, [{ x: 32, y: 0 }, { x: 32, y: -1 }, { x: 32, y: -2 }, { x: 32, y: -3 }]);
+    await poll(async () => (await area()) === 'wilds', 'Milo to be out of the north gate');
+    await savedState(value => value.wilds?.at?.x === 32 && value.wilds.at.y === -3);
+    const plan = await wildsPlan('rift', { from: at });
+    assert.ok(plan, 'a wild rift within walking distance today');
+    await page.locator('canvas#world').focus();
+    await stepKeys(at, plan.steps);
+    await dismissBubbles(1000);
+    await (await listEntry(plan.rift.id)).click();
+    await panel(plan.rift.id).waitFor({ timeout: 15_000 });
+    await page.locator('#panel [data-action="rift-step"]').click();
+    await poll(async () => (await area()) === 'elsewhere', 'Milo to step into the wild rift', 30_000);
+    assert.ok((await clock()) < midnight, 'Milo stepped in before midnight');
+    // Past midnight, and past a tick of the rift loop after it: a new day's wilds have opened.
+    await poll(async () => (await clock()) > midnight + 31_000, 'midnight and a tick to pass', 180_000);
+    assert.equal(await area(), 'elsewhere', 'still inside');
+    await dismissBubbles(1000);
+    await openPlacesList();
+    const chest = page.locator('#place-list [data-entity^="loot:"]').first();
+    if (await chest.count()) {
+      await chest.click();
+      const found = bubble('loot');
+      await found.waitFor({ timeout: 10_000 });
+      assert.equal((await found.locator('.bubble-title').textContent()).trim(), 'A chest in the Elsewhere', 'the chest still opens');
+      await dismissBubbles();
+      await openPlacesList();
+    }
+    await page.locator('#place-list [data-entity="stitch"]').click();
+    await page.locator(`#panel[data-place="${plan.rift.id}"] [data-action="rift-stitch"]`).click({ timeout: 10_000 });
+    const today = await page.evaluate(async () => (await import('./src/model.js')).dayNumber(Date.now() + (await window.milo.clock()).offset));
+    await savedState(value => value.rifts?.closedWild?.[plan.rift.id] === today);
+    await page.locator('#panel [data-action="rift-deeper"]').waitFor({ timeout: 10_000 });
+    await dismissBubbles();
+  });
+
   await check('nothing leaves localhost', async () => {
     blockedRequests.push(...(await application.evaluate(() => globalThis.__miloBlockedRequests || [])));
     const outside = requests.filter(url => !/^(file|data|blob|devtools):/i.test(url) && !/^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:\d+)?\//i.test(url));
@@ -1045,10 +2210,41 @@ try {
     assert.equal(backup.settings.motion, false, 'the good backup was not replaced with defaults');
   });
 
+  await check('a close asked for before the saved state is back never writes defaults over it', async () => {
+    const stateFile = path.join(dataDirectory, 'state.json');
+    const backupFile = `${stateFile}.backup`;
+    await page.waitForTimeout(1500);
+    const good = JSON.parse(await readFile(stateFile, 'utf8'));
+    assert.ok(good.tally.buildingsDesigned >= 3 && good.tally.daysSeen >= 1, 'a save with progress in it');
+    // The close arrives while the page's first load of its state is still on its way (the order
+    // a close in that moment gives): main's own handler, wrapped, asks first.
+    await application.evaluate(({ ipcMain }) => {
+      const handlers = ipcMain._invokeHandlers;
+      const original = handlers.get('milo:load-state');
+      handlers.set('milo:load-state', async (event, ...args) => {
+        event.sender.send('milo:before-close');
+        await new Promise(resolve => setTimeout(resolve, 800));
+        handlers.set('milo:load-state', original);
+        return original(event, ...args);
+      });
+    });
+    await page.evaluate(() => { window.__beforeReload = true; });
+    await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.reload());
+    await page.waitForFunction(() => !window.__beforeReload && document.body?.dataset.ready === 'true', null, { timeout: 40_000 });
+    await page.waitForTimeout(2500);
+    const onDisk = JSON.parse(await readFile(stateFile, 'utf8'));
+    const backup = JSON.parse(await readFile(backupFile, 'utf8'));
+    assert.equal(onDisk.tally.buildingsDesigned, good.tally.buildingsDesigned, 'state.json keeps its progress');
+    assert.equal(onDisk.tally.daysSeen, good.tally.daysSeen);
+    assert.deepEqual(Object.keys(onDisk.plots || {}).sort(), Object.keys(good.plots || {}).sort());
+    assert.equal(backup.tally.buildingsDesigned, good.tally.buildingsDesigned, 'and so does its backup');
+    assert.doesNotMatch(await page.locator('#titlebar-status').textContent(), /Couldn't save/);
+  });
+
   assert.deepEqual(pageErrors, [], `Renderer errors: ${pageErrors.join('\n')}`);
   // Until every module exists, the shell's defensive imports log a file-not-found
   // for each missing one. Once they all exist, any console error fails the run.
-  const missing = ['src/world/engine.js', 'src/world/map.js', 'src/world/kit.js', 'src/model.js', 'src/recap.js', 'src/skills.js', 'src/architect/blueprint.js']
+  const missing = ['src/world/engine.js', 'src/world/map.js', 'src/world/kit.js', 'src/model.js', 'src/recap.js', 'src/skills.js', 'src/architect/blueprint.js', 'src/ui/mapview.js', 'src/ui/mapview.css']
     .filter(file => !existsSync(path.join(repo, file)));
   const unexpected = missing.length ? consoleErrors.filter(text => !/ERR_FILE_NOT_FOUND/.test(text)) : consoleErrors;
   if (missing.length) console.log(`Note: not written yet, so the shell ran without them: ${missing.join(', ')}`);
@@ -1067,4 +2263,5 @@ try {
   process.exitCode = 1;
 } finally {
   await close().catch(() => {});
+  for (const child of sleepers) { try { child.kill(); } catch { /* already gone */ } }
 }

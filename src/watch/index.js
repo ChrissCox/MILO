@@ -4,6 +4,9 @@
 //   const snapshot = await watcher.scan();   // Snapshot, see CONTRACT.md
 //   watcher.dispose();
 //
+// Phase 3 (CONTRACT-PHASE3.md §4.2) adds snapshot.capacity = { codex: reading | null }, where a
+// reading is { usedPercent, resetsAt (ms), windowMinutes, at (ms) }, and AgentSession.waitingSince.
+//
 // Node only. Never writes under ~/.claude or ~/.codex. The snapshot holds summaries only
 // (titles <= 80 chars, last-message snippets <= 200 chars); transcripts stay in this process.
 
@@ -25,6 +28,46 @@ function fallbackTools() {
     { id: 'whisper', name: 'Whisper', kind: 'local', installed: false, active: false, detail: 'Not checked this time', note: WHISPER_NOTE },
     { id: 'ollama', name: 'Ollama', kind: 'local', installed: false, active: false, detail: 'Not checked this time', note: OLLAMA_NOTE },
   ];
+}
+
+/**
+ * Snapshot.capacity.codex from scanCodex's newest reading: a fresh object with exactly the
+ * contract's fields, its `at` clamped to the scan time (clock skew), or null. A failed or missing
+ * source has no reading. `resetsAt` can already be past: the last reading stays in the rollouts
+ * until Codex runs again, so consumers treat `resetsAt <= now` as refilled.
+ */
+export function capacityReading(reading, scannedAt) {
+  if (!reading || typeof reading !== 'object') return null;
+  const { usedPercent, resetsAt, windowMinutes, at } = reading;
+  if (![usedPercent, resetsAt, windowMinutes, at].every((value) => typeof value === 'number' && Number.isFinite(value))) return null;
+  return { usedPercent, resetsAt, windowMinutes, at: scannedAt ? Math.min(at, scannedAt) : at };
+}
+
+const sameReading = (a, b) =>
+  a.usedPercent === b.usedPercent && a.resetsAt === b.resetsAt && a.windowMinutes === b.windowMinutes && a.at === b.at;
+
+/**
+ * capacityReading for a run of scans. A reading stamped past the scan time (clock skew) reads as
+ * the scan that first saw it, and keeps that time for as long as it stays the reading, so it isn't
+ * a new reading on every scan. Scans run one at a time, so one held reading is enough.
+ */
+export function createCapacityClock() {
+  let early = null; // { reading, seenAt }
+  return {
+    read(reading, scannedAt) {
+      const snapshot = capacityReading(reading, scannedAt);
+      if (!snapshot || !scannedAt || !(reading.at > scannedAt)) {
+        early = null;
+        return snapshot;
+      }
+      if (!early || !sameReading(early.reading, reading)) early = { reading: { ...reading }, seenAt: scannedAt };
+      snapshot.at = Math.min(early.seenAt, scannedAt);
+      return snapshot;
+    },
+    reset() {
+      early = null;
+    },
+  };
 }
 
 /**
@@ -55,6 +98,7 @@ export function createWatcher({
   };
   const caches = { claude: new Map(), codex: new Map(), procs: new Map() };
   const probes = probeTools ? createToolProbes() : null;
+  const capacityClock = createCapacityClock();
   let pending = null;
 
   async function runScan() {
@@ -73,7 +117,13 @@ export function createWatcher({
     const sessions = [...claude.sessions, ...codexSessions]
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       .slice(0, MAX_SESSIONS);
-    return { scannedAt, sessions, tools, sources: { claude: claude.source, codex: codex.source } };
+    return {
+      scannedAt,
+      sessions,
+      tools,
+      sources: { claude: claude.source, codex: codex.source },
+      capacity: { codex: capacityClock.read(codex.source.ok ? codex.capacity : null, scannedAt) },
+    };
   }
 
   return {
@@ -87,6 +137,7 @@ export function createWatcher({
       caches.claude.clear();
       caches.codex.clear();
       caches.procs.clear();
+      capacityClock.reset();
       if (probes) probes.dispose();
     },
   };

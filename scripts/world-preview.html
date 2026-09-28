@@ -20,6 +20,13 @@
   <div id="tip" role="status"></div>
   <div id="bubble">Hi, Chris. All quiet while you were away.</div>
   <script type="module">
+    // The world on its own, for screenshots (scripts/capture-world.mjs, capture-wilds.mjs and
+    // friends). Query: at=<place id> | x=&y= (start tile), crew=default|rest|busy, motion=0,
+    // scale=N, view=overview (milo=0 leaves him out of it), bubble=1, entrance=1. With content injected by an init script
+    // (window.__content = { genres, riftgen, fortress, wilds, story }) the wilds come on too:
+    // tier=N, day=N, seed=..., rifts=<genre[+genre]:stage:x,y[:warded]>;..., echo=<place:icon:genre>,
+    // lit=<lantern ids, comma-separated>, elsewhere=<genre[+genre]:stage[:depth]>.
+    // Every rift here is synthetic, built by the rift generator; nothing real is shown.
     import { createWorld } from '../src/world/engine.js';
     import { PLACES } from '../src/world/map.js';
 
@@ -28,6 +35,7 @@
     const tip = document.getElementById('tip');
     const bubble = document.getElementById('bubble');
     const motionParam = params.get('motion') !== '0';
+    const content = window.__content || null;
     const log = [];
     window.__log = log;
     window.__errors = [];
@@ -62,14 +70,23 @@
 
     const start = params.get('at');
     const startPlace = start ? PLACES.find((p) => p.id === start) : null;
+    const startXY = params.has('x') && params.has('y') ? { x: Number(params.get('x')), y: Number(params.get('y')) } : null;
     let motionOn = motionParam;
+    window.__areas = [];
+    window.__explored = [];
+    window.__entities = [];
     const world = createWorld(canvas, {
       motion: () => motionOn,
-      startTile: startPlace ? startPlace.door : null,
+      startTile: startXY || (startPlace ? startPlace.door : null),
       scale: params.get('scale') ? Number(params.get('scale')) : null,
+      content,
+      seed: params.get('seed') || 'hushlands',
       onPlaceClick: (id) => log.push(['place', id]),
       onCrewClick: (id) => log.push(['crew', id]),
       onMiloMove: (tile) => log.push(['move', tile.x, tile.y]),
+      onEntityClick: (entity) => { log.push(['entity', entity.id]); window.__entities.push(entity); },
+      onAreaChange: (info) => { window.__areas.push(info); window.__area = info; },
+      onExplore: (keys) => window.__explored.push(...keys),
       onHover: (info) => {
         if (!info) { tip.style.display = 'none'; return; }
         const place = PLACES.find((p) => p.id === info.id);
@@ -83,6 +100,62 @@
     window.__world = world;
     window.__setMotion = (value) => { motionOn = value; };
 
+    // ---------- demo rifts for the wilds (synthetic, from the rift generator) ----------
+
+    let riftgen = null;
+    if (content) {
+      const { createRiftgen } = await import('../src/world/riftgen.js');
+      riftgen = createRiftgen({ words: content.riftgen, genres: content.genres });
+    }
+    // A spec with exactly these genres at this stage: wild rifts leaning hard on them, seed by seed.
+    function specFor(genres, stage, { depth = 1, tier = 2, salt = 0 } = {}) {
+      const weights = Object.fromEntries(content.genres.genres.map((g) => [g.id, genres.includes(g.id) ? 400 : 0.0001]));
+      for (let seed = 1 + salt * 7919; seed < 12000 + salt * 7919; seed += 1) {
+        const spec = riftgen.wildRift({ seed, tier, depth, weights });
+        if (spec.stage === stage && spec.genres.length === genres.length && genres.every((g) => spec.genres.includes(g))) return spec;
+      }
+      return null;
+    }
+    function demoRift(text, salt = 0) {
+      const [genrePart, stage = 'open', at = '0,0', flag = ''] = text.split(':');
+      const [x, y] = at.split(',').map(Number);
+      const spec = specFor(genrePart.split(/[+ |]/), stage, { salt });
+      if (!spec) return null;
+      return {
+        id: spec.id, key: `demo:${spec.id}`, kind: 'real', realKind: 'knocking', spec, x, y, beyond: 10, towards: null,
+        stage: spec.stage, urgency: 0.6, bright: false, warded: flag === 'warded' ? { until: 0, stage: spec.stage } : null,
+        held: null, atWalls: false, cause: 'A demo rift for the preview.', stitch: 'Nothing to mend.', since: 0, echo: null, subject: null,
+      };
+    }
+    window.__demo = { specFor, demoRift };
+
+    if (content) {
+      const tier = Number(params.get('tier') || 1);
+      world.setWildState({
+        day: Number(params.get('day') || 20000),
+        tier,
+        wardRadius: tier >= 2 ? 12 : 0,
+        closed: [],
+        lit: (params.get('lit') || '').split(',').filter(Boolean),
+        opened: [],
+        felled: {},
+      });
+      const riftList = (params.get('rifts') || '').split(';').filter(Boolean).map((text, i) => demoRift(text, i)).filter(Boolean);
+      window.__rifts = riftList;
+      if (riftList.length) world.setRifts(riftList);
+      const echo = params.get('echo');
+      if (echo) {
+        const [place, icon, genre] = echo.split(':');
+        world.setEchoes([{ id: 'echo:demo', riftId: 'rift:demo', place, icon, genre, label: 'An echo of a rift' }]);
+      }
+      const inside = params.get('elsewhere');
+      if (inside) {
+        const [genrePart, stage = 'open', depth = '1'] = inside.split(':');
+        const spec = specFor(genrePart.split(/[+ |]/), stage, { depth: Number(depth), tier: 3 });
+        if (spec) window.__inside = world.enterElsewhere({ id: spec.id, key: null, kind: 'wild', spec, x: null, y: null, stage: spec.stage });
+      }
+    }
+
     function placeBubble() {
       const pos = world.miloScreenPos();
       bubble.style.left = `${pos.x}px`;
@@ -94,7 +167,7 @@
       document.body.classList.add('overview');
       canvas.style.display = 'none';
       const scale = Number(params.get('ovscale') || 1);
-      const map = world.renderMap(scale, { time: 1200 });
+      const map = world.renderMap(scale, { time: 1200, milo: params.get('milo') !== '0' });
       window.__overview = map.toDataURL('image/png');
     }
     if (params.get('bubble') === '1') {

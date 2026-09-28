@@ -1,6 +1,7 @@
 {
   "version": 1,
-  "about": "The Hearth: Milo's camp as a fortress that grows into a kingdom (WORLD.md §2). Hearthvale itself is always sanctuary: no rift ever opens inside it. Each tier pushes the Hearthward (wardRadius, in tiles beyond Hearthvale's edge) further into the wilds. Tiers need real progress (requirements, which can't be grinded), game materials and Construction. Every defence is a real MILO capability, usually an automation, so a stronger kingdom means fewer problems ever reach the walls.",
+  "about": "The Hearth: Milo’s camp as a fortress that grows into a kingdom (WORLD.md §2). Hearthvale itself is always sanctuary: no rift ever opens inside it. Each tier pushes the Hearthward (wardRadius, in tiles beyond Hearthvale’s edge) further into the wilds. Tiers need real progress (requirements, which can’t be ground out), game materials and Construction (enforced from Phase 4; until then it’s shown as information). Every defence is a real MILO capability, usually an automation, so a stronger kingdom means fewer problems ever reach the walls.",
+  "constructionFrom": "Phase 4",
   "tiers": [
     {
       "id": "camp",
@@ -15,27 +16,27 @@
         { "name": "The Lantern Hook", "real": "Hearthvale is sanctuary: rifts open only in the wilds beyond it, and the closer one opens to the vale, the more urgent it is." },
         { "name": "The Watchtower", "real": "Watchkeeping: every crew session, live." }
       ],
-      "unlocks": ["Five plots for buildings", "Milo's greeting and task alerts"]
+      "unlocks": ["Five plots for buildings", "Milo’s greeting and task alerts"]
     },
     {
       "id": "stockade",
       "tier": 2,
       "name": "The Stockade",
-      "look": "A timber palisade round the vale, a gate with a bell, and banners on the watchtower.",
+      "look": "A timber palisade round the vale, a gatehouse at each gate, and a bell and banners by the north gate.",
       "wardRadius": 12,
       "requirements": [
         { "kind": "crew-sessions-finished", "count": 20, "text": "Watch 20 crew sessions finish" },
         { "kind": "buildings-designed", "count": 1, "text": "Design your first building" },
         { "kind": "days-with-milo", "count": 7, "text": "Spend a week with MILO" }
       ],
-      "materials": { "birch": 200, "ash": 60 },
+      "materials": { "birch": 80, "ash": 30 },
       "construction": 5,
       "defences": [
         { "name": "The War Table", "real": "Every open rift on one map with its real cause: the problems dashboard." },
-        { "name": "The Gate Bell", "real": "Rifts that reach the walls ring a soft bell (a desktop note), once." },
-        { "name": "The first ward-post", "real": "An auto-ward rule: quests you've marked 'someday' never open rifts until you ask." }
+        { "name": "The Gate Bell", "real": "When a rift reaches the walls, a soft bell rings once: a note on your desktop, which you can switch off." },
+        { "name": "The first ward-post", "real": "One rule you choose, and can take down again: weekend nights off (late Friday and Saturday nights don’t open a Nocturne rift), a patient knock (a session waiting on you knocks after 48 hours, not 24) or room to run (Codex’s capacity rift opens at 95%, not 85%)." }
       ],
-      "unlocks": ["A gate and palisade", "Room for a second row of plots", "The first outpost blueprint"]
+      "unlocks": ["A palisade round the vale, with a gatehouse at each gate", "The War Table by the north gate", "The Gate Bell and the first ward-post"]
     },
     {
       "id": "hold",
@@ -45,28 +46,28 @@
       "wardRadius": 28,
       "requirements": [
         { "kind": "focus-sessions", "count": 30, "text": "Complete 30 focus sessions" },
-        { "kind": "building-level", "count": 1, "text": "Prove a building's level 1" },
+        { "kind": "building-level", "count": 1, "text": "Prove a building’s level 1" },
         { "kind": "quests-finished", "count": 25, "text": "Finish 25 quests" }
       ],
       "materials": { "birch": 150, "stone": 200, "copperstone": 60 },
       "construction": 15,
       "defences": [
-        { "name": "Ward-towers", "real": "Two auto-ward rules of your choosing, such as: hold Nocturne rifts on a Stillday, or snooze admin rifts until Monday." },
+        { "name": "Ward-towers", "real": "Two more rules you choose, such as: hold Nocturne rifts on a Stillday, or snooze admin rifts until Monday." },
         { "name": "The Sally Port", "real": "Send the crew out from the gate: a queue for commissions, so they never pile up." },
         { "name": "The Barracks", "real": "Residents who stay live here, each with their real service." }
       ],
-      "unlocks": ["Residents' quarters", "Two ward-towers", "Outposts in explored land"]
+      "unlocks": ["Residents’ quarters", "Two ward-towers", "Outposts in explored land"]
     },
     {
       "id": "keep",
       "tier": 4,
       "name": "The Keep",
-      "look": "A stone keep with Milo's lantern at the top of its tower, a bell tower, and a market square.",
+      "look": "A stone keep with Milo’s lantern at the top of its tower, a bell tower, and a market square.",
       "wardRadius": 48,
       "requirements": [
         { "kind": "delve-finished", "count": 1, "text": "Finish a project delve" },
         { "kind": "days-with-milo", "count": 30, "text": "Spend a month with MILO" },
-        { "kind": "calendar-connected", "count": 1, "text": "Connect a calendar (Mistmere's fog lifts)" }
+        { "kind": "calendar-connected", "count": 1, "text": "Connect a calendar (Mistmere’s fog lifts)" }
       ],
       "materials": { "stone": 500, "ironroot": 150, "diesel-cog": 10 },
       "construction": 30,
@@ -75,7 +76,7 @@
         { "name": "Ballistae", "real": "Auto-dispatch rules: when a rift of a kind you choose opens (a failing check, say), a crew member sets out to fix it under a ward, and asks before changing anything important." },
         { "name": "Lookouts", "real": "Rifts are seen on the horizon earlier: deadlines 7 days out instead of 2." }
       ],
-      "unlocks": ["The keep and bell tower", "A branch of the Tide Market", "The Bindery's outpost", "Waystones to every outpost"]
+      "unlocks": ["The keep and bell tower", "A branch of the Tide Market", "The Bindery’s outpost", "Waystones to every outpost"]
     },
     {
       "id": "castle",
@@ -91,8 +92,8 @@
       "materials": { "stone": 1200, "ironroot": 400, "silverstone": 100, "essences-of-genres": 6 },
       "construction": 45,
       "defences": [
-        { "name": "Guild halls", "real": "Each faction's hall runs its domain's rules (the Quiet Order holds your evening bell; the Tide Syndics watch deadlines)." },
-        { "name": "The Hangar", "real": "Titan defence: big deadlines get a countdown and a plan the moment they're seen." },
+        { "name": "Guild halls", "real": "Each faction’s hall runs its domain’s rules (the Quiet Order holds your evening bell; the Tide Syndics watch deadlines)." },
+        { "name": "The Hangar", "real": "Titan defence: big deadlines get a countdown and a plan the moment they’re seen." },
         { "name": "The Great Hall", "real": "Starfall, the weekly review, held as a feast." }
       ],
       "unlocks": ["Curtain walls and a moat", "Faction guild halls", "The Hangar", "Beacons on outposts (phone pings, opt-in)"]
@@ -113,7 +114,7 @@
       "defences": [
         { "name": "The Observatory", "real": "Long sight: 14-day horizon for deadlines and Titans, and a monthly look ahead." },
         { "name": "Siege engines", "real": "Bigger auto-dispatch: chains of crew runs (research, build, test) for rifts you choose." },
-        { "name": "Districts", "real": "A district per life skill, each showing that area's quests, buildings and rifts together." }
+        { "name": "Districts", "real": "A district per life skill, each showing that area’s quests, buildings and rifts together." }
       ],
       "unlocks": ["Districts for every life skill", "Roads between outposts", "The Observatory"]
     },
@@ -151,9 +152,9 @@
       "construction": 99,
       "defences": [
         { "name": "The Bookmark", "real": "Every befriended Elsewhere becomes a door you can open from the walls, whenever you like." },
-        { "name": "The Kingdom's light", "real": "Your year, your buildings and your residents, shown on the far shelf beside other books." }
+        { "name": "The Kingdom’s light", "real": "Your year, your buildings and your residents, shown on the far shelf beside other books." }
       ],
-      "unlocks": ["Doors to every befriended Elsewhere", "The kingdom's light on the far shelf"]
+      "unlocks": ["Doors to every befriended Elsewhere", "The kingdom’s light on the far shelf"]
     }
   ]
 }

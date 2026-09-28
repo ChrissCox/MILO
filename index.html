@@ -6,11 +6,13 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
   <title>MILO</title>
   <link rel="stylesheet" href="src/styles.css">
+  <link rel="stylesheet" href="src/ui/mapview.css">
 </head>
 <body>
   <div class="titlebar">
     <span class="wordmark" aria-label="MILO"></span>
     <span class="titlebar-status" id="titlebar-status" aria-live="polite"></span>
+    <span class="titlebar-slot" aria-hidden="true"></span>
     <div class="window-actions">
       <button type="button" data-window="minimize" aria-label="Minimize"><svg viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="7" width="8" height="2"/></svg></button>
       <button type="button" data-window="maximize" aria-label="Maximize or restore"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 1h8v8H1zM3 3v4h4V3z" fill-rule="evenodd"/></svg></button>
@@ -22,12 +24,17 @@
     <canvas id="world" tabindex="0" aria-label="Milo's world. A pixel map with Milo's camp, the watchtower, and plots where your buildings go. Use the arrow keys to walk, or the place list to visit a spot." aria-describedby="world-help"></canvas>
     <!-- Right after the map in tab order, so the greeting's buttons are reached before it fades. -->
     <div id="bubble" class="bubble px" role="status" aria-live="polite" hidden></div>
-    <p id="world-help" class="sr-only">The place list below mirrors the map. Each place opens a panel on the right.</p>
+    <!-- Inside a rift's Elsewhere: its name, genres and the way home. -->
+    <div id="elsewhere-banner" class="elsewhere-banner px" role="region" aria-label="Elsewhere" hidden></div>
+    <p id="world-help" class="sr-only">The place list below mirrors the map. Each place opens a panel on the right. Press M for the map.</p>
     <div id="world-fallback" class="world-fallback" hidden>
       <div class="fallback-milo" aria-hidden="true"></div>
     </div>
 
     <section id="crew" class="crew-strip" aria-label="Your crew"></section>
+
+    <!-- The Prologue's current step, under the crew strip. -->
+    <aside id="tracker" class="tracker" aria-label="The story so far" hidden></aside>
 
     <nav id="places" class="places" aria-label="Places">
       <button type="button" class="places-toggle px" id="places-toggle" aria-expanded="false" aria-controls="place-list">Places</button>
@@ -43,7 +50,12 @@
       </header>
       <div id="panel-body" class="panel-body"></div>
     </aside>
+
+    <!-- The map view (src/ui/mapview.js) draws itself in here. -->
+    <section id="map-view" class="map-view px" aria-label="Map of the Hushlands" hidden></section>
   </main>
+  <!-- The Map button is drawn in the title bar, but comes after the world and its panels in tab order. -->
+  <button type="button" id="map-button" class="map-button" aria-keyshortcuts="M" title="Map (M)" hidden><svg viewBox="0 0 7 6" width="14" height="12" aria-hidden="true" shape-rendering="crispEdges"><path d="M2 0h3v1H2zM1 1h1v3H1zM5 1h1v3H5zM3 2h1v1H3zM2 4h1v1H2zM4 4h1v1H4zM3 5h1v1H3z"/></svg><span>Map</span></button>
 
   <script type="module" src="src/app.js"></script>
 </body>

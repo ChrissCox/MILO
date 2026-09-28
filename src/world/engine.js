@@ -4,7 +4,7 @@
 //
 // createWorld(canvas, options) follows CONTRACT.md. Two small extras:
 //   options.scale   fixes the CSS pixels per art pixel (2-4) instead of picking one
-//   world.renderMap(scale, { time }) returns a canvas of the whole map (previews)
+//   world.renderMap(scale, { time, milo }) returns a canvas of the whole map (previews, maps)
 //   world.scale     the CSS pixels per art pixel in use
 // Step 2 adds plots (CONTRACT-STEP2.md): world.setPlots(state.plots) shows each plot empty, as a
 // building site (animated through four stages while designing) or built from its blueprint by
@@ -15,10 +15,35 @@
 // Size the canvas with CSS; the engine sets its backing store to CSS size x DPR.
 // Motion is on only when options.motion() is not false and the system does not
 // ask for reduced motion; otherwise nothing animates and frames draw on change.
+//
+// Phase 3 (CONTRACT-PHASE3.md §3, §7.4 and §13): given options.content, the vale sits inside an
+// endless world. Milo walks out of the four gates into the streamed wilds (scene-wilds.js), past
+// rifts, their strays and echoes, lanterns and points of interest, chops trees, travels between
+// lanterns and steps through rifts into their Elsewheres (scene-elsewhere.js). Without content
+// (options.content null) none of that exists and the engine is exactly the vale of steps 1 and 2.
+// Scene changes (travelTo, enterElsewhere, leaveElsewhere) go one at a time: while the view fades
+// out, another change resolves false at once, and so do walks, walks to entities and chops (clicks
+// and keys are ignored), so nothing begun in a scene that is going outlives it. Once Milo is placed
+// he can be walked again, and a new change may begin while the view fades back in.
+// With content, a walk resolves true when Milo ends where the walk ends (the tile, or beside it
+// when it can't be stood on) and false when there was no way; the vale alone resolves undefined.
+// Extras beyond the contract: world.settle(limit) runs the idle streaming work at once (previews,
+// captures, tests) and world.benchmark(frames) times drawn frames.
+// For the shell's maps and lists: world.worldgen (the generator, null in the vale alone),
+// world.terrainAt(x, y) (the vale's own terrain inside it, the wilds' beyond, null in the vale
+// alone), world.renderMap(scale, { time, milo = true }) (milo: false leaves him out of the
+// picture) and world.elsewhereEntities() (everything in the Elsewhere, in view or not; [] outside).
+// Inside a bleed or an Elsewhere, Milo (and any crew) wear the genre on their clothes only: their
+// faces, hair and boots stay their own (riftfx.outfitGrid).
 
-import { TILE, MAP, PLACES, PLOT_IDS, TERRAIN, isWalkable, findPath, placeAt, placeById, plotById, buildableArea, hash2, naturalAt } from './map.js';
+import { TILE, MAP, PLACES, PLOT_IDS, TERRAIN, isWalkable, findPath, placeAt, placeById, plotById, buildableArea, hash2, naturalAt, terrainAt as valeTerrainAt } from './map.js';
 import { SPRITES, PALETTE, HELPER_TINTS, rgbaOf, buildAtlas, rowsToImageData, stamp as stampGrid } from './sprites.js';
 import { drawBuilding, drawConstruction, drawEmptyPlot, drawRedesign } from './kit.js';
+import { createPainter, PALISADE_GRIDS, WILD_SHADOWS, palisadeName, textRows } from './scene-art.js';
+import { createWildsScene } from './scene-wilds.js';
+import { createElsewhereScene, walkGoals } from './scene-elsewhere.js';
+import { basePaletteByCode } from './wildsart.js';
+import { outfitGrid } from './riftfx.js';
 
 const MAP_W = MAP.width * TILE;
 const MAP_H = MAP.height * TILE;
@@ -326,11 +351,14 @@ function spriteFor(object) {
     const m = object.mask;
     return `fence:${m.n ? 1 : 0}${m.s ? 1 : 0}${m.e ? 1 : 0}${m.w ? 1 : 0}`;
   }
+  // The Stockade's palisade composes like the fences, in a 16×36 cell (scene-art.js).
+  if (object.kind === 'palisade') return palisadeName(object.mask || {});
   return object.kind;
 }
 
 function gridFor(name, frame = 0) {
   if (name.startsWith('fence:')) return FENCE_GRIDS[name];
+  if (name.startsWith('palisade:')) return PALISADE_GRIDS[name];
   const frames = SPRITES[name];
   return frames[frame % frames.length];
 }
@@ -355,6 +383,8 @@ const SHADOWS = {
   rock: [14, 4, -1], stump: [14, 4, -1], cabin: [46, 6, -1], tent: [30, 5, -1], tower: [44, 7, -2], crate: [14, 4, -1],
   barrel: [12, 4, -1], woodpile: [22, 4, -1], garden: [30, 3, 0], lantern: [8, 3, -1], 'lamp.post': [8, 3, -1], 'log.bench': [38, 4, -1], campfire: [16, 4, -3],
   planks: [16, 3, -1], boat: [30, 4, 1], flag: [6, 2, -1], 'crew.bench': [62, 4, -1],
+  // the wilds and the Stockade (only kinds the vale doesn't have)
+  ...WILD_SHADOWS,
 };
 
 // ---------- plots (pure helpers) ----------
@@ -417,7 +447,7 @@ export function crewRoute({ from, to, leaving = null, arrived = true, into = nul
  * is a one-tile gap in its fence, so from the gate that is a tile beside the road just outside.
  * → { to, path } (path excludes `from`, ends at `to`) or null.
  */
-export function makeWay(from, { route = [], busy = [], maxSteps = 4 } = {}) {
+export function makeWay(from, { route = [], busy = [], maxSteps = 4, walkable = isWalkable } = {}) {
   const key = (p) => `${p.x},${p.y}`;
   const onRoute = new Set(route.map(key));
   const taken = new Set(busy.map(key));
@@ -440,7 +470,7 @@ export function makeWay(from, { route = [], busy = [], maxSteps = 4 } = {}) {
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const tile = { x: cell.x + dx, y: cell.y + dy };
         const k = key(tile);
-        if (parent.has(k) || taken.has(k) || !isWalkable(tile.x, tile.y)) continue;
+        if (parent.has(k) || taken.has(k) || !walkable(tile.x, tile.y)) continue;
         parent.set(k, cell);
         next.push(tile);
         if (!onRoute.has(k)) found.push(tile);
@@ -487,9 +517,12 @@ function unionRect(rects) {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
-/** Where each map object's sprite sits, in world px: { id, kind, place, x, y, sprite, sx, sy, sw, sh, baseY }. */
-export function objectBoxes() {
-  return MAP.objects.map((object) => {
+/**
+ * Where each object's sprite sits, in world px: { id, kind, place, x, y, sprite, sx, sy, sw, sh, baseY }.
+ * The vale's map objects by default, or any others placed the same way (the wilds' own).
+ */
+export function objectBoxes(objects = MAP.objects) {
+  return objects.map((object) => {
     const { id, kind, place, x, y, sprite, sx, sy, sw, sh, baseY } = placeObject(object);
     return { id, kind, place, x, y, sprite, sx, sy, sw, sh, baseY };
   });
@@ -526,6 +559,11 @@ export function createWorld(canvas, {
   motion = () => true,
   startTile = null,
   scale: fixedScale = null,
+  content = null,
+  seed = 'hushlands',
+  onEntityClick = () => {},
+  onAreaChange = () => {},
+  onExplore = () => {},
 } = {}) {
   const doc = canvas.ownerDocument;
   const win = doc.defaultView;
@@ -562,6 +600,41 @@ export function createWorld(canvas, {
     cctx.putImageData(image, 0, 0);
     atlas[name] = [c];
   }
+
+  // With content, the wilds (palisade cells join the atlas like the fences do).
+  const painter = content ? createPainter(makeCanvas) : null;
+  if (content) for (const [name, rows] of Object.entries(PALISADE_GRIDS)) atlas[name] = [painter.grid(rows)];
+  const artKit = { placeObject, gridFor, objectFrame, drawSprite: (target, name, frame, x, y, alpha) => drawSprite(target, name, frame, x, y, alpha) };
+  const timeout = (fn, ms) => (typeof win.setTimeout === 'function' ? win.setTimeout(fn, ms) : setTimeout(fn, ms));
+  const clearTimer = (id) => (typeof win.clearTimeout === 'function' ? win.clearTimeout(id) : clearTimeout(id));
+  let W = null;
+  if (content) {
+    try {
+      W = createWildsScene({
+        content,
+        seed,
+        makeCanvas,
+        painter,
+        art: artKit,
+        now,
+        requestIdle: (fn) => (typeof win.requestIdleCallback === 'function'
+          ? { id: win.requestIdleCallback(fn, { timeout: 600 }), timer: false }
+          : { id: timeout(() => fn({ timeRemaining: () => 12, didTimeout: true }), 24), timer: true }),
+        cancelIdle: (id, timer) => (timer ? clearTimer(id) : typeof win.cancelIdleCallback === 'function' && win.cancelIdleCallback(id)),
+        isHidden: () => !!doc.hidden,
+        isPaused: () => paused,
+        onReady: () => requestDraw(),
+        onAreaChange: (info) => onAreaChange(info),
+        onExplore: (keys) => onExplore(keys),
+      });
+    } catch (error) {
+      console.error(error);
+      W = null;
+    }
+  }
+  let elsewhere = null; // the Elsewhere Milo is inside, or null
+  let returnTile = null; // where he comes back out, in the world
+  let visited = null; // rift ids whose loot is claimed (their chests stand open)
 
   // Ground layer, baked once.
   const ground = makeCanvas(MAP_W, MAP_H);
@@ -620,28 +693,71 @@ export function createWorld(canvas, {
     [50.5, 37, 7.5], [46, 35.5, 5], [55.5, 35, 5.5], [53, 41, 6.5], [46.5, 41, 5], [59, 39, 5.5], [50, 33.5, 4],
   ];
   const fogBox = { x: (harbor.area.x - 3) * TILE, y: (harbor.area.y - 3) * TILE, w: (harbor.area.w + 6) * TILE, h: (harbor.area.h + 6) * TILE };
-  const fogLayer = makeCanvas(fogBox.w, fogBox.h);
-  {
-    const fctx = fogLayer.getContext('2d');
-    const image = fctx.createImageData(fogBox.w, fogBox.h);
+  // How clear of the wall's sprites a spot or a box is, 0 (on them) to 1 (FOG_CLEAR px or more
+  // away): the mist thins to nothing as it nears them, so none ever lies over the wall.
+  const FOG_CLEAR = 10;
+  function clearOfWall(walls, x, y, w = 0, h = 0) {
+    let k = 1;
+    for (const r of walls) {
+      const dx = Math.max(r.x - (x + w), 0, x - (r.x + r.w));
+      const dy = Math.max(r.y - (y + h), 0, y - (r.y + r.h));
+      k = Math.min(k, Math.hypot(dx, dy) / FOG_CLEAR);
+      if (k <= 0) return 0;
+    }
+    return k;
+  }
+  // The mist over a world-px box, leaving out what lies inside `skip` (drawn by another layer) and
+  // thinning out before any of `walls` (sprite boxes it must keep off).
+  function bakeFog(box, skip = null, walls = []) {
+    const layer = makeCanvas(box.w, box.h);
+    const fctx = layer.getContext('2d');
+    const image = fctx.createImageData(box.w, box.h);
     const tint = rgbaOf('c');
-    for (let y = 0; y < fogBox.h; y += 1) {
-      for (let x = 0; x < fogBox.w; x += 1) {
-        const wx = (fogBox.x + x) / TILE;
-        const wy = (fogBox.y + y) / TILE;
+    for (let y = 0; y < box.h; y += 1) {
+      for (let x = 0; x < box.w; x += 1) {
+        const px = box.x + x;
+        const py = box.y + y;
+        if (skip && px >= skip.x && py >= skip.y && px < skip.x + skip.w && py < skip.y + skip.h) continue;
+        const wx = px / TILE;
+        const wy = py / TILE;
         let density = 0;
         for (const [cx, cy, r] of FOG_CIRCLES) {
           const d = Math.hypot(wx - cx, (wy - cy) * 1.15) / r;
           if (d < 1) density = Math.max(density, 1 - d);
         }
         if (density <= 0) continue;
-        density += (smoothNoise(fogBox.x + x, fogBox.y + y, 22, 101) - 0.5) * 0.18 * Math.min(1, density * 4);
+        density += (smoothNoise(px, py, 22, 101) - 0.5) * 0.18 * Math.min(1, density * 4);
+        if (walls.length) density *= clearOfWall(walls, px + 0.5, py + 0.5);
         if (density <= 0.05) continue;
         const a = density > 0.42 ? 0.58 : density > 0.2 ? 0.42 : 0.24;
-        image.data.set([tint[0], tint[1], tint[2], Math.round(255 * a)], (y * fogBox.w + x) * 4);
+        image.data.set([tint[0], tint[1], tint[2], Math.round(255 * a)], (y * box.w + x) * 4);
       }
     }
     fctx.putImageData(image, 0, 0);
+    return layer;
+  }
+  // The vale's own bank, baked the first time it's drawn.
+  let fogLayer = null;
+  const valeFog = () => fogLayer || (fogLayer = bakeFog(fogBox));
+  // With the wilds the sea runs on past the vale's edge, so the bank reaches as far as its mist
+  // does and fades out there instead of stopping at a straight line. The ring's thicket (or the
+  // Stockade) runs down to the water at the vale's east edge, inside that reach: the mist, its
+  // drifting puffs too, thins away before the wall's sprites (at either tier) rather than lying
+  // over them. Baked the first time it's drawn. The vale's own picture (renderMap) keeps the box
+  // and the bank it always had.
+  const fogOuterBox = W ? { x: fogBox.x, y: fogBox.y, w: fogBox.w + 3 * TILE, h: fogBox.h + 2 * TILE } : null;
+  let fogWalls = [];
+  let fogWild = null;
+  function wildFog() {
+    if (fogWild) return fogWild;
+    try {
+      fogWalls = W.ringBoxes(fogOuterBox.x - 64, fogOuterBox.y - 32, fogOuterBox.w + 128, fogOuterBox.h + 64);
+    } catch (error) {
+      console.error(error);
+      fogWalls = [];
+    }
+    fogWild = bakeFog(fogOuterBox, null, fogWalls);
+    return fogWild;
   }
   const fogPuffs = [
     { x: 0, y: 33.2, speed: 2.2 }, { x: 0.45, y: 36.5, speed: 1.6 }, { x: 0.2, y: 39.4, speed: 1.9 }, { x: 0.7, y: 41.8, speed: 1.4 }, { x: 0.85, y: 35, speed: 1.2 },
@@ -662,7 +778,9 @@ export function createWorld(canvas, {
   // ---------- state ----------
 
   const home = MAP.miloHome;
-  const startAt = startTile && isWalkable(startTile.x, startTile.y) ? { x: startTile.x, y: startTile.y } : { ...home };
+  // With the wilds on, a start tile may lie beyond the vale (previews); the shell starts in the vale.
+  const startOk = (tile) => !!tile && (W ? W.isWalkable(tile.x, tile.y) : isWalkable(tile.x, tile.y));
+  const startAt = startOk(startTile) ? { x: startTile.x, y: startTile.y } : { ...home };
   const milo = {
     x: startAt.x * TILE + 8,
     y: startAt.y * TILE + FEET,
@@ -674,6 +792,8 @@ export function createWorld(canvas, {
     // While Milo has stepped aside to let crew through: { home, dir, clearSince, returning }.
     // `home` is the tile he goes back to (and what the camera, Enter and the saved tile keep).
     aside: null,
+    // While he chops a tree: { treeId, at, resolve, kind, x, y }.
+    chop: null,
   };
   const held = new Set();
   const crew = new Map();
@@ -745,6 +865,14 @@ export function createWorld(canvas, {
     let x = focus.x - left - freeW / 2;
     // Tall things stand north of their feet (3/4 view), so look a little above Milo.
     let y = focus.y - CAMERA_LOOK_UP - top - freeH / 2;
+    if (elsewhere) {
+      // Inside a rift the view stays on the scene (the right edge may run under an open panel).
+      x = viewW >= elsewhere.width ? (elsewhere.width - viewW) / 2 : Math.max(0, Math.min(elsewhere.width - viewW + insets.right * unit, x));
+      y = viewH >= elsewhere.height ? (elsewhere.height - viewH) / 2 : Math.max(0, Math.min(elsewhere.height - viewH, y));
+      return { x, y };
+    }
+    // With the wilds the vale sits inside the world: the view follows Milo anywhere, unclamped.
+    if (W) return { x, y };
     // The right edge may run past the map by as much as the open panel covers, so Milo can walk
     // to the east edge without ending up under the panel. The top and left stay on the map.
     x = viewW >= MAP_W ? (MAP_W - viewW) / 2 : Math.max(0, Math.min(MAP_W - viewW + insets.right * unit, x));
@@ -983,7 +1111,7 @@ export function createWorld(canvas, {
   // Crew never walk through Milo: one whose next step is his spot waits for him to step aside (he
   // does, see updateMakingWay), and only if he can't in YIELD_MAX_MS does it go on by.
   function waitsForMilo(member, next, t) {
-    const inTheWay = closeBy(next, milo) && !closeBy(member, milo);
+    const inTheWay = !elsewhere && closeBy(next, milo) && !closeBy(member, milo);
     if (!inTheWay) {
       member.waiting = false;
       return false;
@@ -1022,16 +1150,32 @@ export function createWorld(canvas, {
 
   // ---------- Milo movement ----------
 
+  // True while a scene change (travel, into or out of an Elsewhere) fades out: the scene is going,
+  // so nothing new starts in it (no walk, chop, click or key) until Milo has been placed.
+  let changing = false;
+
+  // A walk ends: on arrival Milo faces the way it asked and opens the place or entity it was for.
+  // An entity counts as reached when he stops within a tile of its approach tile.
   function finishWalk(arrived) {
     const walk = milo.walk;
     milo.walk = null;
     if (!walk) return;
     if (arrived && walk.face) milo.dir = walk.face;
     if (walk.quiet && milo.aside && milo.aside.returning) milo.aside = null;
-    walk.resolve();
+    const entity = walk.entity || null;
+    const reached = !!arrived && (!entity || (Math.abs(milo.tile.x - entity.approach.x) <= 1 && Math.abs(milo.tile.y - entity.approach.y) <= 1));
+    // Vale only, a walk settles as it always has; with the wilds it says whether Milo got there.
+    walk.resolve(W ? reached : undefined);
     if (arrived && walk.placeId) {
       try {
         onPlaceClick(walk.placeId);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    if (entity && reached && walk.fire !== false) {
+      try {
+        onEntityClick(entity);
       } catch (error) {
         console.error(error);
       }
@@ -1041,6 +1185,9 @@ export function createWorld(canvas, {
   function setTile(tile) {
     if (tile.x === milo.tile.x && tile.y === milo.tile.y) return;
     milo.tile = { x: tile.x, y: tile.y };
+    // Inside an Elsewhere his steps are scene tiles: nothing to save, and the world's area stays.
+    if (elsewhere) return;
+    if (W) W.miloAt(milo.tile);
     // Stepping aside for the crew and back isn't a move of Milo's own: his spot stays where it was.
     if (milo.walk && milo.walk.quiet) return;
     try {
@@ -1049,6 +1196,11 @@ export function createWorld(canvas, {
       console.error(error);
     }
   }
+
+  // Walking, wherever Milo is: the Elsewhere's floor, the one world's nav, or the vale's own map.
+  const walkableNow = (x, y) => (elsewhere ? elsewhere.walkable(x, y) : W ? W.miloWalkable(x, y) : isWalkable(x, y));
+  const pathNow = (from, to) => (elsewhere ? elsewhere.findPath(from, to) : W ? W.findPath(from, to) : findPath(from, to));
+  const inVale = (tile) => tile.x >= 0 && tile.y >= 0 && tile.x < MAP.width && tile.y < MAP.height;
 
   function faceToward(place) {
     const cx = place.area.x + place.area.w / 2;
@@ -1070,7 +1222,7 @@ export function createWorld(canvas, {
     }
     walk.path = [];
     updateCamera(0, true);
-    finishWalk(true);
+    finishWalk(walk.arrives !== false);
   }
 
   // Chris's own moves (and the shell's) win over stepping aside: Milo doesn't go back afterwards.
@@ -1080,15 +1232,63 @@ export function createWorld(canvas, {
     if (milo.walk) milo.walk.quiet = false;
   }
 
-  function startWalk(dest, { placeId = null, face = null } = {}) {
+  // Whether `tile` (Milo's own, by default) is where a walk to `dest` ends: on it, or (when it
+  // can't be stood on) on the nearest walkable tile round it, as the paths pick them.
+  function atGoal(dest, tile = milo.tile) {
+    const { x, y } = tile;
+    return walkGoals(walkableNow, dest.x, dest.y).some((g) => g.x === x && g.y === y);
+  }
+
+  // Part way through a step, Milo's feet are between the tile he's leaving (milo.tile, until he
+  // arrives) and the neighbour he's stepping onto. → null on his tile's feet; otherwise how far
+  // back his tile's feet are (px) and the tile ahead (null if it can't be stood on, or if he's
+  // somehow off along both axes).
+  function stepInProgress() {
+    const feet = tileFeet(milo.tile);
+    const ox = milo.x - feet.x;
+    const oy = milo.y - feet.y;
+    if (ox === 0 && oy === 0) return null;
+    const back = Math.abs(ox) + Math.abs(oy);
+    if ((ox !== 0 && oy !== 0) || back >= TILE) return { back, ahead: null };
+    const ahead = { x: milo.tile.x + Math.sign(ox), y: milo.tile.y + Math.sign(oy) };
+    return { back, ahead: walkableNow(ahead.x, ahead.y) ? ahead : null };
+  }
+
+  // The steps of a walk to `dest` from where Milo is, and how it ends once they're walked
+  // (`arrives`, for finishWalk). On his tile's feet it's the path from his tile. Part way through a
+  // step he first finishes it or goes back onto his own tile, whichever makes the shorter way, so
+  // a walk never begins with a step at right angles to the one he's in. With nowhere to go (he's
+  // there, or there's no way) he still goes back onto his tile, never stopping between two.
+  function planWalk(dest, entity) {
+    const due = (tile) => !W || !!entity || atGoal(dest, tile);
+    const path = pathNow(milo.tile, dest);
+    const step = stepInProgress();
+    if (!step) return { path, arrives: path.length > 0 || due(milo.tile) };
+    const ways = [{ from: milo.tile, lead: step.back, path }];
+    if (step.ahead) ways.push({ from: step.ahead, lead: TILE - step.back, path: pathNow(step.ahead, dest) });
+    let best = null;
+    for (const way of ways) {
+      if (way.path.length === 0 && !atGoal(dest, way.from)) continue; // no way on from there
+      const cost = way.lead + way.path.length * TILE;
+      if (!best || cost <= best.cost) best = { ...way, cost }; // a tie goes on ahead
+    }
+    if (!best) return { path: [{ ...milo.tile }], arrives: due(milo.tile) };
+    return { path: [{ x: best.from.x, y: best.from.y }, ...best.path], arrives: true };
+  }
+
+  function startWalk(dest, { placeId = null, face = null, entity = null, fire = true } = {}) {
+    if (changing) return Promise.resolve(W ? false : undefined);
     leaveAside();
     if (milo.walk) finishWalk(false);
+    stopChop();
     marker = null;
     return new Promise((resolve) => {
-      const path = findPath(milo.tile, dest);
-      milo.walk = { path, resolve, placeId, face };
+      const { path, arrives } = planWalk(dest, entity);
+      milo.walk = { path, resolve, placeId, face, entity, fire, arrives };
       if (path.length === 0) {
-        finishWalk(true);
+        // No steps to take: he is there already, or there is no way. The vale alone settles as it
+        // always has, and a walk to an entity is judged by its approach tile (in finishWalk).
+        finishWalk(arrives);
         requestDraw();
         return;
       }
@@ -1097,16 +1297,20 @@ export function createWorld(canvas, {
         requestDraw();
         return;
       }
-      if (placeId === null && !face) marker = { x: path[path.length - 1].x, y: path[path.length - 1].y, at: now() };
+      const end = path[path.length - 1];
+      const somewhere = end.x !== milo.tile.x || end.y !== milo.tile.y;
+      if (placeId === null && !face && !entity && somewhere) marker = { x: end.x, y: end.y, at: now() };
       ensureLoop();
     });
   }
 
   function walkTo(target) {
-    if (disposed) return Promise.resolve();
+    if (disposed) return Promise.resolve(W ? false : undefined);
     if (typeof target === 'string') {
+      // A place is in the vale: from the wilds or an Elsewhere, the shell travels instead.
+      if (W && (elsewhere || !inVale(milo.tile))) return Promise.resolve(false);
       const place = placeById(target);
-      if (!place) return Promise.resolve();
+      if (!place) return Promise.resolve(W ? false : undefined);
       return startWalk(place.door, { face: faceToward(place) });
     }
     if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y)) return Promise.resolve();
@@ -1120,7 +1324,8 @@ export function createWorld(canvas, {
     if (milo.walk) finishWalk(false);
     const door = MAP.tentDoor;
     const dest = startAt;
-    if (!motionOn()) {
+    // A start out in the wilds (previews) is too far to walk from the tent: he's simply there.
+    if (!motionOn() || elsewhere || !inVale(dest)) {
       milo.x = dest.x * TILE + 8;
       milo.y = dest.y * TILE + FEET;
       setTile(dest);
@@ -1163,17 +1368,21 @@ export function createWorld(canvas, {
           if (dir) {
             const step = neighbour(dir);
             milo.dir = dir;
-            if (isWalkable(step.x, step.y)) walk.path.push(step);
+            if (walkableNow(step.x, step.y)) walk.path.push(step);
           }
         }
       } else {
-        if (dx !== 0) milo.x += Math.sign(dx) * budget;
-        else milo.y += Math.sign(dy) * budget;
-        milo.stride += budget;
-        budget = 0;
+        // One axis at a time and never past the tile, so from anywhere he turns the corner onto
+        // the step rather than swinging across it.
+        const along = dx !== 0 ? Math.abs(dx) : Math.abs(dy);
+        const step = Math.min(budget, along);
+        if (dx !== 0) milo.x = step === along ? tx : milo.x + Math.sign(dx) * step;
+        else milo.y = step === along ? ty : milo.y + Math.sign(dy) * step;
+        milo.stride += step;
+        budget -= step;
       }
     }
-    if (walk.path.length === 0) finishWalk(true);
+    if (walk.path.length === 0 && milo.walk === walk) finishWalk(walk.arrives !== false);
   }
 
   // ---------- making way for the crew ----------
@@ -1216,7 +1425,7 @@ export function createWorld(canvas, {
   // one-tile gate, where he waits while the crew designs), he steps aside off every crew route,
   // facing the way they pass; once they're by, he steps back and faces the way he did before.
   function updateMakingWay() {
-    if (milo.walk || held.size > 0) return;
+    if (milo.walk || held.size > 0 || elsewhere || milo.chop || changing) return;
     const t = now();
     const members = [...crew.values()];
     if (members.some((member) => crewEta(member, milo, t) <= MAKE_WAY_LEAD_MS)) {
@@ -1224,7 +1433,7 @@ export function createWorld(canvas, {
       wayTriedAt = t;
       const route = members.flatMap((member) => member.path.map(feetTile));
       const busy = members.flatMap((member) => [feetTile(member), ...member.path.slice(0, 1).map(feetTile)]);
-      const way = makeWay(milo.tile, { route, busy });
+      const way = makeWay(milo.tile, { route, busy, walkable: walkableNow });
       if (!way) return; // nowhere to step: the crew waits a moment, then goes by
       if (!milo.aside) milo.aside = { home: { ...milo.tile }, dir: milo.dir, clearSince: null, returning: false };
       milo.aside.clearSince = null;
@@ -1233,7 +1442,7 @@ export function createWorld(canvas, {
     }
     const aside = milo.aside;
     if (!aside) return;
-    const back = findPath(milo.tile, aside.home);
+    const back = pathNow(milo.tile, aside.home);
     const spots = back.map(tileFeet);
     // Someone came to rest on his spot, or on the way back to it: he stays where he is.
     const settled = members.some((member) => member.path.length === 0 && spots.some((spot) => closeBy(member, spot)));
@@ -1260,6 +1469,7 @@ export function createWorld(canvas, {
 
   function keyStep(dir) {
     leaveAside();
+    stopChop();
     if (milo.walk && milo.walk.keyboard) {
       milo.queuedDir = dir;
       return;
@@ -1270,13 +1480,14 @@ export function createWorld(canvas, {
       milo.walk.keyboard = true;
       milo.walk.placeId = null;
       milo.walk.face = null;
+      milo.walk.entity = null;
       milo.queuedDir = dir;
       return;
     }
     const step = neighbour(dir);
     milo.dir = dir;
     marker = null;
-    if (!isWalkable(step.x, step.y)) {
+    if (!walkableNow(step.x, step.y)) {
       requestDraw();
       return;
     }
@@ -1309,6 +1520,18 @@ export function createWorld(canvas, {
     }
     return false;
   }
+  // The same test on any grid (strays, the wilds' composed sprites).
+  function opaqueRows(rows, px, py, reach = 2) {
+    for (let dy = -reach; dy <= reach; dy += 1) {
+      const row = rows[py + dy];
+      if (!row) continue;
+      for (let dx = -reach; dx <= reach; dx += 1) {
+        const ch = row[px + dx];
+        if (ch !== undefined && ch !== '.' && ch !== 'x') return true;
+      }
+    }
+    return false;
+  }
 
   function crewRect(member) {
     const rows = gridFor(`${member.art}.stand`);
@@ -1330,11 +1553,23 @@ export function createWorld(canvas, {
     return { x: MAP.slots.whisper.px - 6, y: MAP.slots.whisper.py - 12 };
   }
 
+  // The time strays and shimmer are drawn at now (null when still), for hit tests and entities.
+  const sceneTime = () => (!motionOn() ? null : paused ? frozenTime : lastTime);
+
+  // Hit order: crew, perches, entities (rifts and strays first), then places.
   function hitTest(ax, ay) {
+    if (elsewhere) {
+      const entity = elsewhere.hit(ax, ay, sceneTime(), opaqueRows);
+      return entity ? { kind: 'entity', id: entity.id, entity } : null;
+    }
     const inRect = (r) => r && ax >= r.x - 1 && ay >= r.y - 1 && ax < r.x + r.w + 1 && ay < r.y + r.h + 1;
     const people = [...crew.values()].sort((a, b) => b.y - a.y);
     for (const member of people) if (inRect(crewRect(member))) return { kind: 'crew', id: member.id };
     for (const id of ['jev', 'whisper']) if (inRect(perchRect(id))) return { kind: 'crew', id };
+    if (W) {
+      const entity = W.hit(ax, ay, sceneTime(), opaqueRows, milo.tile);
+      if (entity) return { kind: 'entity', id: entity.id, entity };
+    }
     const front = props.filter((o) => o.place && ax >= o.sx && ay >= o.sy && ax < o.sx + o.sw && ay < o.sy + o.sh).sort((a, b) => b.baseY - a.baseY);
     for (const o of front) if (opaqueAt(o.sprite, 0, Math.floor(ax - o.sx), Math.floor(ay - o.sy))) return { kind: 'place', id: o.place };
     // A plot answers anywhere on its buildable ground, and on whatever stands there.
@@ -1360,6 +1595,7 @@ export function createWorld(canvas, {
 
   function onPointerDown(event) {
     if (event.button !== undefined && event.button !== 0) return;
+    if (changing) return; // the view is fading out of this scene: nothing here to click
     const { ax, ay } = toArt(event);
     const hit = hitTest(ax, ay);
     if (hit && hit.kind === 'crew') {
@@ -1370,6 +1606,10 @@ export function createWorld(canvas, {
       }
       return;
     }
+    if (hit && hit.kind === 'entity') {
+      walkToEntity(hit.entity);
+      return;
+    }
     if (hit && hit.kind === 'place') {
       const place = placeById(hit.id);
       startWalk(place.door, { placeId: place.id, face: faceToward(place) });
@@ -1377,17 +1617,30 @@ export function createWorld(canvas, {
     }
     const tx = Math.floor(ax / TILE);
     const ty = Math.floor(ay / TILE);
-    if (tx < 0 || ty < 0 || tx >= MAP.width || ty >= MAP.height) return;
+    if (elsewhere) {
+      if (tx < 0 || ty < 0 || tx >= elsewhere.w || ty >= elsewhere.h) return;
+    } else if (!W && (tx < 0 || ty < 0 || tx >= MAP.width || ty >= MAP.height)) return;
     startWalk({ x: tx, y: ty });
   }
 
   function onPointerMove(event) {
+    // Fading out of a scene: nothing in it is named any more.
+    if (changing) {
+      onPointerLeave();
+      return;
+    }
     const { ax, ay, cssX, cssY } = toArt(event);
     const hit = hitTest(ax, ay);
     canvas.style.cursor = hit ? 'pointer' : '';
     const changed = (hit?.kind || null) !== (hoverTarget?.kind || null) || (hit?.id || null) !== (hoverTarget?.id || null);
     hoverTarget = hit;
-    if (hit) {
+    if (hit && hit.kind === 'entity') {
+      try {
+        onHover({ kind: hit.entity.kind, id: hit.entity.id, x: cssX, y: cssY, label: hit.entity.label, entity: hit.entity });
+      } catch (error) {
+        console.error(error);
+      }
+    } else if (hit) {
       try {
         const label = hit.kind === 'place' ? plotLabel(hit.id) : crew.get(hit.id)?.label || hit.id;
         onHover({ kind: hit.kind, id: hit.id, x: cssX, y: cssY, label });
@@ -1427,18 +1680,32 @@ export function createWorld(canvas, {
     const dir = KEY_DIRS[event.key];
     if (dir) {
       event.preventDefault();
+      // The scene is going: the keys wait for the next one (a key still held walks on after).
+      if (changing) return;
       held.delete(dir);
       held.add(dir);
       if (!event.repeat || !milo.walk) keyStep(dir);
       return;
     }
-    if (event.key === 'Enter' || event.key === ' ') {
+    if ((event.key === 'Enter' || event.key === ' ') && !changing) {
       const at = milo.aside ? milo.aside.home : milo.tile;
-      const place = PLACES.find((p) => p.door.x === at.x && p.door.y === at.y);
+      const place = elsewhere ? null : PLACES.find((p) => p.door.x === at.x && p.door.y === at.y);
       if (place) {
         event.preventDefault();
         try {
           onPlaceClick(place.id);
+        } catch (error) {
+          console.error(error);
+        }
+        return;
+      }
+      // Beyond the vale's doors: the entity whose approach tile Milo stands on.
+      if (!W) return;
+      const entity = elsewhere ? elsewhere.entityAt(at, milo.dir, sceneTime()) : W.entityAt(at, milo.dir, sceneTime());
+      if (entity) {
+        event.preventDefault();
+        try {
+          onEntityClick(entity);
         } catch (error) {
           console.error(error);
         }
@@ -1471,7 +1738,8 @@ export function createWorld(canvas, {
   }
 
   function objectFrame(o, t) {
-    if (t === null) return 0;
+    // Still frames show each object's own frame (a lit lantern, an open chest, a thicket's variant).
+    if (t === null) return o.frame || 0;
     switch (o.kind) {
       case 'campfire': {
         const seq = [0, 1, 2, 1, 0, 2, 1, 2];
@@ -1482,11 +1750,17 @@ export function createWorld(canvas, {
       case 'tree':
       case 'tree.blossom':
       case 'pine':
+      case 'tree.birch':
+      case 'pine.snow':
         return (t + o.phase) % 8200 < 420 ? 1 : 0;
       case 'reeds':
         return (t + o.phase) % 5200 < 600 ? 1 : 0;
+      case 'fishing.spot':
+        return Math.floor((t + o.phase) / 800) % 2;
+      case 'banner':
+        return Math.floor((t + o.phase) / 900) % 2;
       default:
-        return 0;
+        return o.frame || 0;
     }
   }
 
@@ -1510,6 +1784,11 @@ export function createWorld(canvas, {
   }
 
   function miloDrawInfo(t) {
+    if (milo.chop) {
+      // Chopping: the axe comes up behind his head and down in front, over and over.
+      const frame = t === null ? 0 : chopSwing(t).frame;
+      return { name: `milo.chop.${milo.dir}`, frame, x: Math.round(milo.x - 8) + chopLean(t), y: Math.round(milo.y - 19) };
+    }
     const walking = !!milo.walk && milo.walk.path.length > 0;
     let name = `milo.${milo.dir}`;
     let frame = 0;
@@ -1524,27 +1803,95 @@ export function createWorld(canvas, {
     return { name, frame, x: Math.round(milo.x - 8), y: Math.round(milo.y - 19 + bob) };
   }
 
-  function drawScene(target, cx, cy, vw, vh, t) {
+  // The genre Milo wears when he stands in a rift's bleed, or in an Elsewhere ("outfits for free").
+  // In the wilds it's his walking dresser's (W.miloDress: riftfx's makeDresser, with hysteresis), so
+  // his coat changes once as he crosses a bleed's edge and never strobes on its dithered fringe. It
+  // forgets what he wore whenever he jumps rather than walks: a trip or a scene change
+  // (changeScene), or any move of more than two tiles between one look and the next.
+  let dressedAt = null; // { x, y }: where his dresser last looked
+  function forgetDress() {
+    dressedAt = null;
+    if (W) W.miloDress.reset();
+  }
+  function miloDress() {
+    if (elsewhere) return elsewhere.genreAt(milo.x, milo.y - 1);
+    if (!W) return null;
+    if (inVale(feetTile(milo))) {
+      forgetDress();
+      return null;
+    }
+    if (dressedAt && Math.hypot(milo.x - dressedAt.x, milo.y - dressedAt.y) > 2 * TILE) W.miloDress.reset();
+    dressedAt = { x: milo.x, y: milo.y };
+    return W.miloDress(milo.x, milo.y - 1);
+  }
+  // A crew member's dress, by a walking dresser of their own (they keep to the vale, where no bleed
+  // reaches, so it's null there; were one ever to, only their robes would change, and only once).
+  const crewDressers = new WeakMap();
+  function crewDress(member) {
+    let dress = crewDressers.get(member);
+    if (!dress) {
+      dress = W.dresser();
+      crewDressers.set(member, dress);
+    }
+    return dress(member.x, member.y - 1);
+  }
+
+  // A person in a genre: only their clothes take its colours (riftfx.outfitGrid), and their face,
+  // hair and boots stay their own. Without a genre, or with nothing to dress, the plain sprite.
+  function drawDressed(target, name, frame, x, y, dress) {
+    const rows = dress && painter && W ? gridFor(name, frame) : null;
+    const outfit = rows ? outfitGrid(name, rows) : null;
+    if (!outfit) {
+      drawSprite(target, name, frame, x, y);
+      return;
+    }
+    const canvas = painter.grid(outfit.rows, null, `outfit:${dress}`, { layers: outfit.layers, table2: W.genreTable(dress), tag: `outfit:${name.split('.')[0]}` });
+    target.drawImage(canvas, Math.round(x), Math.round(y));
+  }
+
+  function drawMilo(target, mi, dress) {
+    drawDressed(target, mi.name, mi.frame, mi.x, mi.y, dress);
+  }
+
+  // A shadow or a glow at a point, for the scenes (the same placement as the vale's props).
+  const shadowAt = (target) => (x, y, w, h, dy = 0) => target.drawImage(shadowCanvas(w, h), Math.round(x - w / 2), Math.round(y - h / 2 + dy));
+  const glowAt = (target) => (x, y, r = 12, alpha = 0.18) => target.drawImage(glowCanvas(r, alpha), Math.round(x - r), Math.round(y - r));
+
+  function drawScene(target, cx, cy, vw, vh, t, { valeOnly = false, withMilo = true } = {}) {
+    if (elsewhere && !valeOnly) {
+      drawElsewhere(target, cx, cy, vw, vh, t);
+      return;
+    }
+    const wild = W && !valeOnly ? W : null;
+    // The vale's own picture (renderMap) has Milo in it only while he is in the vale: inside an
+    // Elsewhere his coordinates and rings are the scene's, and out in the wilds he isn't there.
+    // renderMap(scale, { milo: false }) leaves him (and the rings his walks draw) out altogether.
+    const miloHere = withMilo && (!valeOnly || (!elsewhere && inVale(milo.tile)));
+    const ringsHere = withMilo && (!valeOnly || !elsewhere);
     target.imageSmoothingEnabled = false;
     target.fillStyle = PALETTE.L.hex;
     target.fillRect(0, 0, vw + 1, vh + 1);
     // Past the east edge (only ever under or beside an open panel): more of the meadow's grass.
     const east = Math.floor(MAP_W - cx);
-    if (east < vw + 1) {
+    if (!wild && east < vw + 1) {
       target.fillStyle = PALETTE.g.hex;
       target.fillRect(Math.max(0, east), 0, vw + 1 - Math.max(0, east), vh + 1);
     }
     target.save();
     target.translate(-cx, -cy);
+    // The wilds' chunks lie under the vale, whose own ground is drawn over them.
+    if (wild) wild.drawGround(target, t);
     const sx = Math.max(0, cx);
     const sy = Math.max(0, cy);
     const sw = Math.min(MAP_W, cx + vw + 1) - sx;
     const sh = Math.min(MAP_H, cy + vh + 1) - sy;
     if (sw > 0 && sh > 0) target.drawImage(ground, sx, sy, sw, sh, sx, sy, sw, sh);
     const visible = (x, y, w, h) => x + w >= cx - 2 && y + h >= cy - 2 && x <= cx + vw + 2 && y <= cy + vh + 2;
+    // Out in the wilds, the vale's own props (and crew) are nowhere near the view: skip them.
+    const nearVale = !wild || (cx < MAP_W + 64 && cy < MAP_H + 64 && cx + vw > -64 && cy + vh > -64);
 
     // water shimmer
-    if (t !== null) {
+    if (t !== null && nearVale) {
       target.fillStyle = PALETTE.f.hex;
       for (const s of shimmer) {
         if (!visible(s.x, s.y, s.len, 1)) continue;
@@ -1565,13 +1912,18 @@ export function createWorld(canvas, {
     }
 
     // shadows
-    for (const o of props) {
-      if (!o.shadow || !visible(o.sx, o.sy, o.sw, o.sh + 8)) continue;
-      const [w, h, dy] = o.shadow;
-      target.drawImage(shadowCanvas(w, h), Math.round(o.baseX - w / 2), Math.round(o.baseY - h / 2 + dy));
+    if (nearVale) {
+      for (const o of props) {
+        if (!o.shadow || !visible(o.sx, o.sy, o.sw, o.sh + 8)) continue;
+        const [w, h, dy] = o.shadow;
+        target.drawImage(shadowCanvas(w, h), Math.round(o.baseX - w / 2), Math.round(o.baseY - h / 2 + dy));
+      }
     }
-    for (const member of crew.values()) target.drawImage(shadowCanvas(10, 3), Math.round(member.x - 5), Math.round(member.y - 1));
-    target.drawImage(shadowCanvas(10, 3), Math.round(milo.x - 5), Math.round(milo.y - 1));
+    // The wilds' sprites go into the y-sort now; their shadows are drawn as they're gathered.
+    const drawables = [];
+    if (wild) wild.collect(drawables, target, visible, t, shadowAt(target));
+    if (nearVale) for (const member of crew.values()) target.drawImage(shadowCanvas(10, 3), Math.round(member.x - 5), Math.round(member.y - 1));
+    if (miloHere) target.drawImage(shadowCanvas(10, 3), Math.round(milo.x - 5) + (milo.chop ? chopLean(t) : 0), Math.round(milo.y - 1));
 
     // warm light from the fire and lanterns
     if (campfire && visible(campfire.baseX - 40, campfire.baseY - 40, 80, 80)) {
@@ -1579,44 +1931,53 @@ export function createWorld(canvas, {
       const r = 30 + flicker;
       target.drawImage(glowCanvas(r, 0.22), Math.round(campfire.baseX - r), Math.round(campfire.baseY - 6 - r));
     }
-    for (const o of glowing) {
-      if (!visible(o.sx - 12, o.sy - 12, o.sw + 24, o.sh + 24)) continue;
-      target.drawImage(glowCanvas(12, 0.18), Math.round(o.baseX - 12), Math.round(o.sy + 4 - 12));
+    if (nearVale) {
+      for (const o of glowing) {
+        if (!visible(o.sx - 12, o.sy - 12, o.sw + 24, o.sh + 24)) continue;
+        target.drawImage(glowCanvas(12, 0.18), Math.round(o.baseX - 12), Math.round(o.sy + 4 - 12));
+      }
     }
+    if (wild) wild.drawGlow(target, visible, glowAt(target));
 
-    // hover ring on a place's door
-    if (hoverTarget && hoverTarget.kind === 'place') {
-      const place = placeById(hoverTarget.id);
+    // hover ring on a place's door, or where Milo would stand for an entity
+    const hover = ringsHere ? hoverTarget : null;
+    if (hover && hover.kind === 'place') {
+      const place = placeById(hover.id);
       if (place) drawRing(target, place.door.x * TILE + 8, place.door.y * TILE + FEET, 'c');
+    } else if (hover && hover.kind === 'entity' && hover.entity.approach) {
+      const at = hover.entity.approach;
+      drawRing(target, at.x * TILE + 8, at.y * TILE + FEET, 'c');
     }
-    if (marker && t !== null) {
+    if (marker && t !== null && ringsHere) {
       const age = t - marker.at;
       if (age < 900) drawRing(target, marker.x * TILE + 8, marker.y * TILE + FEET, 'c', 1 - age / 900);
       else marker = null;
     }
 
     // y-sorted sprites
-    const drawables = [];
-    for (const o of props) {
-      if (!visible(o.sx, o.sy, o.sw, o.sh)) continue;
-      drawables.push({ y: o.baseY, x: o.baseX, draw: () => drawSprite(target, o.sprite, objectFrame(o, t), o.sx, o.sy) });
-    }
-    for (const member of crew.values()) {
-      const info = crewDrawInfo(member, t);
-      if (!visible(info.x, info.y, info.w, info.h)) continue;
-      drawables.push({ y: member.y, x: member.x, draw: () => drawSprite(target, info.name, info.frame, info.x, info.y) });
-    }
-    if (perched.jev && tower) {
-      const pos = perchPosition('jev');
-      const active = perched.jev.state === 'working';
-      const period = active ? 2600 : 9000;
-      const frame = t !== null && (t % period) < 320 ? 1 : 0;
-      drawables.push({ y: tower.baseY + 1, x: pos.x, draw: () => drawSprite(target, 'jev.idle', frame, pos.x, pos.y - (frame ? 1 : 0)) });
-    }
-    if (perched.whisper && perchStump) {
-      const pos = perchPosition('whisper');
-      const frame = t !== null && ((t + 700) % 5200) < 200 ? 1 : 0;
-      drawables.push({ y: perchStump.baseY + 1, x: pos.x, draw: () => drawSprite(target, 'whisper.idle', frame, pos.x, pos.y) });
+    if (nearVale) {
+      for (const o of props) {
+        if (!visible(o.sx, o.sy, o.sw, o.sh)) continue;
+        drawables.push({ y: o.baseY, x: o.baseX, draw: () => drawSprite(target, o.sprite, objectFrame(o, t), o.sx, o.sy) });
+      }
+      for (const member of crew.values()) {
+        const info = crewDrawInfo(member, t);
+        if (!visible(info.x, info.y, info.w, info.h)) continue;
+        const dress = wild ? crewDress(member) : null;
+        drawables.push({ y: member.y, x: member.x, draw: () => drawDressed(target, info.name, info.frame, info.x, info.y, dress) });
+      }
+      if (perched.jev && tower) {
+        const pos = perchPosition('jev');
+        const active = perched.jev.state === 'working';
+        const period = active ? 2600 : 9000;
+        const frame = t !== null && (t % period) < 320 ? 1 : 0;
+        drawables.push({ y: tower.baseY + 1, x: pos.x, draw: () => drawSprite(target, 'jev.idle', frame, pos.x, pos.y - (frame ? 1 : 0)) });
+      }
+      if (perched.whisper && perchStump) {
+        const pos = perchPosition('whisper');
+        const frame = t !== null && ((t + 700) % 5200) < 200 ? 1 : 0;
+        drawables.push({ y: perchStump.baseY + 1, x: pos.x, draw: () => drawSprite(target, 'whisper.idle', frame, pos.x, pos.y) });
+      }
     }
     for (const { view, shown, step } of plotDraws) {
       const art = shown.art;
@@ -1630,13 +1991,16 @@ export function createWorld(canvas, {
       });
     }
     const mi = miloDrawInfo(t);
-    drawables.push({ y: milo.y + 0.5, x: milo.x, draw: () => drawSprite(target, mi.name, mi.frame, mi.x, mi.y) });
+    const dress = wild ? miloDress() : null;
+    // Chopping from the side, Milo stands in front of the tree he's working on.
+    const miloY = milo.chop && milo.chop.y === milo.tile.y ? Math.max(milo.y + 0.5, (milo.chop.y + 1) * TILE + 3) : milo.y + 0.5;
+    if (miloHere) drawables.push({ y: miloY, x: milo.x, draw: () => drawMilo(target, mi, dress) });
     drawables.sort((a, b) => a.y - b.y || a.x - b.x);
     for (const d of drawables) d.draw();
 
     // a slow curl of smoke from the cabin chimney, and from any chimney built since
     if (t !== null) {
-      if (cabin) drawSmoke(target, cabin.sx + 36, cabin.sy - 2, t, 1300);
+      if (cabin && nearVale) drawSmoke(target, cabin.sx + 36, cabin.sy - 2, t, 1300);
       for (const { view, shown } of plotDraws) {
         const smoke = shown.art.smoke;
         if (smoke) drawSmoke(target, view.x + smoke.x - 2, view.y + smoke.y - 2, t, view.x * 3);
@@ -1662,31 +2026,80 @@ export function createWorld(canvas, {
     }
 
     // needs-you bubbles
-    for (const member of crew.values()) {
-      if (member.kind !== 'waiting' || member.path.length > 0) continue;
-      const info = crewDrawInfo(member, t);
-      const bx = Math.round(member.x - 4);
-      const by = Math.round(info.y - 9);
-      drawSprite(target, 'bubble', 0, bx, by);
-      const dots = t === null ? 3 : 1 + (Math.floor((t + member.phase) / 600) % 3);
-      target.fillStyle = PALETTE.o.hex;
-      for (let i = 0; i < dots; i += 1) target.fillRect(bx + 2 + i * 3, by + 2, 2, 2);
+    if (nearVale) {
+      for (const member of crew.values()) {
+        if (member.kind !== 'waiting' || member.path.length > 0) continue;
+        const info = crewDrawInfo(member, t);
+        const bx = Math.round(member.x - 4);
+        const by = Math.round(info.y - 9);
+        drawSprite(target, 'bubble', 0, bx, by);
+        const dots = t === null ? 3 : 1 + (Math.floor((t + member.phase) / 600) % 3);
+        target.fillStyle = PALETTE.o.hex;
+        for (let i = 0; i < dots; i += 1) target.fillRect(bx + 2 + i * 3, by + 2, 2, 2);
+      }
     }
 
-    // harbor fog
-    if (visible(fogBox.x, fogBox.y, fogBox.w, fogBox.h)) {
-      target.drawImage(fogLayer, fogBox.x, fogBox.y);
-      const span = fogBox.w + 40;
+    // echoes over their places, the genres' weather, a let-go moth, chips from the axe
+    if (wild) {
+      wild.drawAbove(target, visible, t);
+      drawChips(target, t);
+    }
+
+    // harbor fog (out over the open sea too, with the wilds, but never over the wall)
+    const mist = wild && fogOuterBox ? fogOuterBox : fogBox;
+    if (visible(mist.x, mist.y, mist.w, mist.h)) {
+      if (mist === fogBox) target.drawImage(valeFog(), fogBox.x, fogBox.y);
+      else target.drawImage(wildFog(), mist.x, mist.y);
+      const span = mist.w + 40;
+      const [puffH, puffW] = [gridFor('fog').length, gridFor('fog')[0].length];
       for (const puff of fogPuffs) {
         const drift = t === null ? 0 : (t / 1000) * puff.speed;
-        const x = fogBox.x - 40 + ((puff.x * span + drift) % span);
-        drawSprite(target, 'fog', 0, x, puff.y * TILE - 6, 0.5);
+        const x = Math.round(mist.x - 40 + ((puff.x * span + drift) % span));
+        const y = Math.round(puff.y * TILE - 6);
+        const alpha = mist === fogBox ? 0.5 : 0.5 * clearOfWall(fogWalls, x, y, puffW, puffH);
+        if (alpha > 0) drawSprite(target, 'fog', 0, x, y, alpha);
       }
     }
     // Milo stays crisp when he walks into the fog.
-    if (milo.x > fogBox.x && milo.x < fogBox.x + fogBox.w && milo.y > fogBox.y && milo.y < fogBox.y + fogBox.h) {
-      drawSprite(target, mi.name, mi.frame, mi.x, mi.y);
+    if (miloHere && milo.x > mist.x && milo.x < mist.x + mist.w && milo.y > mist.y && milo.y < mist.y + mist.h) {
+      drawMilo(target, mi, dress);
     }
+    if (wild) drawFloats(target, visible, t);
+    target.restore();
+  }
+
+  // Inside a rift: the Elsewhere's ground, its objects and strays, and Milo in its colours.
+  function drawElsewhere(target, cx, cy, vw, vh, t) {
+    const E = elsewhere;
+    target.imageSmoothingEnabled = false;
+    target.fillStyle = E.background;
+    target.fillRect(0, 0, vw + 1, vh + 1);
+    target.save();
+    target.translate(-cx, -cy);
+    const sx = Math.max(0, cx);
+    const sy = Math.max(0, cy);
+    const sw = Math.min(E.width, cx + vw + 1) - sx;
+    const sh = Math.min(E.height, cy + vh + 1) - sy;
+    if (sw > 0 && sh > 0) target.drawImage(E.canvas, sx, sy, sw, sh, sx, sy, sw, sh);
+    const visible = (x, y, w, h) => x + w >= cx - 2 && y + h >= cy - 2 && x <= cx + vw + 2 && y <= cy + vh + 2;
+    const drawables = [];
+    E.collect(drawables, target, visible, t, shadowAt(target));
+    target.drawImage(shadowCanvas(10, 3), Math.round(milo.x - 5), Math.round(milo.y - 1));
+    if (hoverTarget && hoverTarget.kind === 'entity' && hoverTarget.entity.approach) {
+      const at = hoverTarget.entity.approach;
+      drawRing(target, at.x * TILE + 8, at.y * TILE + FEET, 'c');
+    }
+    if (marker && t !== null) {
+      const age = t - marker.at;
+      if (age < 900) drawRing(target, marker.x * TILE + 8, marker.y * TILE + FEET, 'c', 1 - age / 900);
+      else marker = null;
+    }
+    const mi = miloDrawInfo(t);
+    const dress = miloDress();
+    drawables.push({ y: milo.y + 0.5, x: milo.x, draw: () => drawMilo(target, mi, dress) });
+    drawables.sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const d of drawables) d.draw();
+    drawFloats(target, visible, t);
     target.restore();
   }
 
@@ -1713,7 +2126,18 @@ export function createWorld(canvas, {
     if (disposed) return;
     const cx = Math.round(cam.x);
     const cy = Math.round(cam.y);
+    // The wilds learn what's in view: chunks to prepare next, and chunks newly seen.
+    if (W && !elsewhere) W.setView({ x: cx, y: cy, w: viewW + 1, h: viewH + 1 }, t);
     drawScene(bctx, cx, cy, viewW, viewH, t);
+    if (W) {
+      const shade = fadeAlpha(t);
+      if (shade > 0) {
+        bctx.globalAlpha = shade;
+        bctx.fillStyle = PALETTE.o.hex;
+        bctx.fillRect(0, 0, viewW + 1, viewH + 1);
+        bctx.globalAlpha = 1;
+      }
+    }
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(buffer, 0, 0, buffer.width, buffer.height, 0, 0, buffer.width * scale, buffer.height * scale);
@@ -1743,6 +2167,10 @@ export function createWorld(canvas, {
     updateMilo(dt);
     updateCrew(dt);
     updateMakingWay();
+    if (W) {
+      updateChop(time);
+      updateFade();
+    }
     updateCamera(dt);
     draw(time);
   }
@@ -1788,6 +2216,9 @@ export function createWorld(canvas, {
       }
       member.waiting = false;
     }
+    // A chop in hand finishes, and a fade is done at once.
+    if (milo.chop) finishChop(true);
+    finishFade();
     // Stepped aside for the crew: with everyone in place, back on his spot (unless it's taken).
     const aside = milo.aside;
     if (aside) {
@@ -1816,6 +2247,7 @@ export function createWorld(canvas, {
     if (doc.hidden) return;
     ensureLoop();
     requestDraw();
+    if (W) W.wake();
   }
 
   function setPaused(value) {
@@ -1829,12 +2261,18 @@ export function createWorld(canvas, {
       requestDraw();
     } else {
       ensureLoop();
+      if (W) W.wake();
     }
   }
 
   function dispose() {
     if (disposed) return;
     if (milo.walk) finishWalk(false);
+    stopChop();
+    finishFade();
+    for (const entry of floats) clearTimer(entry.timer);
+    floats.length = 0;
+    if (W) W.dispose();
     disposed = true;
     if (raf) win.cancelAnimationFrame(raf);
     raf = 0;
@@ -1867,6 +2305,7 @@ export function createWorld(canvas, {
     const k = scale / dpr;
     const toScreen = (r, kind, id = null) => ({ kind, id, x: (r.x - cx) * k, y: (r.y - cy) * k, w: r.w * k, h: r.h * k });
     const rects = [toScreen({ x: Math.round(milo.x - 8), y: Math.round(milo.y) - 19, w: 16, h: 20 }, 'milo')];
+    if (elsewhere) return rects; // inside a rift nothing of the vale is on screen
     if (fireCircle) rects.push(toScreen(fireCircle, 'campfire'));
     for (const member of crew.values()) rects.push(toScreen(crewRect(member), 'crew', member.id));
     for (const id of ['jev', 'whisper']) {
@@ -1885,17 +2324,497 @@ export function createWorld(canvas, {
     return rects;
   }
 
-  // Full-map render for previews and overviews.
-  function renderMap(mapScale = 1, { time = null } = {}) {
+  // Full-map render for previews and overviews. { milo: false } leaves Milo out of the picture
+  // (the map view draws its own marker for him).
+  function renderMap(mapScale = 1, { time = null, milo: withMilo = true } = {}) {
     const full = makeCanvas(MAP_W, MAP_H);
     const fctx = full.getContext('2d');
-    drawScene(fctx, 0, 0, MAP_W, MAP_H, time);
+    drawScene(fctx, 0, 0, MAP_W, MAP_H, time, { valeOnly: true, withMilo: withMilo !== false });
     if (mapScale === 1) return full;
     const out = makeCanvas(MAP_W * mapScale, MAP_H * mapScale);
     const octx = out.getContext('2d');
     octx.imageSmoothingEnabled = false;
     octx.drawImage(full, 0, 0, MAP_W * mapScale, MAP_H * mapScale);
     return out;
+  }
+
+  // ---------- the wilds (Phase 3) ----------
+
+  const FADE_OUT_MS = 380;
+  const FADE_IN_MS = 520;
+  const CHOP_MS = 2500;
+  const SWING_MS = 625; // four swings: the axe up behind his head (400 ms), then down (225 ms)
+  const FLOAT_MS = 1700;
+  const has = (collection, id) => {
+    if (!collection) return false;
+    if (collection instanceof Set || collection instanceof Map) return collection.has(id);
+    if (Array.isArray(collection)) return collection.includes(id);
+    return typeof collection === 'object' && Object.prototype.hasOwnProperty.call(collection, id) && collection[id] != null && collection[id] !== false;
+  };
+
+  // A calm fade to ink and back, for travel and for stepping through a rift. Instant with motion off.
+  let fade = null; // { from, to, at, dur, resolve, timer }
+  let fadeLevel = 0;
+  function fadeAlpha(t) {
+    if (!fade || t === null) return fade ? fade.to : fadeLevel;
+    const k = Math.min(1, Math.max(0, (t - fade.at) / fade.dur));
+    return fade.from + (fade.to - fade.from) * k;
+  }
+  function finishFade() {
+    if (!fade) return;
+    const done = fade;
+    fade = null;
+    fadeLevel = done.to;
+    clearTimer(done.timer);
+    done.resolve();
+    requestDraw();
+  }
+  function updateFade() {
+    if (fade && now() - fade.at >= fade.dur) finishFade();
+  }
+  function fadeTo(to, dur) {
+    return new Promise((resolve) => {
+      // A fade picks up from wherever the last had got to (a trip begun while the view fades back
+      // in darkens from there, never from a sudden clear view), over the part of the way left.
+      const from = fade ? fadeAlpha(now()) : fadeLevel;
+      finishFade();
+      const span = Math.abs(to - from);
+      if (!motionOn() || disposed || span === 0) {
+        fadeLevel = to;
+        resolve();
+        requestDraw();
+        return;
+      }
+      const time = Math.max(16, dur * span);
+      // The loop finishes it; a timer does too, should the window be hidden meanwhile.
+      fade = { from, to, at: now(), dur: time, resolve, timer: timeout(() => finishFade(), time + 300) };
+      ensureLoop();
+    });
+  }
+
+  // Milo is simply somewhere now (travel): his tile, the camera and the area follow.
+  function placeMilo(tile, dir = 'down') {
+    milo.x = tile.x * TILE + 8;
+    milo.y = tile.y * TILE + FEET;
+    milo.dir = dir;
+    marker = null;
+    setTile(tile);
+    updateCamera(0, true);
+    requestDraw();
+  }
+
+  function stopEverything() {
+    leaveAside();
+    if (milo.walk) finishWalk(false);
+    stopChop();
+    held.clear();
+  }
+
+  function travelTile(target) {
+    if (target === 'home') return { ...MAP.miloHome };
+    if (typeof target === 'string') {
+      const entity = W.resolve(target, null);
+      return entity ? entity.approach || { x: entity.x, y: entity.y } : null;
+    }
+    if (target && Number.isFinite(target.x) && Number.isFinite(target.y)) {
+      const tile = { x: Math.round(target.x), y: Math.round(target.y) };
+      return inVale(tile) ? (isWalkable(tile.x, tile.y) ? tile : null) : W.nearestWalkable(tile, 3);
+    }
+    return null;
+  }
+
+  // A scene change, one at a time: whatever Milo was doing ends, the view fades to ink, `place`
+  // moves him in the dark (false: it couldn't, and he stays), and the view fades back in. While
+  // it fades out nothing new starts (see `changing`); once he's placed he may be walked again,
+  // and another change may begin, darkening from wherever the fade back in had got to.
+  async function changeScene(place) {
+    changing = true;
+    let placed = false;
+    try {
+      stopEverything();
+      onPointerLeave(); // the label and ring of whatever the pointer was on go with the scene
+      await fadeTo(1, FADE_OUT_MS);
+      if (disposed) return false;
+      stopEverything(); // anything that slipped in while the view went dark ends here, not after
+      try {
+        placed = place() !== false;
+      } catch (error) {
+        console.error(error);
+      }
+      // A jump, not a walk: whatever he wore where he was has nothing to do with where he is now.
+      forgetDress();
+    } finally {
+      changing = false;
+    }
+    await fadeTo(0, FADE_IN_MS);
+    return placed && !disposed;
+  }
+
+  /** Travel to a lantern (its id), home, or a tile: a calm fade out and in, with the chunks there ready first. */
+  async function travelTo(target) {
+    if (disposed || !W || elsewhere || changing) return false;
+    const dest = travelTile(target);
+    if (!dest) return false;
+    return changeScene(() => {
+      prepareAt(dest);
+      placeMilo(dest, 'down');
+    });
+  }
+
+  // Milo is about to stand on `tile` (in the dark of a fade): the chunks under the view there, the
+  // camera as it will be (overlays, the look up and all), are made ready before the shell hears
+  // he moved and before the view fades back in.
+  function prepareAt(tile) {
+    milo.x = tile.x * TILE + 8;
+    milo.y = tile.y * TILE + FEET;
+    updateCamera(0, true);
+    W.prepareAround(tile, viewW, viewH, { x: Math.round(cam.x), y: Math.round(cam.y), w: viewW + 1, h: viewH + 1 });
+  }
+
+  /** Walk to an entity (id or entity) and open it on arrival (onEntityClick). → whether he got there. */
+  function walkToEntity(target) {
+    if (disposed || !W) return Promise.resolve(false);
+    const t = sceneTime();
+    let entity = typeof target === 'string'
+      ? (elsewhere ? elsewhere.entityById(target, t) : W.resolve(target, milo.tile, t))
+      : target && typeof target === 'object' ? target : null;
+    if (!entity || !Number.isFinite(entity.x) || !Number.isFinite(entity.y)) return Promise.resolve(false);
+    if (!entity.approach) {
+      const approach = elsewhere ? { x: entity.x, y: entity.y } : W.approachFor(entity.x, entity.y, entity.kind, milo.tile);
+      entity = { ...entity, approach };
+    }
+    const at = entity.approach;
+    const face = at.x === entity.x && at.y === entity.y ? null : faceFrom(at, entity);
+    return startWalk({ x: at.x, y: at.y }, { entity, face });
+  }
+
+  // ---------- chopping ----------
+
+  function chopSwing(t) {
+    const age = Math.max(0, t - milo.chop.at);
+    const phase = age % SWING_MS;
+    return { frame: phase < 400 ? 0 : 1, strike: Math.floor(age / SWING_MS), phase };
+  }
+  function finishChop(ok) {
+    const c = milo.chop;
+    if (!c) return;
+    milo.chop = null;
+    if (W) W.setShake(null);
+    c.resolve({ ok, kind: c.kind });
+    requestDraw();
+  }
+  function stopChop() {
+    if (milo.chop) finishChop(false);
+  }
+  function updateChop(t) {
+    const c = milo.chop;
+    if (!c) return;
+    if (t - c.at >= CHOP_MS) {
+      finishChop(true);
+      return;
+    }
+    const s = chopSwing(t);
+    // A little shake as each blow lands.
+    W.setShake(s.phase >= 400 && s.phase < 540 ? { id: c.treeId, dx: s.strike % 2 ? 1 : -1 } : null);
+  }
+  /** Chop a tree: Milo walks beside it if he must, faces it and chops for about 2.5 s. */
+  async function chop(treeId) {
+    const nope = (kind = null) => ({ ok: false, kind });
+    if (disposed || !W || elsewhere || changing) return nope();
+    const id = typeof treeId === 'string' ? treeId : treeId && treeId.id;
+    const tree = W.resolve(id, milo.tile);
+    if (!tree || tree.kind !== 'tree') return nope();
+    if (tree.felled) return nope(tree.wood || null);
+    const beside = () => Math.abs(tree.x - milo.tile.x) + Math.abs(tree.y - milo.tile.y) === 1;
+    // Beside it but part way through a step: back onto his tile first, so he chops standing on it.
+    if (!beside() || stepInProgress()) {
+      const approach = beside() ? { ...milo.tile } : W.approachFor(tree.x, tree.y, 'tree', milo.tile);
+      const got = await startWalk(approach, { face: faceFrom(approach, tree) });
+      // Stopped on the way (a trip began, or another walk): no chop, wherever he stopped.
+      if (!got || disposed || elsewhere || changing || !beside()) return nope(tree.wood);
+    }
+    stopEverything();
+    milo.dir = faceFrom(milo.tile, tree);
+    if (!motionOn()) {
+      requestDraw();
+      return { ok: true, kind: tree.wood };
+    }
+    return new Promise((resolve) => {
+      // chips and leaves take the colours the tree is drawn in (the Hush's, or a bleed's)
+      // trunkX: the trunk's middle in world px, where the tree's sprite stands (a little off its tile's).
+      const placed = W.placedAt(tree.id, tree.x, tree.y);
+      const trunkX = placed && Number.isFinite(placed.baseX) ? placed.baseX : tree.x * TILE + 8;
+      milo.chop = { treeId: tree.id, at: now(), resolve, kind: tree.wood, x: tree.x, y: tree.y, trunkX, table: W.tableAt(tree.x, tree.y) };
+      ensureLoop();
+    });
+  }
+  // Chopping from the side, Milo leans in to the trunk a little (and back after), so the axe head
+  // at his reach lands over the tree's foot, in front of it, while he stands clear of the tree
+  // rather than hugging it. The lean is measured from where the trunk really stands: a tree sits
+  // up to 4 px off its tile's middle, and he keeps the same distance from every trunk (his middle
+  // TILE - CHOP_LEAN px from it), so the axe never swings short in the air or buries him in it.
+  const CHOP_LEAN = 2;
+  function chopLean(t) {
+    const c = milo.chop;
+    const side = !c ? 0 : milo.dir === 'left' ? -1 : milo.dir === 'right' ? 1 : 0;
+    if (!side) return 0;
+    const lean = side * CHOP_LEAN + (c.trunkX - (c.x * TILE + 8));
+    if (t === null) return lean;
+    const age = t - c.at;
+    const k = Math.max(0, Math.min(1, age / 160, (CHOP_MS - age) / 120));
+    return Math.round(lean * k);
+  }
+
+  // Chips of wood fly from the cut as each blow lands, and a leaf or two lets go of the crown.
+  const CHIP_MS = 520;
+  const LEAF_MS = 950;
+  const inkCache = new Map();
+  function inkOf(key, table) {
+    if (!table) return PALETTE[key].hex;
+    const rgb = table[key] || rgbaOf(key);
+    const k = `${rgb[0]},${rgb[1]},${rgb[2]}`;
+    if (!inkCache.has(k)) inkCache.set(k, `rgb(${k})`);
+    return inkCache.get(k);
+  }
+  function drawChips(target, t) {
+    const c = milo.chop;
+    if (!c || t === null) return;
+    const age = t - c.at;
+    if (age < 400) return;
+    const birch = c.kind === 'birch';
+    const chipKeys = birch ? ['c', 'C', 'n', 'm'] : ['n', 'b', 'B', 'n'];
+    const leafKeys = c.kind === 'pine' ? ['l', 'L'] : birch ? ['q', 'h'] : ['q', 'l'];
+    const trunkX = c.trunkX;
+    const ground = c.y * TILE + 15;
+    const side = Math.sign(milo.tile.x - c.x); // which side of the trunk Milo works from
+    const latest = Math.floor((age - 400) / SWING_MS);
+    for (let n = latest; n >= Math.max(0, latest - 1); n -= 1) {
+      const since = age - 400 - n * SWING_MS; // ms since blow n landed
+      const turn = n % 2 ? 1 : -1;
+      // chips: a short arc out of the cut, towards Milo's side (either way when he's above or below)
+      if (since < CHIP_MS) {
+        const s = since / 1000;
+        const out = side || turn;
+        const x0 = trunkX + (side ? side * 3 : 0);
+        const y0 = ground - 5;
+        for (let i = 0; i < 4; i += 1) {
+          const h = hash2(n, i, 331);
+          const vx = out * (16 + 30 * h) * (i === 3 ? -0.6 : 1);
+          const vy = 38 + 34 * hash2(i, n, 337);
+          const x = x0 + vx * s;
+          const y = Math.min(ground + 1 - (i % 2), y0 - vy * s + 150 * s * s);
+          target.globalAlpha = since < CHIP_MS * 0.6 ? 1 : Math.max(0, 1 - (since - CHIP_MS * 0.6) / (CHIP_MS * 0.4));
+          target.fillStyle = inkOf(chipKeys[i], c.table);
+          target.fillRect(Math.round(x), Math.round(y), i === 0 ? 2 : 1, 1);
+        }
+      }
+      // a leaf drifting down from the crown, swaying: on the far side from Milo when he works from
+      // the side, so it never drifts across his face
+      if (since < LEAF_MS) {
+        const k = since / LEAF_MS;
+        const away = side ? -side : turn;
+        const x = trunkX + away * (3 + 5 * hash2(n, 7, 341)) + Math.sin(k * 7 + n) * 2.5 + away * k * 4;
+        const y = ground - 24 + 8 * hash2(n, 9, 347) + k * 20;
+        target.globalAlpha = k < 0.7 ? 0.95 : Math.max(0, 0.95 * (1 - (k - 0.7) / 0.3));
+        target.fillStyle = inkOf(leafKeys[n % 2], c.table);
+        target.fillRect(Math.round(x), Math.round(y), 2, 1);
+        target.fillRect(Math.round(x) + (Math.sin(k * 7 + n) > 0 ? 1 : 0), Math.round(y) + 1, 1, 1);
+      }
+    }
+    target.globalAlpha = 1;
+  }
+
+  // ---------- words that drift up ----------
+
+  const floats = [];
+  /** A small '+5 birch' that drifts up from a tile and fades. */
+  function floatText(text, tile) {
+    if (disposed || !painter || typeof text !== 'string' || !text.trim() || !tile || !Number.isFinite(tile.x) || !Number.isFinite(tile.y)) return;
+    const entry = { rows: textRows(text.trim().slice(0, 40)), at: now(), x: tile.x * TILE + 8, y: tile.y * TILE - 6 };
+    floats.push(entry);
+    while (floats.length > 8) clearTimer(floats.shift().timer);
+    entry.timer = timeout(() => {
+      const i = floats.indexOf(entry);
+      if (i >= 0) floats.splice(i, 1);
+      requestDraw();
+    }, FLOAT_MS + 60);
+    ensureLoop();
+  }
+  function drawFloats(target, visible, t) {
+    for (const f of floats) {
+      const age = t === null ? 0 : Math.max(0, t - f.at);
+      if (age > FLOAT_MS) continue;
+      const k = age / FLOAT_MS;
+      const canvas = painter.grid(f.rows, null, 'base', { tag: 'float' });
+      const x = Math.round(f.x - canvas.width / 2);
+      const y = Math.round(f.y - canvas.height - 14 * (1 - (1 - k) * (1 - k)));
+      if (!visible(x, y, canvas.width, canvas.height)) continue;
+      target.globalAlpha = k < 0.6 ? 1 : Math.max(0, 1 - (k - 0.6) / 0.4);
+      target.drawImage(canvas, x, y);
+      target.globalAlpha = 1;
+    }
+  }
+
+  // ---------- Elsewheres ----------
+
+  function elsewhereInfo() {
+    const [cx, cy] = returnTile ? [Math.floor(returnTile.x / 32), Math.floor(returnTile.y / 32)] : [0, 0];
+    return {
+      area: 'elsewhere', regionId: null, regionName: elsewhere.name, tier: elsewhere.tier, depth: elsewhere.depth,
+      hush: false, chunk: `${cx},${cy}`, rift: { id: elsewhere.riftId, name: elsewhere.name },
+    };
+  }
+
+  /** Step through a rift into its Elsewhere (a fade; at once with motion off). Going deeper swaps scenes. */
+  async function enterElsewhere(rift) {
+    if (disposed || !W || !W.riftgen || !rift || !rift.spec || changing) return false;
+    return changeScene(() => {
+      // Nothing moved him while the view went dark, so this is where he stood when he stepped in.
+      const back = !elsewhere
+        ? (Number.isInteger(rift.x) && Number.isInteger(rift.y) ? W.approachFor(rift.x, rift.y, 'rift', milo.tile) : { ...milo.tile })
+        : returnTile;
+      let scene;
+      try {
+        scene = createElsewhereScene({ rift, genres: W.genres, words: W.words, riftgen: W.riftgen, painter, makeCanvas, base: basePaletteByCode(), art: artKit, visited: has(visited, rift.id) || has(visited, rift.spec.id) });
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+      returnTile = back;
+      elsewhere = scene;
+      W.suspend(true);
+      hoverTarget = null;
+      milo.x = scene.spawn.x * TILE + 8;
+      milo.y = scene.spawn.y * TILE + FEET;
+      milo.tile = { x: scene.spawn.x, y: scene.spawn.y };
+      milo.dir = scene.spawn.dir || 'down';
+      marker = null;
+      updateCamera(0, true);
+      try {
+        onAreaChange(elsewhereInfo());
+      } catch (error) {
+        console.error(error);
+      }
+      requestDraw();
+      return true;
+    });
+  }
+
+  /** Leave the Elsewhere: Milo comes back out by the rift he stepped through. */
+  async function leaveElsewhere() {
+    if (disposed || !elsewhere || changing) return false;
+    return changeScene(() => {
+      if (!elsewhere) return false;
+      elsewhere = null;
+      hoverTarget = null;
+      W.suspend(false);
+      const wanted = returnTile || { ...MAP.miloHome };
+      returnTile = null;
+      const tile = W.miloWalkable(wanted.x, wanted.y) ? wanted : W.nearestWalkable(wanted, 3) || { ...MAP.miloHome };
+      prepareAt(tile);
+      milo.tile = { x: tile.x, y: tile.y };
+      milo.dir = 'down';
+      marker = null;
+      W.miloAt(milo.tile, true);
+      try {
+        onMiloMove({ x: tile.x, y: tile.y });
+      } catch (error) {
+        console.error(error);
+      }
+      updateCamera(0, true);
+      requestDraw();
+      return true;
+    });
+  }
+
+  // ---------- what the shell tells the wilds ----------
+
+  function setWildState(state) {
+    if (!W || !state || typeof state !== 'object') return;
+    if ('visited' in state) {
+      visited = state.visited;
+      if (elsewhere) elsewhere.setOpened(has(visited, elsewhere.riftId));
+    }
+    W.setWildState(state);
+    requestDraw();
+  }
+
+  function setRifts(rifts) {
+    if (!W) return;
+    W.setRifts(rifts, now(), motionOn());
+    ensureLoop();
+  }
+
+  function closeRift(id, how) {
+    if (!W || typeof id !== 'string') return false;
+    const t = motionOn() ? now() : null;
+    if (elsewhere && elsewhere.riftId === id && (how === 'stitched' || how === 'sealed')) elsewhere.seal(t);
+    const done = W.closeRift(id, how, t, motionOn());
+    ensureLoop();
+    return done;
+  }
+
+  function nearbyEntities() {
+    if (!W || disposed) return [];
+    const t = sceneTime();
+    const rect = { x0: Math.floor(cam.x / TILE), y0: Math.floor(cam.y / TILE), x1: Math.floor((cam.x + viewW) / TILE), y1: Math.floor((cam.y + viewH) / TILE) };
+    const list = elsewhere ? elsewhere.entities(rect, t) : W.entitiesIn(rect, t, milo.tile);
+    const d = (e) => Math.hypot(e.x - milo.tile.x, e.y - milo.tile.y);
+    list.sort((a, b) => d(a) - d(b) || (a.id < b.id ? -1 : 1));
+    // Trees are everywhere: the nearest few are enough for a list.
+    const out = [];
+    let trees = 0;
+    for (const e of list) {
+      if (e.kind === 'tree' && (trees += 1) > 3) continue;
+      out.push(e);
+      if (out.length >= 30) break;
+    }
+    return out;
+  }
+
+  /**
+   * Everything in the Elsewhere Milo is inside, in view or not (the way home, the seam, the
+   * Tale-lead, loot, the curio and the strays), nearest first, as nearbyEntities gives them. []
+   * when he isn't in one.
+   */
+  function elsewhereEntities() {
+    if (!elsewhere || disposed) return [];
+    const list = elsewhere.entities({ x0: -1, y0: -1, x1: elsewhere.w, y1: elsewhere.h }, sceneTime());
+    const d = (e) => Math.hypot(e.x - milo.tile.x, e.y - milo.tile.y);
+    return list.sort((a, b) => d(a) - d(b) || (a.id < b.id ? -1 : 1));
+  }
+
+  /**
+   * The terrain of a world tile: inside the vale its own (map.js: '.', '=', '~', ',', ':' or '#'),
+   * beyond it the wilds' (a worldgen TERRAIN code, roads kept off the ring as wilds.terrainAt
+   * does). null in the vale-only world, and for anything that isn't a whole tile.
+   */
+  function terrainAt(x, y) {
+    if (!W || !Number.isInteger(x) || !Number.isInteger(y)) return null;
+    if (inVale({ x, y })) return valeTerrainAt(x, y);
+    return W.wilds.terrainAt(x, y);
+  }
+
+  function area() {
+    if (elsewhere) return elsewhereInfo();
+    if (W) return W.area();
+    return { area: 'vale', regionId: 'hearthvale', regionName: 'Hearthvale', tier: 1, depth: 1, hush: false, chunk: '0,0' };
+  }
+
+  /** Draw `frames` frames back to back and time them (previews): { mean, median, p95, max } ms. */
+  function benchmark(frames = 60, { step = FRAME_MS, flush = false } = {}) {
+    const times = [];
+    let t = now();
+    for (let i = 0; i < frames; i += 1) {
+      t += step;
+      const started = now();
+      draw(t);
+      if (flush && typeof ctx.getImageData === 'function') ctx.getImageData(0, 0, 1, 1);
+      times.push(now() - started);
+    }
+    const sorted = [...times].sort((a, b) => a - b);
+    const mean = times.reduce((a, b) => a + b, 0) / Math.max(1, times.length);
+    return { frames, mean, median: sorted[Math.floor(sorted.length / 2)], p95: sorted[Math.floor(sorted.length * 0.95)], max: sorted[sorted.length - 1] };
   }
 
   // ---------- wire up ----------
@@ -1912,6 +2831,8 @@ export function createWorld(canvas, {
   setPlots({}); // every plot starts empty until the shell says otherwise
   resize();
   ensureLoop();
+  // Where Milo starts, once the shell holds the world (never during createWorld itself).
+  if (W) Promise.resolve().then(() => { if (!disposed && !elsewhere) W.miloAt(milo.tile); });
 
   return {
     setCrew,
@@ -1931,5 +2852,40 @@ export function createWorld(canvas, {
     get scale() {
       return scale / dpr;
     },
+    // Phase 3: the wilds, rifts and Elsewheres (no-ops without content)
+    setWildState,
+    setRifts,
+    closeRift,
+    setEchoes: (list) => { if (W) W.setEchoes(list); },
+    isWalkable: (x, y) => (elsewhere ? elsewhere.walkable(x, y) : W ? W.isWalkable(x, y) : isWalkable(x, y)),
+    walkToEntity,
+    travelTo,
+    chop,
+    floatText,
+    enterElsewhere,
+    leaveElsewhere,
+    elsewhere: () => (elsewhere ? { riftId: elsewhere.riftId, depth: elsewhere.depth, name: elsewhere.name } : null),
+    nearbyEntities,
+    elsewhereEntities,
+    area,
+    /** The world's generator (worldgen.js), for maps and panels; null in the vale-only world. */
+    get worldgen() {
+      return W ? W.worldgen : null;
+    },
+    terrainAt,
+    raiseReveal: (tier) => {
+      if (!W) return;
+      W.raiseReveal(tier, motionOn() ? now() : null, motionOn());
+      ensureLoop();
+    },
+    paintMapChunk: (cx, cy, pxPerTile) => (W ? W.paintMapChunk(cx, cy, pxPerTile) : null),
+    // extras for previews, captures and tests
+    settle: (limit) => {
+      const n = W ? W.settle(limit) : 0;
+      requestDraw();
+      return n;
+    },
+    benchmark,
+    stats: () => (W ? { ...W.stats(), chopAge: milo.chop ? now() - milo.chop.at : null, fade: fadeAlpha(now()), changing } : null),
   };
 }

@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "about": "The story as MILO tells it (LORE.md §14). The Prologue has seven steps that complete in order; each step’s condition lives in src/story.js, keyed by its id, never here. A step that’s already true completes on sight. Letters arrive by paper bird.",
+  "prologue": {
+    "id": "prologue",
+    "title": "The Lantern Wakes",
+    "steps": [
+      {
+        "id": "light",
+        "title": "A Light on the Hook",
+        "text": "You arrive, and the lantern on the old iron hook catches. Milo wakes, blinks at the year and politely panics about it.",
+        "hint": "Open MILO and let Milo say hello."
+      },
+      {
+        "id": "crew",
+        "title": "Three Stumps and a Bench",
+        "text": "Milo shows you round the camp: the tent, the cabin, three stumps and a bench. At the edge of the firelight, the Wayfarers arrive and find a seat.",
+        "hint": "Start a session in Claude Code or Codex, and the crew will gather at the fire."
+      },
+      {
+        "id": "ground",
+        "title": "Ground That’s Waiting",
+        "text": "Five plots wait round the camp, their signs still wet with paint. Choose something to build, and the crew will draw up the plans.",
+        "hint": "Open a plot, pick an idea and let the crew design it."
+      },
+      {
+        "id": "letter",
+        "title": "A Letter by Paper Bird",
+        "text": "A paper bird lands on the Lantern Hook with a letter tucked under its wing. The hand is small and very neat, and Milo knows it at once.",
+        "hint": "Read Oriel’s letter. It’s on the story card."
+      },
+      {
+        "id": "first-crack",
+        "title": "A Crack Past the Gate",
+        "text": "A hairline crack opens in the air past the north gate. Milo looks from it to the lantern-light round the vale, and his shoulders come down: “It can’t come in. Not while the lantern’s lit.”",
+        "hint": "Walk out through the north gate, step into the crack and mend it."
+      },
+      {
+        "id": "lantern",
+        "title": "A Light in the Wilds",
+        "text": "Along the old roads, the Makers’ lanterns sleep on their posts, cold and patient. Light one, and it’ll remember every other lantern you light.",
+        "hint": "Find a sleeping lantern out in the wilds and light it."
+      },
+      {
+        "id": "stockade",
+        "title": "Walls of Birch and Ash",
+        "text": "The lantern’s ring could reach much further with walls to hold it. Birch and ash from the wilds, and real days of work beside the crew, will raise the Stockade.",
+        "hint": "Open the Hearth, meet its needs, bring birch and ash, then raise the Stockade."
+      }
+    ]
+  },
+  "letters": {
+    "oriel": {
+      "from": "Oriel",
+      "title": "A letter by paper bird",
+      "lines": [
+        "You’re awake. Good.",
+        "Don’t fuss about the year, Milo. It’s later than you think and earlier than it feels, and you’ll catch up. The cabin’s stove should still draw. Tamsin never let anything leave that camp broken.",
+        "To whoever lit him: thank you. He’ll say he’s fine, then ask whether you’ve eaten, in that order. He’s missing some of what he knew. It comes back in pieces, as Glimmers, if you walk the old roads with him.",
+        "Tamsin’s statues are out there too, one in every region, each missing something. Don’t finish them. She’d hate that, and somehow she’d find out.",
+        "The other books on the shelf will have noticed your light by now. If something tears the air past your gate, don’t be alarmed. It can’t come in. Mend it, or let it go west. Both are allowed.",
+        "I haven’t been waiting, you understand. I’ve been busy. I only happened to leave the kettle on.",
+        "Tea soon."
+      ],
+      "sign": "— O."
+    }
+  }
+}

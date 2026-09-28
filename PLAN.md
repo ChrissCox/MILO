@@ -231,14 +231,14 @@ Spells are MILO's commands and automations, collected like Frieren's small spell
 - **Step 1:** the world, Milo's greeting, Watchkeeping.
 - **Step 2:** plots, ideas, and crew-designed buildings.
 - **App icon** (2026-09-27): a pixel Milo portrait for small sizes, and Milo at dusk beside his lantern for large ones (`scripts/make-icon.mjs`).
-- **The generators** (2026-09-27), all pure, seeded and tested, and not yet in the app:
-  - the world (`src/world/worldgen.js`);
-  - rifts and their Elsewheres (`riftgen.js`);
-  - strays (`straygen.js`);
-  - map art for the wilds (`wildsart.js`);
-  - the Hearth's tiers (`content/fortress.json`).
-
-  `scripts/worldgen-preview.mjs` renders the atlas, the frontier and a rift sampler.
+- **The generators** (2026-09-27): the world, rifts and their Elsewheres, strays, map art for the wilds, and the Hearth's tiers.
+- **Phase 3, The Hearth and the Wilds** (2026-09-28; spec `CONTRACT-PHASE3.md`):
+  - Walk out of Hearthvale's four gates into the endless seeded wilds, with lanterns, ruins, caves, chests, notes, statues and chopping.
+  - Real rifts from real signals: late nights, a session waiting 24 hours, Codex capacity, a new building, and the Prologue's crack. They're placed on the frontier by urgency, with echoes in the vale.
+  - Daily wild rifts, with Elsewheres to walk and stitch, and the ladder below them.
+  - The Hearth, with the Stockade, the War Table, the Gate Bell and the first ward-post.
+  - The Prologue, and a map with fog of war.
+  - 500+ unit tests and 47 Electron checks.
 
 Each phase below ships useful features and game features together, with tests and a visual review, like steps 1 and 2. Each also raises the Hearth by the tier its features make possible.
 

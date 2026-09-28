@@ -1,0 +1,204 @@
+/* The map view (src/ui/mapview.js): a pixel-framed sheet over the stage with the map, its fog,
+   a travel list and a key. Uses the tokens and chrome from src/styles.css (.px, .px-btn). */
+
+.map-view {
+  position: absolute;
+  inset: 14px 14px 20px 14px;
+  z-index: 14; /* over the panel (10), the tip (11) and the bubble (12); under the title bar (20) */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  outline: none;
+}
+.map-view[hidden] { display: none; }
+
+/* Head: title and hint, zoom, centre, close. */
+.map-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 10px 10px 16px;
+  border-bottom: 2px solid var(--line);
+  flex: none;
+}
+.map-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.map-title { font-size: 16px; font-weight: 700; line-height: 1.2; outline: none; }
+/* Focus lands on the title when the map opens, as it does on a panel's, with the same ring. */
+.map-title:focus-visible { outline: 2px dashed var(--focus); outline-offset: 3px; }
+.map-hint { max-width: 100%; font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.map-zoom {
+  flex: none;
+  display: flex;
+  background: var(--cream-2);
+  box-shadow:
+    0 -2px 0 0 var(--ink),
+    0 2px 0 0 var(--ink),
+    -2px 0 0 0 var(--ink),
+    2px 0 0 0 var(--ink),
+    0 4px 0 0 var(--drop);
+}
+.map-zoom-btn { padding: 5px 11px; font-size: 12.5px; font-weight: 600; background: var(--cream-2); color: var(--ink-soft); }
+.map-zoom-btn + .map-zoom-btn { box-shadow: inset 2px 0 0 0 var(--ink); }
+.map-zoom-btn:hover { background: var(--cream-3); color: var(--ink); }
+.map-zoom-btn[aria-pressed="true"] { background: var(--green); color: var(--ink); }
+.map-zoom-btn:focus-visible { outline-offset: 4px; position: relative; z-index: 1; }
+.map-centre { flex: none; }
+.map-close { flex: none; width: 28px; height: 28px; display: grid; place-items: center; color: var(--ink-soft); }
+.map-close svg { width: 10px; height: 10px; fill: currentColor; shape-rendering: crispEdges; }
+.map-close:hover { background: var(--cream-2); }
+
+/* Body: the map, then the side column. */
+.map-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 206px;
+  gap: 16px;
+  padding: 14px 14px 14px 16px;
+}
+
+.map-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  margin: 2px;
+  overflow: hidden;
+  background: #e9e3d1; /* the parchment of the fog */
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+.map-viewport.dragging { cursor: grabbing; }
+.map-viewport:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+.map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+
+/* A little compass in the corner, on a cream chip. */
+.map-compass {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 6px 7px 7px;
+  background: rgba(251, 247, 233, 0.9);
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 0 3px 0 0 var(--drop);
+  pointer-events: none;
+}
+.map-compass-art { display: block; image-rendering: pixelated; }
+
+.map-tip {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: calc(100% - 8px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--cream);
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 0 4px 0 0 var(--drop);
+}
+.map-tip[hidden] { display: none; }
+
+/* "Travel to …?" beside the lantern it's about. */
+.map-ask {
+  position: absolute;
+  z-index: 3;
+  width: max-content;
+  min-width: 190px;
+  max-width: 260px;
+  padding: 10px 12px 12px;
+  white-space: normal;
+  cursor: default;
+}
+.map-ask[hidden] { display: none; }
+/* A stepped pixel tail on the 2 px grid that opens the frame where it joins, like Milo's bubble. */
+.map-ask::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--tail-x, 50%) - 6px);
+  top: calc(100% - 2px);
+  width: 2px;
+  height: 2px;
+  box-shadow:
+    0 2px 0 var(--ink), 2px 2px 0 var(--cream), 4px 2px 0 var(--cream), 6px 2px 0 var(--cream), 8px 2px 0 var(--cream), 10px 2px 0 var(--cream), 12px 2px 0 var(--ink),
+    2px 4px 0 var(--ink), 4px 4px 0 var(--cream), 6px 4px 0 var(--cream), 8px 4px 0 var(--cream), 10px 4px 0 var(--ink),
+    4px 6px 0 var(--ink), 6px 6px 0 var(--cream), 8px 6px 0 var(--ink),
+    6px 8px 0 var(--ink);
+}
+.map-ask[data-side="below"]::after {
+  top: 0;
+  box-shadow:
+    0 -2px 0 var(--ink), 2px -2px 0 var(--cream), 4px -2px 0 var(--cream), 6px -2px 0 var(--cream), 8px -2px 0 var(--cream), 10px -2px 0 var(--cream), 12px -2px 0 var(--ink),
+    2px -4px 0 var(--ink), 4px -4px 0 var(--cream), 6px -4px 0 var(--cream), 8px -4px 0 var(--cream), 10px -4px 0 var(--ink),
+    4px -6px 0 var(--ink), 6px -6px 0 var(--cream), 8px -6px 0 var(--ink),
+    6px -8px 0 var(--ink);
+}
+.map-ask-q { font-size: 13.5px; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.map-ask-note { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.map-ask-note[hidden] { display: none; }
+.map-ask-actions { display: flex; gap: 12px; margin-top: 10px; margin-left: 2px; }
+
+/* Side column: travel list and key. */
+.map-side { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.map-travel { min-height: 0; display: flex; flex-direction: column; }
+.map-key { flex: none; }
+.map-travel h3, .map-key h3 {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.map-dests { min-height: 0; overflow-y: auto; display: grid; gap: 4px; align-content: start; padding: 2px 4px 2px 2px; }
+.map-dest {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  text-align: left;
+  background: var(--cream-2);
+}
+.map-dest:hover { background: var(--cream-3); }
+/* The list scrolls, so its focus ring sits inside the row rather than being clipped. */
+.map-dest:focus-visible { outline-offset: -5px; }
+.map-dest-art { display: grid; place-items: center; }
+.map-dest-art canvas { display: block; image-rendering: pixelated; }
+.map-dest-words { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.map-dest-name { font-size: 12.5px; font-weight: 650; overflow-wrap: anywhere; }
+.map-dest-note { font-size: 11px; color: var(--muted); }
+.map-empty { font-size: 12px; line-height: 1.4; color: var(--muted); margin-top: 8px; }
+.map-empty[hidden] { display: none; }
+
+.map-legend { display: grid; gap: 6px; }
+.map-legend li { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 8px; font-size: 12px; color: var(--ink-soft); }
+.map-legend-art { display: grid; place-items: center; min-height: 18px; }
+.map-legend-art canvas { display: block; image-rendering: pixelated; }
+.map-legend-fog {
+  width: 18px;
+  height: 14px;
+  background:
+    linear-gradient(90deg, #f1ecdf 2px, transparent 2px) 0 0 / 4px 4px,
+    linear-gradient(#e0d9c4 2px, transparent 2px) 2px 2px / 4px 4px,
+    #e9e3d1;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+/* Short windows: the key gives up its room first. */
+@media (max-height: 560px) {
+  .map-key { display: none; }
+}
+@media (max-width: 760px) {
+  .map-body { grid-template-columns: minmax(0, 1fr) 170px; gap: 12px; }
+  .map-hint { display: none; }
+}

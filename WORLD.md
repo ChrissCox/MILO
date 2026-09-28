@@ -117,31 +117,51 @@ A defence is a real rule or capability. Its job in the story is to stop rifts be
 
 ## 8. How it's built
 
+Phase 3 put all of this into the app. The build spec is `CONTRACT-PHASE3.md`.
+
+**The world**
+
 | File | What it does |
 |---|---|
 | `src/world/rng.js` | Seeded randomness (mulberry32), string and integer hashes, and Perlin, fbm and ridged noise. |
-| `src/world/worldgen.js` | Terrain, regions, roads and gates, lanterns, statues and points of interest, wild rift spawns, the Greyreach patchwork, real-rift placement, tiers, depth and names. Pure; runs in Node and the renderer. |
-| `src/world/riftgen.js` | Rifts from real causes and from seeds, the ladder, and each rift's Elsewhere layout. |
-| `src/world/straygen.js` | Strays from six body archetypes and 48 genre parts, on a 20×20 grid of palette keys. |
-| `src/world/wildsart.js` | Map art for the wilds in world palette keys, and colouring with genre bleeds. |
-| `content/fortress.json`, `content/riftgen.json`, `content/genres.json` | The tiers, the rift word banks and affixes, and the genres. |
-| `scripts/worldgen-preview.mjs` | Renders `test-results/world-atlas.png`, `world-frontier.png` and `rift-sampler.png`. |
-| `tests/worldgen.test.js`, `tests/riftgen.test.js` | 28 checks, including an untouched vale, rift-free wards, connected roads, walkable Elsewheres and calm copy. |
+| `src/world/worldgen.js` | Terrain, story regions, and roads that cross water only on straight decks and meet the vale only at its gates. Also lanterns, statues and points of interest, wild rift spawns, the Greyreach patchwork, real-rift placement, tiers, depth and names. |
+| `src/world/wilds.js` | Chunks at the vale's own 1:1 pixel scale: ground painted in palette keys so the vale's edge is seamless, and objects (trees, crags, lanterns, ruins…). Also the ring of thicket or palisade with its gates, and the Hush. |
+| `src/world/nav.js` | Walking across the vale and the wilds as one world: Milo leaves the vale only through a gate. |
+| `src/world/riftgen.js`, `straygen.js` | Rifts from real causes and from seeds, the ladder, each rift's Elsewhere layout, and its strays. |
+| `src/world/riftfx.js`, `elsewhere.js` | Tears, bleeds (fusions as lobes), strays that wander, the seal and let-go animations, Milo's genre coat, and the Elsewhere scenes. |
+| `src/world/engine.js`, `scene-*.js` | Streaming chunks in idle time, a camera that follows Milo everywhere, entities you can click, lanterns, chopping, travel, echoes, and the Stockade rising. |
 
-**Chunks.** The world is 32×32-tile chunks, generated on demand and cached (512 at most), at a few milliseconds each. The roads are computed once per world, on a coarse grid, in about 150 ms.
+**The shell**
 
-**In the engine (Phase 3).** The vale remains its own handmade map. Walking out through a gate hands over to the streamed wilds: the 3×3 chunks around Milo are generated during idle time and drawn at the vale's scale, reusing its tree, pine and rock sprites as objects. `wildsart.js` paints the map view, the minimap and the War Table.
+| File | What it does |
+|---|---|
+| `src/rifts.js`, `hearth.js`, `story.js`, `model.js` | Real rifts from real signals, the Hearth's tiers, the Prologue, and the saved state. |
+| `src/ui/` | The rift loop, the panels (rift, War Table, Hearth, lantern, places, story) and the map view with fog of war. |
+| `content/` | `genres.json`, `riftgen.json`, `fortress.json`, `wilds.json` (notes from the Old Company, statues, examine lines) and `story.json` (the Prologue and Oriel's letter). Main reads them and serves them over IPC. |
+
+**Previews and tests.** `scripts/capture-chunks.mjs`, `capture-wilds.mjs`, `capture-elsewhere.mjs`, `capture-sprites.mjs`, `capture-mapview.mjs` and `worldgen-preview.mjs` render everything to `test-results/`. Together, the unit tests and the Electron checks cover:
+- an untouched vale;
+- rift-free wards;
+- gates as the only way in;
+- connected roads and walkable Elsewheres;
+- one bell and one payout per episode;
+- calm copy;
+- the frame budget.
+
+**Chunks.** The world is 32×32-tile chunks. Terrain and objects take a few milliseconds per chunk, and the ground is painted in 64-row slices during idle time. The roads are laid out once per world (about 200 ms, off the first frame). The engine and the shell share one worldgen.
 
 **What's saved:**
-- the seed and the day count;
 - explored chunks (the fog);
-- lit lanterns;
-- outposts and claims;
-- stitched rift ids, so a stitched wild rift doesn't reopen that day and a stitched real rift stays stitched.
+- lit lanterns and the one Milo rests at;
+- opened chests, searched ruins, read notes and heard statues;
+- today's stumps and today's closed wild rifts;
+- open, warded, let-go and belled real rifts;
+- the rift history;
+- the Hearth's tier and the satchel.
 
-Everything else is regenerated.
+The seed is 'hushlands' for now. Everything else is regenerated from it.
 
-**Performance budget:**
-- chunk generation of 15 ms or less, off the animation frame;
-- no more than 9 live chunks;
-- nothing generated while the window is hidden or during focus.
+**Performance:**
+- chunk work happens only in idle time, never while the window is hidden;
+- at most 25 chunk canvases are kept;
+- a frame in the wilds at 1280×820 with three rifts in view takes under 12 ms.

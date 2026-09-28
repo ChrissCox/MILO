@@ -39,8 +39,22 @@ const IS_TEST = process.env.MILO_TEST === '1';
 // don't depend on what else is on screen. Real launches still pause when covered or minimized.
 if (IS_TEST) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 const MAX_STATE_BYTES = 2 * 1024 * 1024;
+const MAX_CONTENT_BYTES = 1024 * 1024;
+const CONTENT_FILES = ['genres', 'riftgen', 'fortress', 'wilds', 'story'];
 const SCAN_INTERVAL_MS = 10_000;
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close']);
+
+// The test clock: in test mode only, MILO_NOW (an ISO time or ms) moves every clock MILO keeps
+// (the watcher, the saved state and the renderer, through milo:clock) to that moment, and it
+// keeps running from there. A real launch always uses the real time.
+function clockOffset() {
+  if (!IS_TEST || !process.env.MILO_NOW) return 0;
+  const raw = String(process.env.MILO_NOW).trim();
+  const at = /^\d+$/.test(raw) ? Number(raw) : Date.parse(raw);
+  return Number.isFinite(at) && at > 0 ? at - Date.now() : 0;
+}
+const CLOCK_OFFSET = clockOffset();
+const now = () => Date.now() + CLOCK_OFFSET;
 
 app.setName('MILO');
 if (process.platform === 'win32') app.setAppUserModelId('local.milo.companion');
@@ -62,6 +76,8 @@ let quitting = false;
 let allowQuit = false;
 let finishCloseRequest = null;
 let initialLoad = Promise.resolve(null);
+let content = null;
+let contentReady = Promise.resolve(null);
 
 let watcher = null;
 let watcherError = null;
@@ -129,33 +145,39 @@ function trustedSender(event) {
     && isMainURL(event.senderFrame.url);
 }
 
-// A small stand-in so the window still opens if src/model.js is unavailable.
+// A small stand-in so the window still opens if src/model.js is unavailable. It has the same
+// shape as model.createState, Phase 3's keys included, so a save through it loses nothing.
+const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
 const fallbackModel = {
-  createState(now = Date.now()) {
-    void now;
+  createState(at = Date.now()) {
+    void at;
     return {
       version: 1,
       user: { name: 'Chris' },
       milo: { name: 'Milo', tile: null },
       lastSeenAt: null,
       lastGreetedDay: null,
-      settings: { motion: true, notifications: true, greeting: true, designer: 'auto' },
+      settings: { motion: true, notifications: true, greeting: true, designer: 'auto', eveningBell: '22:00', gateBell: true, wardPost: null },
       skills: {},
       panel: null,
       plots: {},
+      firstSeenAt: null,
+      tally: { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0 },
+      hearth: { tier: 1, raisedAt: {} },
+      satchel: { materials: { birch: 0, ash: 0, pine: 0 }, essences: {}, essenceGenres: {}, relics: [] },
+      wilds: { seed: 'hushlands', at: null, wake: null, explored: [], lanterns: {}, opened: {}, notes: {}, glimmers: {}, felled: {} },
+      rifts: { open: {}, warded: {}, letGo: {}, belled: {}, closedWild: {}, visited: {}, stitched: { real: 0, wild: 0, story: 0 }, deepest: 0, history: [] },
+      story: { prologue: { done: {} }, letterReadAt: null, trackerHidden: false },
     };
   },
-  normalizeState(input) {
-    const base = fallbackModel.createState();
-    const value = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
-    return {
-      ...base,
-      ...value,
-      user: { ...base.user, ...(value.user || {}) },
-      milo: { ...base.milo, ...(value.milo || {}) },
-      settings: { ...base.settings, ...(value.settings || {}) },
-      skills: value.skills && typeof value.skills === 'object' ? value.skills : {},
-    };
+  normalizeState(input, at = Date.now()) {
+    const base = fallbackModel.createState(at);
+    const value = record(input);
+    const merged = { ...base, ...value };
+    for (const key of ['user', 'milo', 'settings', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story']) merged[key] = { ...base[key], ...record(value[key]) };
+    merged.skills = record(value.skills);
+    merged.plots = record(value.plots);
+    return merged;
   },
 };
 
@@ -191,7 +213,7 @@ async function loadFromDisk() {
       // Valid JSON that isn't a saved state (null, [], 42, {}) is damage, not a fresh start:
       // try the backup instead of normalizing to defaults and then overwriting the backup.
       if (!looksLikeSavedState(parsed)) throw new Error('The saved state has an invalid format.');
-      const normalized = model.normalizeState(parsed);
+      const normalized = model.normalizeState(parsed, now());
       lastGoodJSON = stateJSON(normalized);
       savedState = normalized;
       loadError = null;
@@ -209,7 +231,7 @@ async function loadFromDisk() {
     return null;
   }
   // First launch: start fresh in memory. Nothing is written until the renderer saves.
-  savedState = model.normalizeState(model.createState(Date.now()));
+  savedState = model.normalizeState(model.createState(now()), now());
   return savedState;
 }
 
@@ -247,7 +269,7 @@ function persistState(value) {
   if (loadError) return Promise.resolve({ ok: false, error: loadError.message });
   let json;
   try {
-    json = stateJSON(model.normalizeState(value));
+    json = stateJSON(model.normalizeState(value, now()));
   } catch (error) {
     return Promise.resolve({ ok: false, error: error.message });
   }
@@ -270,24 +292,49 @@ function persistState(value) {
 }
 
 // ---------------------------------------------------------------------------
+// Content: the game's words and tables (content/*.json), read once at startup and served to the
+// renderer over IPC, because the page's CSP blocks fetch. Each file is the parsed JSON, or null
+// when it can't be read (too big, missing or not JSON); the renderer copes with a null.
+
+async function readContentFile(name) {
+  const file = path.join(ROOT, 'content', `${name}.json`);
+  try {
+    const stat = await fs.stat(file);
+    if (!stat.isFile() || stat.size > MAX_CONTENT_BYTES) throw new Error('it is missing or too large');
+    const parsed = JSON.parse(await fs.readFile(file, 'utf8'));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (error) {
+    report(`Content ${name}.json unavailable: ${error.message}`);
+    return null;
+  }
+}
+
+async function loadContent() {
+  const entries = await Promise.all(CONTENT_FILES.map(async name => [name, await readContentFile(name)]));
+  content = Object.fromEntries(entries);
+  return content;
+}
+
+// ---------------------------------------------------------------------------
 // Watchkeeping: scan at launch, then every ten seconds, push on change.
 
 function emptySnapshot(error) {
   const source = home => ({ ok: false, path: home, count: 0, live: false, error });
   return {
-    scannedAt: Date.now(),
+    scannedAt: now(),
     sessions: [],
     tools: [],
     sources: {
       claude: source(process.env.MILO_CLAUDE_HOME || ''),
       codex: source(process.env.MILO_CODEX_HOME || ''),
     },
+    capacity: { codex: null },
   };
 }
 
 function snapshotKey(snapshot) {
   try {
-    return JSON.stringify([snapshot.sessions, snapshot.tools, snapshot.sources]);
+    return JSON.stringify([snapshot.sessions, snapshot.tools, snapshot.sources, snapshot.capacity ?? null]);
   } catch {
     return String(Date.now());
   }
@@ -302,7 +349,8 @@ function pushSnapshot(snapshot) {
 async function loadWatcher() {
   try {
     const watch = await import(pathToFileURL(path.join(ROOT, 'src', 'watch', 'index.js')).href);
-    watcher = watch.createWatcher();
+    // The watcher runs on the same clock as everything else (the test clock under MILO_NOW).
+    watcher = watch.createWatcher({ now });
     watcherError = null;
   } catch (error) {
     watcher = null;
@@ -358,17 +406,21 @@ function cleanText(value, limit) {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, limit);
 }
 
+// A desktop note, never while MILO is in front. The Gate Bell's note ('gate-bell') follows the
+// Gate Bell switch alone; every other note follows the Alerts setting.
 function notify(payload) {
   if (!payload || typeof payload !== 'object') return false;
-  if (savedState?.settings?.notifications === false) return false;
+  const kind = payload.kind === 'gate-bell' ? 'gate-bell' : 'alert';
+  const settings = savedState?.settings;
+  if (kind === 'gate-bell' ? settings?.gateBell === false : settings?.notifications === false) return false;
   const title = cleanText(payload.title, 80);
   const body = cleanText(payload.body, 200);
   const focused = isLive(mainWindow) && mainWindow.isFocused();
-  if (IS_TEST) globalThis.__miloNotifyDecisions.push({ title, focused, at: Date.now() });
+  if (IS_TEST) globalThis.__miloNotifyDecisions.push({ title, kind, focused, at: Date.now() });
   if (!isLive(mainWindow) || focused) return false;
   if (!title) return false;
   if (IS_TEST) {
-    globalThis.__miloNotifications.push({ title, body, at: Date.now() });
+    globalThis.__miloNotifications.push({ title, body, kind, at: Date.now() });
     return true;
   }
   if (!Notification.isSupported()) return false;
@@ -635,6 +687,16 @@ function installIPC() {
     if (!trustedSender(event)) return { ok: false, error: "This window can't save MILO's state." };
     return persistState(value);
   });
+  // The content bundle { genres, riftgen, fortress, wilds, story }, each parsed JSON or null.
+  ipcMain.handle('milo:content', async event => {
+    if (!trustedSender(event)) return null;
+    return contentReady;
+  });
+  // The clock offset: MILO_NOW's, in test mode only; 0 otherwise.
+  ipcMain.handle('milo:clock', event => {
+    if (!trustedSender(event)) return { offset: 0 };
+    return { offset: CLOCK_OFFSET };
+  });
   ipcMain.handle('milo:scan', async event => {
     if (!trustedSender(event)) return null;
     return runScan();
@@ -788,6 +850,7 @@ if (!ownsInstance) {
       model = fallbackModel;
     }
     initialLoad = loadFromDisk();
+    contentReady = loadContent().catch(error => { report(error); return null; });
     await initialLoad;
     // The renderer never needs the network. Transcript text stays on this PC.
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));

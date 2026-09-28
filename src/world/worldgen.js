@@ -3,7 +3,7 @@
 // story's regions are anchored around it in the order of the Long Road, with roads between
 // them; everything else (coasts, forests, rivers, ruins, caves, lanterns, far lands, wild
 // rifts) comes from the seed, chunk by chunk, forever. Pure and deterministic; runs in Node.
-import { MAP } from './map.js';
+import { MAP, coastAt, beachAt } from './map.js';
 import { createRng, hashInts, hashString, fbm, ridged, smoothstep } from './rng.js';
 
 export const CHUNK = 32;
@@ -85,8 +85,45 @@ const DEFAULT_REGION_WORDS = {
 };
 
 const LAND = new Set([T.GRASS, T.MEADOW, T.FOREST, T.PINE, T.BIRCH, T.DOWNS, T.PAINTED, T.MOOR]);
+const WATERS = new Set([T.DEEP, T.SEA, T.RIVER]);
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const key = (x, y) => `${x},${y}`;
+// Lakes, ponds and stretches of river smaller than this many tiles are noise, not water: a blob of
+// a pond one or two tiles across reads as a mistake, so they're land (see naturalTerrain).
+export const MIN_WATER = 10;
+// Rivers are the lines where ridged noise tops RIVER_RIDGE. The threshold rises toward 1, so a
+// river narrows to a point and ends, over RIVER_TAPER: as the land's height climbs through climb
+// (gone at 0.72, where rivers always stopped, but no longer cut off square there); as the distance
+// from the vale's edge falls through vale, in tiles (narrowing from ten out, gone three out, so no
+// river runs into the walls or leaves a stub by a gate); and within region tiles (warped) of the
+// regions whose hard ground takes no river (Cinderforge's basalt, the Peaks' snow and rock). A
+// river that reaches the Glass Fen runs on into its pools, as water should.
+const RIVER_RIDGE = 0.986;
+const RIVER_TAPER = Object.freeze({
+  climb: [0.68, 0.72],
+  vale: [3, 10],
+  region: 6,
+  regions: new Set(['cinderforge', 'archive-peaks']),
+});
+// A road's last tiles to a gate (from the ring tile out) are one lane wide, on the gate's own line.
+export const GATE_LANE = 3;
+// Fixed places (lanterns, landmarks, statues) keep this many tiles clear of any bridge's deck.
+export const DECK_CLEAR = 2;
+// A ring tile by the vale's bay is the bay's water when the vale's waterline lies within this much
+// of its top (see rawTerrain's ring); otherwise it's the wall.
+const RING_BAY_WET = 0.25;
+/** Whether ring tile (x, y) is open water where the vale's own bay carries on through the ring. */
+export const isBayRing = (x, y) => x >= 16 && y >= 28 && coastAt(x + 0.5) <= y + RING_BAY_WET;
+// The vale's own coast (map.js coastAt, beachAt) carries on east of it for this many tiles before
+// the wilds' own shore takes over, so the beach runs straight on out of the vale.
+const COAST_RUN = 18;
+// Every walkable tile within this many tiles of the vale can be walked to from its gates, and one
+// shut in by the land's own shapes smaller than POCKET_FILL tiles is filled in (openFrontier).
+const FRONTIER = 60;
+const POCKET_FILL = 8;
+// Tile keys as numbers for the terrain caches (exact for |x|, |y| < 2^21).
+const TILE_KEY_LIMIT = 2 ** 21;
+const tileKey = (x, y) => (x + TILE_KEY_LIMIT) * 2 ** 22 + (y + TILE_KEY_LIMIT);
 
 export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGION_WORDS } = {}) {
   const S = typeof seed === 'number' ? seed >>> 0 : hashString(String(seed));
@@ -115,7 +152,8 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
 
   // ---------- terrain ----------
 
-  function elevationAt(x, y) {
+  // The land's height before the vale's coast is carried out into the wilds (elevationAt).
+  function baseElevation(x, y) {
     const wx = x + (fbm(x / 110, y / 110, S + 11, { octaves: 3 }) - 0.5) * 90;
     const wy = y + (fbm(x / 110, y / 110, S + 12, { octaves: 3 }) - 0.5) * 90;
     const continent = Math.hypot((wx + 40) / 205, (wy - 25) / 250);
@@ -142,6 +180,42 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
     return e;
   }
 
+  // Where the wilds' own shore meets the sea in a column just east of the vale (in tiles, like
+  // map.js coastAt: a tile is sea once its feet are past it), found once per column.
+  const wildCoast = new Map();
+  function wildCoastAt(x) {
+    let c = wildCoast.get(x);
+    if (c === undefined) {
+      c = 50;
+      for (let y = 24; y < 50; y += 1) if (baseElevation(x, y) < SEA_LEVEL) { c = y + 13 / 16 - 0.5; break; }
+      wildCoast.set(x, c);
+    }
+    return c;
+  }
+
+  /**
+   * The land's height. East of the vale the bay's shore carries the vale's own coast and beach
+   * straight on (map.js coastAt and beachAt, measured at a tile's feet as the vale measures its own
+   * tiles) and bends over COAST_RUN tiles to where the wilds' own shore lies, the beach narrowing as
+   * it goes, so the two coastlines meet with no step; the ground above that beach is dry land.
+   */
+  function elevationAt(x, y) {
+    let e = baseElevation(x, y);
+    if (x >= HEART.w - 1 && x < HEART.w + COAST_RUN && y > 20 && y < 54) {
+      const s = smoothstep(HEART.w, HEART.w + COAST_RUN, x);
+      const coast = coastAt(x + 0.5) * (1 - s) + wildCoastAt(x) * s;
+      const d = coast - (y + 13 / 16);
+      if (Math.abs(d) < 5) {
+        const beach = beachAt(x + 0.5) * (1 - s);
+        if (d < 0) e = Math.min(e, SEA_LEVEL - 0.02 + 0.03 * d);
+        else if (d < beach) e = SEA_LEVEL + 0.01;
+        // dry land by the vale; the wilds' own (marsh and all) further out
+        else e = Math.max(e, SEA_LEVEL + 0.021 + 0.11 * (1 - s));
+      }
+    }
+    return e;
+  }
+
   // A region's reach, with ragged, domain-warped edges so no region is a circle.
   function regionDistance(a, x, y) {
     const raw = Math.hypot(x - a.x, y - a.y) / a.radius;
@@ -153,7 +227,10 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
     return Math.hypot(wx - a.x, wy - a.y) / a.radius;
   }
 
-  function naturalTerrain(x, y) {
+  // The land and water before small water is filled in (see naturalTerrain). With route, rivers run
+  // their whole courses, full width until the land climbs past them, as the roads are routed (see
+  // roads()): a river's narrowing end only changes where its water stops.
+  function rawTerrain(x, y, route = false) {
     const e = elevationAt(x, y);
     // Colder to the north (negative y), warmer to the south.
     const t = 0.55 + y / 700 + (fbm(x / 160, y / 160, S + 21, { octaves: 3 }) - 0.5) * 0.35;
@@ -173,11 +250,17 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
     // Hearthvale's forest ring carries on a little way past its edge.
     const hd = heartDistance(x, y);
     if (hd < 10 && (terrain === T.GRASS || terrain === T.MEADOW) && fbm(x / 9, y / 9, S + 51, { octaves: 2 }) > 0.35 + hd * 0.03) terrain = T.FOREST;
+    // How far a river here has narrowed toward its end (0: full width, 1: gone), RIVER_TAPER: as the
+    // land climbs toward the hills, as it nears the vale's walls, and as it nears a region whose
+    // ground takes no river. So every river ends in a spring, never cut off square.
+    let taper = route ? (e < RIVER_TAPER.climb[1] ? 0 : 1)
+      : Math.max(smoothstep(RIVER_TAPER.climb[0], RIVER_TAPER.climb[1], e), 1 - smoothstep(RIVER_TAPER.vale[0], RIVER_TAPER.vale[1], hd));
     // The story's regions.
     for (const a of anchors) {
       if (a.biome === null) continue;
       if (Math.hypot(x - a.x, y - a.y) >= a.radius * 1.7) continue;
       const d = regionDistance(a, x, y);
+      if (!route && RIVER_TAPER.regions.has(a.id)) taper = Math.max(taper, 1 - smoothstep(1, 1 + RIVER_TAPER.region / a.radius, d));
       if (d >= 1) continue;
       if (a.id === 'skyward-isles') {
         // Isles float above the eastern sea; the largest, at the centre, is the Isles' harbour.
@@ -197,9 +280,86 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
       else if (a.id === 'glass-fen') terrain = fbm(x / 10, y / 10, S + 91, { octaves: 2 }) > 0.63 ? T.RIVER : T.MARSH;
       else terrain = a.biome;
     }
-    // Rivers wind through the lowlands.
-    if (LAND.has(terrain) && e < 0.72 && ridged(x / 150, y / 150, S + 41, { octaves: 3 }) > 0.986) terrain = T.RIVER;
+    // Rivers wind through the lowlands, narrowing to a point where they end.
+    const dry = terrain;
+    if (LAND.has(terrain) && taper < 1 && ridged(x / 150, y / 150, S + 41, { octaves: 3 }) > RIVER_RIDGE + (1 - RIVER_RIDGE) * taper) terrain = T.RIVER;
+    // The ring round the vale (the tiles just outside it) is its wall: land all round, so the
+    // thicket or palisade runs unbroken, except where the vale's own bay carries on out through it:
+    // there a ring tile is water just when the vale's waterline (map.js coastAt) crosses its top
+    // quarter (RING_BAY_WET: three quarters and more of it past the line), and wall on the beach
+    // otherwise, so the wall runs on to where the bay is plainly open water (the wilds paint each
+    // wall tile by the bay all dry or all water).
+    if (x >= -1 && y >= -1 && x <= HEART.w && y <= HEART.h && !inHeart(x, y)) {
+      const bay = isBayRing(x, y);
+      if (bay && !WATERS.has(terrain)) terrain = T.SEA;
+      else if (!bay && WATERS.has(terrain)) terrain = terrain === T.RIVER ? dry : T.SAND;
+    }
     return terrain;
+  }
+
+  // Raw terrain by tile, and whether each water tile belongs to a body of at least MIN_WATER tiles
+  // (or else the land it's filled with). Pure functions of the seed, so the caches only save time.
+  const rawCache = new Map();
+  const fillCache = new Map();
+  const BIG_WATER = -1;
+  function cachedRaw(x, y) {
+    const k = tileKey(x, y);
+    let t = rawCache.get(k);
+    if (t === undefined) {
+      if (rawCache.size > 400000) { rawCache.clear(); fillCache.clear(); }
+      t = rawTerrain(x, y);
+      rawCache.set(k, t);
+    }
+    return t;
+  }
+  /**
+   * The land at a tile before roads: elevation, climate and the story's regions, with rivers. Water
+   * that doesn't make a body of MIN_WATER tiles (outside the vale, four-way) is filled in with the
+   * land most of its neighbours are, so there are no stray one-tile ponds or broken-off specks.
+   */
+  function naturalTerrain(x, y) {
+    const far = Math.abs(x) >= TILE_KEY_LIMIT - 64 || Math.abs(y) >= TILE_KEY_LIMIT - 64;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || far) return rawTerrain(x, y);
+    const t = cachedRaw(x, y);
+    // Deep water is the open sea's (the land never falls from above sea level to deep water within
+    // a tile), never a pond: no need to look round it.
+    if (!WATERS.has(t) || t === T.DEEP) return t;
+    const k = tileKey(x, y);
+    let v = fillCache.get(k);
+    if (v === undefined) {
+      const body = [[x, y]];
+      const seen = new Set([k]);
+      for (let i = 0; i < body.length && body.length < MIN_WATER; i += 1) {
+        const [bx, by] = body[i];
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = bx + dx;
+          const ny = by + dy;
+          const nk = tileKey(nx, ny);
+          if (seen.has(nk) || inHeart(nx, ny) || !WATERS.has(cachedRaw(nx, ny))) continue;
+          seen.add(nk);
+          body.push([nx, ny]);
+        }
+      }
+      if (body.length >= MIN_WATER) {
+        for (const [bx, by] of body) fillCache.set(tileKey(bx, by), BIG_WATER);
+      } else {
+        for (const [bx, by] of body) {
+          const votes = new Map();
+          for (let dy = -1; dy <= 1; dy += 1) {
+            for (let dx = -1; dx <= 1; dx += 1) {
+              const o = cachedRaw(bx + dx, by + dy);
+              if (!WATERS.has(o) && o !== T.SKY) votes.set(o, (votes.get(o) || 0) + 1);
+            }
+          }
+          let best = BIG_WATER; // among the sky isles' sea there's no land to fill it with: it stays sea
+          let most = 0;
+          for (const [o, n] of votes) if (n > most || (n === most && o < best)) { best = o; most = n; }
+          fillCache.set(tileKey(bx, by), best);
+        }
+      }
+      v = fillCache.get(k);
+    }
+    return v === BIG_WATER ? t : v;
   }
 
   // ---------- roads (computed once, lazily) ----------
@@ -221,7 +381,16 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
       for (let gx = 0; gx < GW; gx += 1) {
         const tx = minX + gx * CELL + 2;
         const ty = minY + gy * CELL + 2;
-        cellCost[gy * GW + gx] = inHeart(tx, ty) ? Infinity : TERRAIN_INFO[naturalTerrain(tx, ty)].cost;
+        // A road through a cell runs on its centre and the tiles east and south of it, so a cell
+        // whose road would touch the vale or its ring (the walls) is shut: roads keep clear of the
+        // walls and never cut the vale's corners, and meet it only at the gates, whose own
+        // stretches start from outside (the gates' first cells are where the search begins).
+        // (The land before small ponds are filled is near enough for a route, and far cheaper.)
+        // Routes take the rivers' whole courses, as if none had narrowed to its end, so no road
+        // squeezes through between a river's spring and the vale's walls, and the network keeps
+        // its lines; where a river has ended the road is just road.
+        const hugs = tx >= -2 && tx <= HEART.w && ty >= -2 && ty <= HEART.h;
+        cellCost[gy * GW + gx] = hugs ? Infinity : TERRAIN_INFO[rawTerrain(tx, ty, true)].cost;
       }
     }
     const used = new Uint8Array(GW * GH);
@@ -242,18 +411,47 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
       const b = endpoint(to);
       const cells = astar(toCell(a), toCell(b), GW, GH, cellCost, used);
       for (const c of cells) used[c.gy * GW + c.gx] = 1;
-      const points = [a, ...cells.map((c) => ({ x: minX + c.gx * CELL + 2, y: minY + c.gy * CELL + 2 })), b];
+      const raw = [a, ...cells.map((c) => ({ x: minX + c.gx * CELL + 2, y: minY + c.gy * CELL + 2 })), b];
       // Roads from the vale start right at its gate.
-      if (GATES[from]) points.unshift(gatePoint(GATES[from], 1));
+      if (GATES[from]) raw.unshift(gatePoint(GATES[from], 1));
+      // The search walks cell centres, so a road's ends can double back (from a gate's own straight
+      // stretch to the first cell's centre, say, and back): drop any point the road would turn
+      // back at, more sharply than a right angle. A gate's straight stretch stays.
+      const keep = GATES[from] ? 2 : 1;
+      const points = raw.slice(0, keep);
+      for (let i = keep; i < raw.length - 1; i += 1) {
+        const p = points[points.length - 1];
+        const q = raw[i];
+        const r = raw[i + 1];
+        if ((q.x - p.x) * (r.x - q.x) + (q.y - p.y) * (r.y - q.y) < 0) continue;
+        points.push(q);
+      }
+      points.push(raw[raw.length - 1]);
       paths.push({ from, to, points });
     }
-    // Rasterise: connect consecutive points tile by tile, two tiles wide.
+    // Rasterise: connect consecutive points tile by tile, two tiles wide, crossing water on
+    // straight decks (layRoad). decks: tile key → 'ns' | 'ew', or 'x' where two decks meet.
     const tiles = new Set();
+    const decks = new Map();
+    const wet = (x, y) => { if (inHeart(x, y)) return false; const t = naturalTerrain(x, y); return t === T.RIVER || t === T.SEA; };
+    const barred = (x, y, onLine) => { if (inHeart(x, y)) return onLine; const t = naturalTerrain(x, y); return t === T.DEEP || t === T.SKY; };
     for (const p of paths) {
-      for (let i = 1; i < p.points.length; i += 1) {
-        line(p.points[i - 1], p.points[i], (x, y) => {
-          for (const [dx, dy] of [[0, 0], [1, 0], [0, 1]]) if (!inHeart(x + dx, y + dy)) tiles.add(key(x + dx, y + dy));
-        });
+      layRoad(p.points, { wet, barred }, (x, y, deck) => {
+        if (inHeart(x, y)) return;
+        const k = key(x, y);
+        tiles.add(k);
+        if (deck) decks.set(k, decks.has(k) && decks.get(k) !== deck ? 'x' : deck);
+      });
+    }
+    // A gate is a gap one tile wide in the wall, so a road's last GATE_LANE tiles to it (the ring
+    // tile and the next ones out, a bridge's deck included) are one lane, on the gate's own column
+    // or row: its second lane would otherwise run on into the thicket or the gatehouse's post.
+    for (const g of Object.values(GATES)) {
+      const [sx, sy] = g.dir.x === 0 ? [1, 0] : [0, 1]; // the second lane beside a line along the gate's way
+      for (let k = 1; k <= GATE_LANE; k += 1) {
+        const lane = key(g.edge.x + g.dir.x * k + sx, g.edge.y + g.dir.y * k + sy);
+        tiles.delete(lane);
+        decks.delete(lane);
       }
     }
     // Lanterns (places of rest and fast travel) every ~40 tiles of road, and at each region.
@@ -269,21 +467,177 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
         }
       }
     }
-    roadCache = { paths, tiles, westwatch, lanterns };
+    // Road tiles by chunk, for the notes tucked beside them.
+    const byChunk = new Map();
+    for (const k of tiles) {
+      const [x, y] = k.split(',').map(Number);
+      const ck = key(Math.floor(x / CHUNK), Math.floor(y / CHUNK));
+      if (!byChunk.has(ck)) byChunk.set(ck, []);
+      byChunk.get(ck).push({ x, y });
+    }
+    roadCache = { paths, tiles, decks, westwatch, lanterns, byChunk, fixes: new Map() };
+    openFrontier(roadCache);
     return roadCache;
+  }
+
+  // The terrain at a tile with the roads laid on it (r: the roads).
+  function withRoads(x, y, r) {
+    const natural = naturalTerrain(x, y);
+    const k = key(x, y);
+    if (r.tiles.has(k)) {
+      // Rivers and the odd inlet get a bridge or a boardwalk (its deck runs on to the bank, square);
+      // open sea and sky never do.
+      if (natural === T.DEEP || natural === T.SKY) return natural;
+      if (natural === T.RIVER || natural === T.SEA || r.decks.has(k)) return T.BRIDGE;
+      return T.ROAD;
+    }
+    return natural;
+  }
+
+  /**
+   * The frontier within FRONTIER tiles of the vale can all be walked to from the gates. Where the
+   * land's own shapes shut a patch of it in (a loop of river round it, an island, a strip of beach
+   * between a river and the sea, the vale's own walls on one side), a patch smaller than
+   * POCKET_FILL tiles is filled in with the water or rock round it, and a bigger one gets a little
+   * footbridge (or a gap through the rock) by the shortest way across to the rest. Worked out once,
+   * with the roads, into r.fixes (tile key → terrain) and, for the footbridges, r.decks.
+   */
+  function openFrontier(r) {
+    const M = FRONTIER + 8; // looked at beyond the frontier itself, so a patch that runs on out is open
+    const X0 = -M;
+    const Y0 = -M;
+    const BW = HEART.w + 2 * M;
+    const BH = HEART.h + 2 * M;
+    const N = BW * BH;
+    const at = (x, y) => (y - Y0) * BW + (x - X0);
+    const terrain = new Uint8Array(N);
+    const walk = new Uint8Array(N);
+    const gates = new Set(Object.values(GATES).map((g) => key(g.edge.x + g.dir.x, g.edge.y + g.dir.y)));
+    const wall = (x, y) => x >= -1 && y >= -1 && x <= HEART.w && y <= HEART.h && !inHeart(x, y) && !gates.has(key(x, y));
+    for (let y = Y0; y < Y0 + BH; y += 1) {
+      for (let x = X0; x < X0 + BW; x += 1) {
+        if (inHeart(x, y)) { terrain[at(x, y)] = T.HEART; continue; }
+        const t = withRoads(x, y, r);
+        terrain[at(x, y)] = t;
+        walk[at(x, y)] = TERRAIN_INFO[t].walk && !wall(x, y) ? 1 : 0;
+      }
+    }
+    // The four ways out of a tile, as indices (-1 past the edge of what's looked at).
+    const around = (j) => {
+      const x = j % BW;
+      return [x > 0 ? j - 1 : -1, x < BW - 1 ? j + 1 : -1, j >= BW ? j - BW : -1, j + BW < N ? j + BW : -1];
+    };
+    // Which patch each walkable tile is in (0: none), and which are open: the gates' own, and any
+    // that reaches the edge of what's looked at.
+    const patch = new Int32Array(N);
+    const open = [false];
+    const members = [null];
+    for (let i = 0; i < N; i += 1) {
+      if (!walk[i] || patch[i]) continue;
+      const id = members.length;
+      const list = [i];
+      patch[i] = id;
+      let edge = false;
+      for (let q = 0; q < list.length; q += 1) {
+        const j = list[q];
+        for (const n of around(j)) {
+          if (n < 0) { edge = true; continue; }
+          if (!walk[n] || patch[n]) continue;
+          patch[n] = id;
+          list.push(n);
+        }
+      }
+      members.push(list);
+      open.push(edge);
+    }
+    for (const k of gates) {
+      const [x, y] = k.split(',').map(Number);
+      if (patch[at(x, y)]) open[patch[at(x, y)]] = true;
+    }
+    // Patches merge as they're joined (a patch joined to an open one is open).
+    const root = members.map((_, id) => id);
+    const find = (id) => { while (root[id] !== id) id = root[id] = root[root[id]]; return id; };
+    const within = (j) => heartDistance((j % BW) + X0, Math.floor(j / BW) + Y0) <= FRONTIER;
+    const fix = (j, t, deck = null) => {
+      const k = key((j % BW) + X0, Math.floor(j / BW) + Y0);
+      terrain[j] = t;
+      r.fixes.set(k, t);
+      if (deck) r.decks.set(k, deck);
+    };
+    for (let id = 1; id < members.length; id += 1) {
+      if (open[find(id)] || !members[id].some(within)) continue;
+      const list = members[id];
+      if (list.length < POCKET_FILL) {
+        // too small to bother with: whatever most of the ground round it is
+        for (const j of list) {
+          const votes = new Map();
+          const x = j % BW;
+          for (const n of [j - 1, j + 1, j - BW, j + BW, j - BW - 1, j - BW + 1, j + BW - 1, j + BW + 1]) {
+            if (n < 0 || n >= N || Math.abs((n % BW) - x) > 1 || walk[n]) continue;
+            const t = terrain[n];
+            if (t === T.HEART || t === T.BRIDGE) continue;
+            votes.set(t, (votes.get(t) || 0) + 1);
+          }
+          let best = T.RIVER;
+          let most = 0;
+          for (const [t, n] of votes) if (n > most || (n === most && t < best)) { best = t; most = n; }
+          fix(j, best);
+          walk[j] = 0;
+        }
+        continue;
+      }
+      // the shortest way across to open ground: a breadth-first search over what can't be walked
+      const from = new Int32Array(N).fill(-1);
+      const queue = [];
+      for (const j of list) { from[j] = j; queue.push(j); }
+      let reached = -1;
+      for (let q = 0; q < queue.length && reached < 0; q += 1) {
+        const j = queue[q];
+        for (const n of around(j)) {
+          if (n < 0 || from[n] >= 0) continue;
+          if (walk[n]) {
+            if (patch[n] && open[find(patch[n])]) { from[n] = j; reached = n; break; }
+            continue;
+          }
+          const t = terrain[n];
+          const nx = (n % BW) + X0;
+          const ny = Math.floor(n / BW) + Y0;
+          if (t === T.HEART || wall(nx, ny) || t === T.DEEP || t === T.SKY) continue;
+          from[n] = j;
+          queue.push(n);
+        }
+      }
+      if (reached < 0) continue;
+      // lay it: water gets a footbridge (its deck the way it crosses), rock a way through
+      const way = [];
+      for (let j = from[reached]; from[j] !== j; j = from[j]) way.push(j);
+      for (let k = 0; k < way.length; k += 1) {
+        const j = way[k];
+        const prev = k > 0 ? way[k - 1] : reached;
+        const next = k + 1 < way.length ? way[k + 1] : from[j];
+        const alongX = Math.abs(prev - j) === 1 || Math.abs(next - j) === 1;
+        const alongY = Math.abs(prev - j) === BW || Math.abs(next - j) === BW;
+        const t = terrain[j];
+        if (t === T.RIVER || t === T.SEA) fix(j, T.BRIDGE, alongX && alongY ? 'x' : alongX ? 'ew' : 'ns');
+        else fix(j, T.ROCK);
+        walk[j] = 1;
+      }
+      root[find(id)] = find(patch[reached]);
+    }
   }
 
   /** The final terrain at a tile, roads and all. Hearthvale's own tiles are always HEART. */
   function terrainAt(x, y) {
     if (inHeart(x, y)) return T.HEART;
-    const natural = naturalTerrain(x, y);
-    if (roads().tiles.has(key(x, y))) {
-      // Rivers and the odd inlet get a bridge or a boardwalk; open sea and sky never do.
-      if (natural === T.RIVER || natural === T.SEA) return T.BRIDGE;
-      if (natural !== T.DEEP && natural !== T.SKY) return T.ROAD;
+    const r = roads();
+    if (r.fixes.size && heartDistance(x, y) <= FRONTIER + 8) {
+      const fixed = r.fixes.get(key(x, y));
+      if (fixed !== undefined) return fixed;
     }
-    return natural;
+    return withRoads(x, y, r);
   }
+  /** Which way a bridge's deck runs at a tile: 'ns', 'ew', 'x' (a landing where two meet) or null. */
+  const deckAt = (x, y) => roads().decks.get(key(x, y)) || null;
   const walkable = (x, y) => (inHeart(x, y) ? true : TERRAIN_INFO[terrainAt(x, y)].walk);
   const isWater = (x, y) => { const t = terrainAt(x, y); return t === T.SEA || t === T.DEEP; };
 
@@ -292,15 +646,25 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
   let fixedCache = null;
   function fixedPois() {
     if (fixedCache) return fixedCache;
-    const onLand = (x, y) => !inHeart(x, y) && walkable(x, y);
+    // A place stands on the land, clear of any bridge (none within DECK_CLEAR tiles), so it and the
+    // prop beside it are on the bank, never out on a deck or at its corner.
+    const clearOfDecks = (x, y) => {
+      for (let dy = -DECK_CLEAR; dy <= DECK_CLEAR; dy += 1) {
+        for (let dx = -DECK_CLEAR; dx <= DECK_CLEAR; dx += 1) if (!inHeart(x + dx, y + dy) && terrainAt(x + dx, y + dy) === T.BRIDGE) return false;
+      }
+      return true;
+    };
+    const onLand = (x, y) => !inHeart(x, y) && walkable(x, y) && clearOfDecks(x, y);
     const snap = (x, y, ok = onLand) => spiral(Math.round(x), Math.round(y), ok) || { x: Math.round(x), y: Math.round(y) };
-    const list = roads().lanterns.map((l) => ({ ...l, ...snap(l.x, l.y) }));
+    // A lantern along a road stands at the roadside (on the road or right beside it).
+    const roadside = (x, y) => onLand(x, y) && [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => roads().tiles.has(key(x + dx, y + dy)));
+    const list = roads().lanterns.map((l) => ({ ...l, ...(spiral(Math.round(l.x), Math.round(l.y), roadside, 12) || snap(l.x, l.y)) }));
     const ww = roads().westwatch;
     list.push({ type: 'landmark', ...snap(ww.x, ww.y), name: 'The Westwatch', note: 'On clear nights the Great Lighthouse can be seen turning, far across the sea.' });
     // Captain Sloe's quay is in Mistmere Harbor, on the water's edge (LORE.md).
     const mm = anchorById.mistmere;
-    const shoreline = (x, y) => onLand(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isWater(x + dx, y + dy));
-    list.push({ type: 'quay', ...snap(mm.x, mm.y, shoreline), name: "Captain Sloe's ferry quay", region: 'mistmere' });
+    const shoreline = (x, y) => !inHeart(x, y) && walkable(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => isWater(x + dx, y + dy));
+    list.push({ type: 'quay', ...snap(mm.x, mm.y, shoreline), name: 'Captain Sloe’s ferry quay', region: 'mistmere' });
     for (const a of anchors) {
       if (a.id === 'hearthvale') continue;
       // The Skyward Isles float: their landmark sits on an isle, reached from the Kiteworks.
@@ -312,6 +676,18 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
     }
     fixedCache = list;
     return list;
+  }
+
+  /** Water to fish in (sea, river or the marsh's pools) within r tiles of a tile. */
+  function waterNear(x, y, r) {
+    for (let dy = -r; dy <= r; dy += 1) {
+      for (let dx = -r; dx <= r; dx += 1) {
+        if (inHeart(x + dx, y + dy)) continue;
+        const t = terrainAt(x + dx, y + dy);
+        if (t === T.SEA || t === T.DEEP || t === T.RIVER || t === T.MARSH) return true;
+      }
+    }
+    return false;
   }
 
   function chunkPois(cx, cy) {
@@ -329,10 +705,45 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
         const depth = depthAt(x, y);
         if (roll < 0.035) out.push({ type: 'ruin', x, y, name: 'Maker ruins', depth });
         else if (roll < 0.06 && (terrain === T.ROCK || terrain === T.FOREST || terrain === T.PINE || terrain === T.BASALT || terrain === T.SNOW)) out.push({ type: 'cave', x, y, name: 'A cave mouth', depth });
-        else if (roll < 0.085) out.push({ type: 'chest', x, y, name: rng.chance(0.12) ? 'A suspiciously friendly chest' : 'An old chest', mimic: rng.chance(0.12), depth });
+        else if (roll < 0.085) {
+          // Two draws as before, so the rest of the chunk stays where it was; the name follows the mimic.
+          rng.next();
+          const mimic = rng.chance(0.12);
+          out.push({ type: 'chest', x, y, name: mimic ? 'A suspiciously friendly chest' : 'An old chest', mimic, depth });
+        }
         else if (roll < 0.1 && onRoad) out.push({ type: 'note', x, y, name: 'A note from the Old Company', depth });
         else if (roll < 0.108 && (onRoad || terrain === T.GRASS)) out.push({ type: 'hamlet', x, y, name: `${rng.pick(regionWords.first)} Hamlet`, depth });
-        else if (roll < 0.14) out.push({ type: rng.pick(['ore', 'herbs', 'fishing']), x, y, name: 'Resources', depth });
+        else if (roll < 0.14) {
+          // A fishing spot needs water to fish in within two tiles; anywhere else the same pick is
+          // herbs (one draw either way, so nothing else in the chunk moves).
+          let type = rng.pick(['ore', 'herbs', 'fishing']);
+          if (type === 'fishing' && !waterNear(x, y, 2)) type = 'herbs';
+          out.push({ type, x, y, name: 'Resources', depth });
+        }
+      }
+    }
+    // Notes from the Old Company, tucked under a stone beside the road (their own draws, so
+    // nothing else moves): about two chunks in five that a road crosses hold one.
+    const beside = roads().byChunk.get(key(cx, cy));
+    if (beside && beside.length) {
+      const nrng = createRng(hashInts(S, cx, cy, 'note'));
+      if (nrng.chance(0.4)) {
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          const road = nrng.pick(beside);
+          const [dx, dy] = nrng.pick([[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]]);
+          const x = road.x + dx;
+          const y = road.y + dy;
+          // a tile inside its chunk, like every other point of interest's, so the props of the chunk
+          // beside it never stand right next to it
+          if (Math.floor(x / CHUNK) !== cx || Math.floor(y / CHUNK) !== cy) continue;
+          const lx = x - cx * CHUNK;
+          const ly = y - cy * CHUNK;
+          if (lx < 1 || ly < 1 || lx > CHUNK - 2 || ly > CHUNK - 2) continue;
+          if (inHeart(x, y) || heartDistance(x, y) < 3 || roads().tiles.has(key(x, y))) continue;
+          if (!TERRAIN_INFO[terrainAt(x, y)].walk || out.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < 3)) continue;
+          out.push({ type: 'note', x, y, name: 'A note from the Old Company', depth: depthAt(x, y) });
+          break;
+        }
       }
     }
     return out;
@@ -478,7 +889,7 @@ export function createWorldgen({ seed = 'hushlands', regionWords = DEFAULT_REGIO
   return {
     seed: S, anchors, anchorById,
     inHeart, heartDistance, depthAt, tierAt, elevationAt, naturalTerrain, terrainAt, walkable,
-    roads, fixedPois, chunk, wildRiftSpawns, genreWeightsAt, standingBleeds, placeRealRift, regionAt,
+    roads, deckAt, fixedPois, chunk, wildRiftSpawns, genreWeightsAt, standingBleeds, placeRealRift, regionAt,
     inWard: (x, y, wardRadius) => heartDistance(x, y) <= wardRadius,
   };
 }
@@ -496,6 +907,115 @@ function spiral(x0, y0, ok, limit = 60) {
     }
   }
   return null;
+}
+
+// A road is two tiles wide: its line's own tiles and the ones east and south of each.
+const ROAD_LANES = [[0, 0], [1, 0], [0, 1]];
+
+/**
+ * layRoad(points, { wet, barred }, visit): a road along points as worldgen lays them (a line
+ * between each pair, two tiles wide), except that it only ever crosses water on straight decks.
+ * Each stretch of the line with water under any lane is laid instead as one straight deck, or two
+ * meeting at a corner (a landing), from the dry ground before it to the dry ground after, by
+ * whichever way crosses the least water; and each deck is squared off from bank to bank, so it
+ * reads as a clean deck, never a staircase of planks. visit(x, y, deck) gets every tile: deck is
+ * 'ns' or 'ew' for a deck (the way it runs, so its planks lie across it), 'x' on the landing where
+ * two decks meet, and null for road.
+ * wet(x, y) is water a deck may cross; barred(x, y, onLine) is ground no road may take (deep sea,
+ * the sky, and the vale where the road's own line would run into it: its second lane may brush
+ * the vale's edge, as worldgen's own roads do, and loses those tiles). A stretch that can't keep
+ * off it keeps its own line.
+ */
+export function layRoad(points, { wet, barred = () => false }, visit) {
+  const centre = [];
+  const push = (x, y) => {
+    const last = centre[centre.length - 1];
+    if (!last || last[0] !== x || last[1] !== y) centre.push([x, y]);
+  };
+  if (points.length === 1) push(Math.round(points[0].x), Math.round(points[0].y));
+  for (let i = 1; i < points.length; i += 1) line(points[i - 1], points[i], push);
+  const laneWet = ([x, y]) => ROAD_LANES.some(([dx, dy]) => wet(x + dx, y + dy));
+  const lanes = ([x, y]) => { for (const [dx, dy] of ROAD_LANES) visit(x + dx, y + dy, null); };
+  for (let i = 0; i < centre.length;) {
+    if (!laneWet(centre[i])) {
+      lanes(centre[i]);
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j + 1 < centre.length && laneWet(centre[j + 1])) j += 1;
+    if (!centre.slice(i, j + 1).some(([x, y]) => wet(x, y))) {
+      // Only the road's edge brushes the water (it runs along a bank): it narrows there rather
+      // than stick a plank out over the water.
+      for (let k = i; k <= j; k += 1) for (const [dx, dy] of ROAD_LANES) if (!wet(centre[k][0] + dx, centre[k][1] + dy)) visit(centre[k][0] + dx, centre[k][1] + dy, null);
+      // and a diagonal step keeps a dry corner to walk round, the lanes' own or the other one
+      for (let k = Math.max(0, i - 1); k <= j && k + 1 < centre.length; k += 1) {
+        const [ax, ay] = centre[k];
+        const [bx, by] = centre[k + 1];
+        if (ax === bx || ay === by) continue;
+        const corners = [[bx, ay], [ax, by]];
+        const dry = corners.filter(([x, y]) => !wet(x, y));
+        for (const [x, y] of dry.length ? dry : corners.slice(0, 1)) visit(x, y, null);
+      }
+      i = j + 1;
+      continue;
+    }
+    const from = centre[i > 0 ? i - 1 : i];
+    const to = centre[j + 1 < centre.length ? j + 1 : j];
+    if (!layCrossing(from, to, wet, barred, visit)) for (let k = i; k <= j; k += 1) lanes(centre[k]);
+    i = j + 1;
+  }
+}
+
+// One straight leg of a crossing, two tiles wide, from a to b (a row or a column): its tiles in
+// order along it, with the stretch from the first to the last one over water marked as deck.
+function deckLeg([ax, ay], [bx, by], wet) {
+  const across = ay === by; // runs east-west
+  const lo = across ? Math.min(ax, bx) : Math.min(ay, by);
+  const hi = (across ? Math.max(ax, bx) : Math.max(ay, by)) + 1;
+  const steps = [];
+  for (let s = lo; s <= hi; s += 1) steps.push(across ? [[s, ay], [s, ay + 1]] : [[ax, s], [ax + 1, s]]);
+  const wetAt = steps.map((pair) => pair.some(([x, y]) => wet(x, y)));
+  const first = wetAt.indexOf(true);
+  const last = wetAt.lastIndexOf(true);
+  const dir = across ? 'ew' : 'ns';
+  const tiles = [];
+  steps.forEach((pair, s) => {
+    const deck = first >= 0 && s >= first && s <= last ? dir : null;
+    pair.forEach(([x, y], lane) => tiles.push([x, y, deck, lane === 0 && s < steps.length - 1]));
+  });
+  return { tiles, deck: first >= 0 ? (last - first + 1) * 2 : 0 };
+}
+
+function layCrossing([ax, ay], [bx, by], wet, barred, visit) {
+  let routes;
+  if (ax === bx || ay === by) routes = [[[ax, ay], [bx, by]]];
+  else {
+    const xFirst = [[ax, ay], [bx, ay], [bx, by]];
+    const yFirst = [[ax, ay], [ax, by], [bx, by]];
+    routes = Math.abs(bx - ax) >= Math.abs(by - ay) ? [xFirst, yFirst] : [yFirst, xFirst];
+  }
+  let best = null;
+  for (const route of routes) {
+    const legs = [];
+    for (let k = 1; k < route.length; k += 1) legs.push(deckLeg(route[k - 1], route[k], wet));
+    if (legs.some((leg) => leg.tiles.some(([x, y, , onLine]) => barred(x, y, onLine)))) continue;
+    let water = legs.reduce((n, leg) => n + leg.deck, 0);
+    // two decks meeting on a landing out in the water: a little worse than a corner on the bank
+    if (legs.length === 2 && legs[0].deck && legs[1].deck) water += 3;
+    if (!best || water < best.water) best = { legs, water, route };
+  }
+  if (!best) return false;
+  // Where both decks come to the corner, its square is the landing they meet on.
+  let landing = null;
+  if (best.legs.length === 2) {
+    const [cx, cy] = best.route[1];
+    const inSquare = (x, y) => x >= cx && x <= cx + 1 && y >= cy && y <= cy + 1;
+    const reaches = (leg) => leg.tiles.some(([x, y, deck]) => deck && inSquare(x, y));
+    if (reaches(best.legs[0]) && reaches(best.legs[1])) landing = inSquare;
+  }
+  for (const leg of best.legs) for (const [x, y, deck] of leg.tiles) visit(x, y, landing && landing(x, y) ? 'x' : deck);
+  return true;
 }
 
 function line(a, b, visit) {

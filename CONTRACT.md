@@ -63,9 +63,15 @@ Status rules:
   sessions: AgentSession[],      // sorted by lastActivityAt desc, at most 200
   tools: LocalTool[],            // always jev, whisper, ollama in that order
   sources: { claude: { ok: boolean, path: string, count: number, live: boolean, error?: string },
-             codex:  { ok: boolean, path: string, count: number, live: boolean, error?: string } } }
+             codex:  { ok: boolean, path: string, count: number, live: boolean, error?: string } },
+  capacity: { codex: { usedPercent: number, resetsAt: number, windowMinutes: number, at: number } | null } }   // Phase 3
 ```
 `sources.X.live` = live status is readable for that agent (Claude: the sessions registry folder exists; Codex: lifecycle events were found).
+
+**Phase 3 additions** (CONTRACT-PHASE3.md §4.2):
+- `capacity.codex` is the newest Codex allowance reading, taken from `token_count` rate limits in the `codex` bucket. It uses the fuller of its windows, and `resetsAt` is in ms.
+- Every AgentSession also carries `waitingSince`: the time a live Claude session began waiting on Chris, or null.
+- Main's `snapshotKey` includes `capacity`.
 
 ## Modules and ownership
 

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>MILO map view preview</title>
+  <link rel="stylesheet" href="../src/styles.css">
+  <link rel="stylesheet" href="../src/ui/mapview.css">
+  <style>
+    #world { background: #aad48f; }
+  </style>
+</head>
+<body>
+  <!-- The map view on its own, in MILO's own chrome (scripts/capture-mapview.mjs drives it). -->
+  <div class="titlebar">
+    <span class="wordmark" aria-label="MILO"><strong style="font-size:13px;letter-spacing:0.12em">MILO</strong></span>
+    <span class="titlebar-status" id="titlebar-status">The north road · on the way to the Whisperwood</span>
+  </div>
+  <main id="stage" class="stage">
+    <canvas id="world" aria-label="Milo's world"></canvas>
+    <section id="map" class="map-view px" hidden></section>
+  </main>
+  <script type="module">
+    import { createMapView } from '../src/ui/mapview.js';
+    import { createWorldgen } from '../src/world/worldgen.js';
+    import { createWilds, colouriseChunk, hushPalette } from '../src/world/wilds.js';
+    import { paintRegion, basePaletteByCode } from '../src/world/wildsart.js';
+
+    window.__errors = [];
+    window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
+    window.addEventListener('unhandledrejection', (e) => window.__errors.push(String(e.reason && e.reason.message || e.reason)));
+    window.__log = [];
+    window.__paints = [];
+
+    window.__boot = async (cfg) => {
+      const worldgen = createWorldgen({ seed: cfg.seed, regionWords: cfg.regionWords });
+      const wilds = createWilds({ worldgen, maxChunks: 400 });
+      const base = basePaletteByCode();
+      const hush = hushPalette(base);
+      // What the engine's paintMapChunk does: wildsart art in base colours, the Hush applied.
+      const paintChunk = (cx, cy, ppt) => {
+        const t0 = performance.now();
+        const chunk = wilds.chunk(cx, cy);
+        const region = paintRegion(wilds, cx * 32, cy * 32, 32, 32, ppt);
+        const rgba = colouriseChunk(region.keys, { base, hush, hushMask: chunk.hush, width: region.width, tileSize: ppt, originX: cx * 32 * ppt, originY: cy * 32 * ppt });
+        const canvas = document.createElement('canvas');
+        canvas.width = region.width;
+        canvas.height = region.height;
+        canvas.getContext('2d').putImageData(new ImageData(rgba, region.width, region.height), 0, 0);
+        window.__paints.push({ key: `${cx},${cy}@${ppt}`, ms: performance.now() - t0 });
+        return canvas;
+      };
+
+      // The vale, from the engine (vale-only mode), drawn behind the map as the world too.
+      let vale = null;
+      try {
+        const { createWorld } = await import('../src/world/engine.js');
+        const world = createWorld(document.getElementById('world'), { motion: () => false, startTile: { x: 31, y: 12 } });
+        vale = world.renderMap(1);
+        window.__world = world;
+      } catch (error) {
+        window.__errors.push(`engine: ${error.message}`);
+      }
+
+      let explored = new Set(cfg.explored);
+      let markers = cfg.markers;
+      const map = createMapView(document.getElementById('map'), {
+        paintChunk,
+        paintAt: cfg.paintAt === undefined ? 8 : cfg.paintAt,
+        valeImage: () => vale,
+        explored: () => explored,
+        markers: () => markers,
+        onTravel: (id, marker) => window.__log.push(['travel', id, marker.kind]),
+        onClose: (info) => window.__log.push(['close', info.reason]),
+        now: () => cfg.now ?? Date.now(),
+        motion: () => cfg.motion !== false,
+      });
+      window.__map = map;
+      window.__setData = (next) => {
+        if (next.explored) explored = new Set(next.explored);
+        if (next.markers) markers = next.markers;
+        map.refresh();
+      };
+      return true;
+    };
+    window.__ready = true;
+  </script>
+</body>
+</html>

@@ -1260,6 +1260,1070 @@ const SMOKE = grid(`
   .SS.
 `);
 
+// ---------- the wilds (Phase 3) ----------
+// Everything below keeps the vale's rules: soft ink outline, light from the top-left, the same
+// palette. Sizes (w x h) are noted on each; frames of one sprite always share a size.
+
+// Birch: a slim white trunk with dark marks rising into a crown of small, light leaf clumps, with
+// drooping lobes either side of the fork. 22 x 32: the crown keeps its last column clear, so the
+// sway (rows 0-17 one pixel right) never pushes its outline off the canvas.
+const TREE_BIRCH = grid(`
+  .........ooo..........
+  .......oohhhoo........
+  ......ohhhhqqqo.......
+  .....ohhhhqqqqlo......
+  .....ohhqqqqqlLo......
+  ....ooLLqqqlLLhhoo....
+  ..oohhhhLLlLhhhhqqo...
+  .ohhhhqqqqLhhhqqqqqo..
+  .ohhqqqqqLLLLqqqqlllo.
+  ohhqqqqLLhhhqLqqlllLo.
+  ohqqqqlhhhhqqqLllLLLo.
+  .oqqLLlhhqqqqlLLLLLo..
+  .oLLhhLLqqqllLhhhho...
+  .ohhhqqqLqllLhhhqqqo..
+  ohhhqqqqlllLhhhqqqqlo.
+  ohqqqqlllLLLooqqqlllo.
+  oqqqqllLLLooCooqlllLo.
+  oqqlllLLLocCooqqllLLo.
+  .olllLLLoocCo.olllLLo.
+  ..ooLLLo.ocCo..oLLLo..
+  ....ooo..ooCo...ooo...
+  .........ocCo.........
+  .........ocCo.........
+  .........ocoo.........
+  .........ocCo.........
+  .........ooCo.........
+  .........ocCo.........
+  .........ocCo.........
+  .........ocoo.........
+  .........ocCo.........
+  ........occCCo........
+  ........oooooo........
+`);
+
+// Pine with snow on the tops of its tiers (lit side cream, shaded side foam). 18 x 25, like the pine.
+const PINE_SNOW = stamp(PINE, grid(`
+  ..................
+  ........cf........
+  ........cf........
+  .......ccff.......
+  .......cf.........
+  ......c...........
+  .....c............
+  ..................
+  ......ccf.........
+  ....cccfff........
+  ....cc............
+  ...c..............
+  ..................
+  ....cccf..........
+  ..cccccfff........
+  ..ccc.............
+  .cc...............
+  .c................
+`), 0, 0);
+
+// Crag: a shoulder of mountain rock, two tiles wide, with moss on its tops. 32 x 27.
+const CRAG = grid(`
+  ...........ooooooooo............
+  ..........occcchqqcco...........
+  .........ocssssslqssco..........
+  ........ossssssssssssco.........
+  ........ossssssssssssszo........
+  ........osSsssssssssszzo........
+  ........osSSSSSSSSSSzzzo........
+  ........osSSSSSSSSSSzzzooooo....
+  ........osSSSSSSSSSSzooccqqco...
+  ........osSSSSzSSSSSoccsslqsco..
+  ....ooooooSSSSzSSSSosssssssssco.
+  ...occqqccoSSzSSSSSosssssssssso.
+  ..ocsslssscoSzSSSSSossssssssszzo
+  .ocsssssssscozSSSSSosSSSSSSSzzzo
+  ossssssssssszoSSSSSosSSSSSSSzzzo
+  osssssssssszzozSSSSosSSSSSSSzzzo
+  osSSSSSSSSzzzozSSSSosSSSzSSSzzzo
+  osSSSSSSSSSzzoooooSosSSSzSSSzzzo
+  osSSSSSSSSSzzochqcoosSSSzSSSzzzo
+  osSSSzSSSSSzocsssscosSSSzSSSzzzo
+  osSSSzSSSSSocsssssscoSSSSSSSzzzo
+  osSSSSzSSSSossssssszzoSSSSSSzzzo
+  osSSSSzSSSSosSSSSSzzzoSSSSSSzzzo
+  osSSSSSSSSSosSSSSSSzzoSSSSSSzzzo
+  ozzzzzzzzzzozzzzzzzzzozzzzzzzzzo
+  ozzzzzzzzzzozzzzzzzzzozzzzzzzzzo
+  .oooooooooooooooooooooooooooooo.
+`);
+
+// The same crag under snow: snowy tops that spill a little over the faces. 32 x 27.
+const CRAG_SNOW = grid(`
+  ...........ooooooooo............
+  ..........occccccccco...........
+  .........ocfffffffffco..........
+  ........osfffffffffffco.........
+  ........osffffffffffffzo........
+  ........osffffffffffffzo........
+  ........osffSfffSffffzzo........
+  ........osSSSfSSSSSfzzzooooo....
+  ........osSSSSSSSSSSzooccccco...
+  ........osSSSSzSSSSSoccfffffco..
+  ....ooooooSSSSzSSSSosffffffffco.
+  ...occccccoSSzSSSSSosfffffffffo.
+  ..ocffffffcoSzSSSSSosfffffffffzo
+  .ocffffffffcozSSSSSosfSfffSSzzzo
+  osffffffffffzoSSSSSosfSSSSSSzzzo
+  osffffffffffzozSSSSosSSSSSSSzzzo
+  osSfSfSfSSfzzozSSSSosSSSzSSSzzzo
+  osSfSSSSSSSzzoooooSosSSSzSSSzzzo
+  osSSSSSSSSSzzoccccoosSSSzSSSzzzo
+  osSSSzSSSSSzocffffcosSSSzSSSzzzo
+  osSSSzSSSSSocffffffcoSSSSSSSzzzo
+  osSSSSzSSSSosfffffffzoSSSSSSzzzo
+  osSSSSzSSSSosSSSffffzoSSSSSSzzzo
+  osSSSSSSSSSosSSSSffzzoSSSSSSzzzo
+  ozzzzzzzzzzozzzzzzzzzozzzzzzzzzo
+  ozzzzzzzzzzozzzzzzzzzozzzzzzzzzo
+  .oooooooooooooooooooooooooooooo.
+`);
+
+// Basalt: dark six-sided columns of different heights, flat tops catching the light. 16 x 26.
+function basaltColumn(h) {
+  return [
+    '.ooooo.',
+    'osssSSo',
+    'oSSSSzo',
+    ...Array.from({ length: h - 4 }, (_, i) => (i % 6 === 4 ? 'ozSozzo' : 'ozSozzo'.replace('ozSo', 'ozSS'))),
+    'ooooooo',
+  ];
+}
+const BASALT_COLUMN = [[5, 0, 25], [9, 6, 19], [0, 9, 16], [5, 16, 9]].reduce(
+  (rows, [x, y, h]) => stamp(rows, basaltColumn(h), x, y),
+  Array.from({ length: 25 }, () => '.'.repeat(16)),
+);
+const ROCK_BASALT = stamp(recolor(ROCK, { c: 's', s: 'S', S: 'z' }), grid(`
+  .....o..
+  ....oz..
+  ...o....
+`), 2, 3);
+
+// A standing stone on the Dicing Downs: a stone die sunk in the turf, its corners worn round, one
+// pip on top and five on its face, moss at its foot. Straight on, like the vale's crate. 16 x 14.
+const DICE_STONE = grid(`
+  ...oooooooooo...
+  ..occcccccccCo..
+  .occcsscoosCCCo.
+  .oCCCCCCCCCCCCo.
+  .oooooooooooooo.
+  .ossssssssssSSo.
+  .osoossssssooSo.
+  .ossssssssssSSo.
+  .osssssoossssSo.
+  .ossssssssssSSo.
+  .osoossssssooSo.
+  .oqlsssssssSSSo.
+  GolqlSSSSSSSSzoG
+  .GooooooooooooG.
+`);
+
+// A region's landmark: a tall standing stone with a lantern carved into it. 14 x 27.
+const LANDMARK_STONE = grid(`
+  ....oooooo....
+  ...occcccco...
+  ..ocssssssco..
+  ..ocsssssszzo.
+  ..osSSSSSzzzo.
+  ..osSSSSSSzzo.
+  ..osSSSSSSzzo.
+  ..osSSzSSSzzo.
+  ..osSzzzSSzzo.
+  ..osSzuzSSzzo.
+  ..osSzuzSSzzo.
+  ..osSzzzSSzzo.
+  ..osSSSSSSzzo.
+  ..osSSSSSSzzo.
+  .osSzSzSzSzzo.
+  .osSSSSSSSzzo.
+  .osSSSSSSSzzo.
+  .osSSSSSqSzzo.
+  .osSSSSSSSzzo.
+  .osqSSSSSSzzo.
+  .oslqSSSSSzzo.
+  .osSSSSSSSzzo.
+  .oqSSSSSSSzzo.
+  .olqlSSSSSzzo.
+  .oLlzzzzzzzzo.
+  .ozzzzzzzzzzo.
+  ..oooooooooo..
+`);
+
+// Maker ruins: a broken wall with an arched doorway, moss, and fallen blocks. 32 x 22.
+const RUIN = grid(`
+  ...ooo.o........................
+  ..ocqqoqo.......................
+  .ochlscsco......................
+  ocqSssssscooo...................
+  oqSSSSSSSsoqlo..................
+  olssssSssscssco.................
+  oLssssSsssssSsco.....o..........
+  oSSSSSSSSSSSSSsco..ooqo.........
+  olsSsssssSsszzsso.ocqsloo.......
+  oLsSsssssSszoozSo.ossSscco......
+  oSSSSSSSSSSo..oSo.oSSSSssco.....
+  osssssSssszo..ozo.osssssSsco....
+  osssssSssszo...ococsssssSsso....
+  oSSSSSSSSSzo...osqsSSSSSSSSo....
+  ossSsssssSzo...osssssSsssssqo...
+  ossSsssssSzo...osssssSssssssco..
+  ooooooSSSSzo...oSooqqooSSSSSsco.
+  oocccoSssszo...osochccosSsssssco
+  oossSozSSSzo...oSosssSoSzSSSSSzo
+  ooSSzozzzzzo...ozoSSSzozzzzzzzzo
+  .oooooooooooooooooooooooooooooo.
+`);
+
+// A cave in a grassy hillside. 32 x 19.
+const CAVE = grid(`
+  ............ooooooooo...........
+  .........ooohhhhhhhhhoo.........
+  .......oohhhqqqqqqqqqhhooo......
+  ......ohhqqqqqqqqqqqqqqhhho.....
+  .....ohqqqqqlqqqqqqqqqqqqqho....
+  ....ohqqqqllqqqqqqqqqqlqqqqho...
+  ...ohqqqqqqqqqqqqqqqqllqqqqqho..
+  ..ohqqqqlqqqqqqqqqqqqqqqqqqqqo..
+  ..osqqqqqqqqqqqqqqqqqqqqqqqqqho.
+  .osSSqqqqqqqqqqqqqqqqqqqqqqqsSSo
+  .osSSLlLSSSSzoooooozSSSSLlLSSSSo
+  .osSSSLSSSSzoooooooozSSSSSSSSSSo
+  osSSSSSSSSzoooooooooozSSSSSSSSSo
+  osSSSzSSSzoooooooooooozSSSzSSSSo
+  osSSSSzSSzoooooooooooozSSSSzSSSo
+  osSSSSSSSzoooooooooooozSSSSSSSSo
+  ozzzzzzzzzoooooooooooozzzzzzzzzo
+  ozzzzzzzzzoooooooooooozzzzzzzzzo
+  .oooooooooooooooooooooooooooooo.
+`);
+
+// A roadside lantern on a post, sleeping (cold glass) and lit. 16 x 26.
+const LANTERN_POST_BASE = grid(`
+  .....oooo.......
+  ....orrrRo......
+  ...oRRRRRRo.....
+  ....oooooo......
+  .....onbo.......
+  .....onbooooooo.
+  .....onbnnnnnbo.
+  .....onbooooooo.
+  .....onbo...o...
+  .....onbo..ooo..
+  .....onbo.oBBBo.
+  .....onbo.oXXXo.
+  .....onbo.oXXXo.
+  .....onbo.oXXXo.
+  .....onbo.oBBBo.
+  .....onbo..ooo..
+  .....onbo.......
+  .....orRo.......
+  ....roRRo.......
+  ....ronbo.......
+  .....onbo.......
+  .....onbo.......
+  .....onbo.......
+  ....oonboo......
+  ...ossssSSo.....
+  ...oooooooo.....
+`);
+const litGlass = (rows, panes) => rows.map((row, y) => (y >= 11 && y <= 13 ? row.replace('XXX', panes[y - 11]) : row));
+const LANTERN_POST = [
+  litGlass(LANTERN_POST_BASE, ['sSz', 'SSz', 'Szz']),
+  litGlass(LANTERN_POST_BASE, ['ucU', 'uuU', 'uUU']),
+];
+
+// Chests: closed and open, in wood with honey bands. The mimic is the same chest with a tell. 16 x 14.
+const CHEST_BODY = grid(`
+  .ooooooUUoooooo.
+  .onbUbbuUbbUbBo.
+  .onbUbbYYbbUbBo.
+  .onbUbbbbbbUbBo.
+  .oBBYBBBBBBYBBo.
+  .oooooooooooooo.
+`);
+const CHEST_CLOSED = [
+  '................',
+  '................',
+  '................',
+  '................',
+  ...grid(`
+    ..oooooooooooo..
+    .onnUnnnnnnUnno.
+    .onbUbbbbbbUbbo.
+    .oBBYBBBBBBYBBo.
+  `),
+  ...CHEST_BODY,
+];
+const CHEST_OPEN = [
+  ...grid(`
+    ..oooooooooooo..
+    .oBmmmmmmmmmmBo.
+    .oBmmmmmmmmmmBo.
+    .onnUnnnnnnUnno.
+    .oooooooooooooo.
+    .omuuUucuuUuumo.
+    .omUuuUuuUuuUmo.
+    .onnnnnnnnnnnbo.
+  `),
+  ...CHEST_BODY,
+];
+const MIMIC_CLOSED = stamp(CHEST_CLOSED, grid(`
+  k
+  K
+`), 10, 8);
+const MIMIC_AWAKE = [
+  ...grid(`
+    ..oooooooooooo..
+    .onnUccnnccUnno.
+    .onbUcobbcoUbbo.
+    .oBBYBBBBBBYBBo.
+    .ocQQQQQQQQQQco.
+    .oQQQkkkkKQQQQo.
+    .oQQkkkkkkKQQQo.
+    .ocQQkkkkKQQQco.
+    .oooooookKooooo.
+    .onbUbbkKbbUbBo.
+    .onbUbbYYbbUbBo.
+    .onbUbbbbbbUbBo.
+    .oBBYBBBBBBYBBo.
+    .oooooooooooooo.
+  `),
+];
+
+// A note from the Old Company, pinned to a stake by the road. 9 x 12.
+const NOTE = grid(`
+  ..ooooo..
+  .occrccCo
+  .ocSSScCo
+  .occcccCo
+  .ocSSccCo
+  .occcccCo
+  .ocSSSCCo
+  .ooooooo.
+  ...onbo..
+  ...onbo..
+  ...onbo..
+  ...oooo..
+`);
+
+// A hamlet home: thatch, plaster and timber, a lit window either side of the door. 40 x 34.
+const HAMLET = grid(`
+  ...........................oooooo.......
+  ...........................osssSo.......
+  ..........ooooooooooooooooooSSSSo.......
+  ........oYYYYYYYYYYYYYYYYYYosSsSo.......
+  ......ouuYuuYuuYuuYuuYuuYuUosssSoo......
+  ....ouYuuYuuYuuYuuYuuYuuYuUoSsSSoYYo....
+  ...ouYuUYUuYuUYUuYuUYUUYUUYooooooYUYo...
+  ..ouUYUuYuUYUuYuUYUuYUUYUUYUUYYUYYUYYo..
+  .oYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYYUo.
+  .oUUYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYo.
+  .oUUYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYo.
+  .oUUYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYo.
+  .oUYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYYo.
+  .oUYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYYo.
+  .oUYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYYo.
+  .oYUUYUUYUUYUUYUUYUUYUUYUUYUUYYUYYUYYUo.
+  .YoYoYoYoYoYoYoYoYoYoYoYoYoYoYoYoYoYoYo.
+  ..oBCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCBo..
+  ..oBCccccccccBCcccccccccccBCccccccccBo..
+  ..oBCcoooooooBCcccccccccccBCcoooooooBo..
+  ..oBCconnnnnoBCcccccccccccBCconnnnnoBo..
+  ..oBCconcunuoBCcooooooooccBCconuunuoBo..
+  ..oBCconuunUoBCconnnnnnoccBCconuunUoBo..
+  ..oBCconnnnnoBCconBbbBnoccBCconnnnnoBo..
+  ..oBCcoooooooBCconBbbBnoccBCcoooooooBo..
+  ..oBCcokLkkLoBCconBbbBnoccBCcokLkkLoBo..
+  ..oBCcobbbbboBCconBbbBnoccBCcobbbbboBo..
+  ..oBCcoooooooBCconBbbunoccBCcoooooooBo..
+  ..oBCccccccccBCconBbbBnoccBCccccccccBo..
+  ..oBCccccccccBCconBbbBnoccBCccccccccBo..
+  ..oBCccccccccBCconBbbBnoccBCccccccccBo..
+  ..ossssssSssssssnnnnnnnnssssssSsssssso..
+  ..oSSSSSSSSSSSSSbbbbbbbbSSSSSSSSSSSSSo..
+  ..oooooooooooooooooooooooooooooooooooo..
+`);
+
+// Tamsin Wick, waving, on a plinth. Her left hand was never carved (she insisted), and the carver's
+// chisel still lies on the plinth. 20 x 32.
+const STATUE = grid(`
+  .........oooo.......
+  ........ocsSSo......
+  .o.o...oooooooo.....
+  ocsSo.ocsSSSSSSo....
+  osSSoocsSSSSSSSSo...
+  .oSo.osSSsssSSSSo...
+  .osSooSscssssSSSo...
+  .osSooSszsssszSSo...
+  .osSooSszsssszsSo...
+  .osSo.osssssssSo....
+  ..osSo.oooooooo.....
+  ...osSooSSSSSSo.....
+  ....osoczzzzzzSoo...
+  ......osssssSzSSoo..
+  ......ocssssSzSSSzo.
+  ......osssssSSSSSzo.
+  ......oSSSSSSSzSSzo.
+  ......osssssSSzoooo.
+  .....ocsssssSSSzo...
+  .....osssssSSSSzo...
+  .....osSssSsSSSzo...
+  .....ozzzzzzzzzzo...
+  ......oooooooooo....
+  .......oSSo.oSzo....
+  .......oooo.oooo....
+  oooooooooooooooooooo
+  occcccccccccccooncSo
+  osssssssssssssssSSzo
+  oSSSSSSSSSSSSSSSSSzo
+  oSSSzzzzzzzzzzSSSSzo
+  ozzzzzzzzzzzzzzzzzzo
+  oooooooooooooooooooo
+`);
+
+// Gathering spots: an ore seam (14 x 8), a herb patch (12 x 8) and a fishing ripple on open water
+// (16 x 6, two frames of the ring spreading, with a fish shadow in it).
+const ORE_NODE = stamp(ROCK, grid(`
+  ..............
+  ..............
+  ....Uc........
+  ...YU....uc...
+  .........YU...
+  ......Uc......
+  .....YY.......
+`), 0, 0);
+const HERBS = grid(`
+  ...v....v...
+  ..vVv..vVv..
+  ...V.qq.V...
+  .qq.lqqL.qq.
+  oqlqlLlqlLqo
+  olLlLlLLlLlo
+  .oLLMLLMLLo.
+  ..oooooooo..
+`);
+const FISHING_SPOT = [
+  grid(`
+    ................
+    .....ffffff.....
+    ...ff..WW..ff...
+    ...ff...W..ff...
+    .....ffffff.....
+    ................
+  `),
+  grid(`
+    ....ffffffff....
+    ..ff........ff..
+    .f.....WW.....f.
+    .f......W.....f.
+    ..ff........ff..
+    ....ffffffff....
+  `),
+];
+
+// Thicket: bramble and bush, dense and as tall as Milo, two variants (frames) to mix along a line.
+// 20 x 20, so neighbours on a 16 px ring overlap and the line reads as one hedge.
+const THICKET = [
+  grid(`
+    .o.......ooooo......
+    oBo.ooo.oqqqqqo...o.
+    omooqqqoqqqqlllo.oBo
+    .oqqqqlqqllllMMMoomo
+    .oqqlllqllllMqqqqqo.
+    oqllllllllllqqqqlllo
+    oqlllllllllLqlllllLo
+    ollMMMMqllMLlllllLLo
+    .oMqqqqMMMqMMMMMMMMo
+    .oqqqqlMqqqqMVqqqqMo
+    oqqlllMqqqllqqqqllo.
+    oqllllVqllllqllllllo
+    olllllqlllllllllllLo
+    ollllllllllllllllLLo
+    olllllllllllllllLLLo
+    ollllLlllllLlllLLLMo
+    olllLLllllLclllLLMMo
+    .olLLLqllLLLqlLLLMo.
+    ..ooLMMqLLLLMMLLMo..
+    ....ooooooooooooo...
+  `),
+  grid(`
+    .....oooooo.......o.
+    ...ooqqqqqqo.....oBo
+    ..oBqqqqqllloooooomo
+    .omoqllllllMqqqqqmo.
+    .omMMMlllllqqqqlllo.
+    ..oqqqMllLLqlllllLo.
+    .oqqqlllLLLlllllLLo.
+    oqqllllMLLMlllMMMMo.
+    oqlllMMMMVMMlMqqqqo.
+    ollMMqqqqqqlMqqqlllo
+    olMqqqqqqllMMMMMllLo
+    .oqqqlllllMqqqqqMlLo
+    .oqllclllMqqqqqllMLo
+    oqlllllllqqlllVllLMo
+    oqlllllllqllllllLLMo
+    .ollllllLllllllLLLo.
+    .olllllLLlllllLLLMo.
+    ..ollLLLLqlllLLLMMo.
+    ...oLLLLMMqlLLLMMo..
+    ....ooooooooooooo...
+  `),
+];
+
+// ---------- the Stockade (tier 2) ----------
+
+// Palisade pieces compose by mask exactly like the fences: every piece is 16 x 36 and is stamped at
+// (0, 0) into a blank 16 x 36 cell, in the order n, w, e, post, s. The cell's bottom row is the
+// tile's bottom edge, so the logs stand about a tile and a half above their tile.
+//   post: the log on the tile's centre (cols 4-12)
+//   w, e: the halves of the log that stands on the tile's west or east edge; the w half's outline
+//         is the post's, and the e half is closed by the neighbour's w half
+//   n:    two logs side by side half a tile north (the east one in shade), behind the post, so a
+//         north-south run is a staggered double row as heavy as the east-west wall. They stand
+//         23 and 25 px tall, so the cell's top two rows stay clear: the tile south of a side
+//         gate's jamb never reaches Milo standing in the gateway.
+//   s:    a short stake at the foot of the post, where a north-south run carries on south (the
+//         next tile's n logs cover it, so a run shows no seam)
+// palisade.jamb is not a piece: it's drawn as it is on the wall tile just south of the west and
+// east gates, in place of the palisade there. See PALISADE_JAMB.
+const LOG_TIP = grid(`
+  ....o....
+  ...ono...
+  ..onnbo..
+  .onnbbBo.
+`);
+const LOG_BARK = ['onbbbbBBo', 'onbbbbBBo', 'onbmbbBBo', 'onbbbbBBo', 'onbbbbBmo', 'onbbbbBBo', 'onbbbbBBo'];
+// A sharpened log h px tall, bound with a rope `rope` px above its foot.
+function palisadeLog(h, seed = 0, rope = 9) {
+  const body = Array.from({ length: h - LOG_TIP.length - 1 }, (_, i) => LOG_BARK[(i + seed) % LOG_BARK.length]);
+  body[body.length - rope] = 'ommmmmmmo';
+  body[body.length - rope + 1] = 'onBBBBBBo';
+  return [...LOG_TIP, ...body, 'ooooooooo'];
+}
+// Stamp a log into rows with its foot on row `foot`.
+const logAt = (rows, x, foot, h, seed, rope) => stamp(rows, palisadeLog(h, seed, rope), x, foot - h + 1);
+const inShade = (rows) => recolor(rows, { n: 'b', b: 'B', B: 'm' });
+const blankRows = (w, h) => Array.from({ length: h }, () => '.'.repeat(w));
+const PALISADE_LOGS = [[0, 11, 25, 3], [8, 8, 28, 0], [16, 11, 25, 3]].reduce(
+  (rows, [x, y, h, seed]) => stamp(rows, palisadeLog(h, seed), x, y),
+  Array.from({ length: 36 }, () => '.'.repeat(24)),
+); // cols 0-23 here are cols -4..19 of the tile
+const logCols = (from, to, skip = () => false) => PALISADE_LOGS.map((row, y) => [...'.'.repeat(16)]
+  .map((_, x) => (x + 4 >= from && x + 4 <= to && !skip(x, y) ? row[x + 4] : '.')).join(''));
+const PALISADE_POST = logCols(8, 16);
+const PALISADE_W = logCols(4, 7);
+const PALISADE_E = logCols(16, 19);
+const PALISADE_N = logAt(inShade(logAt(blankRows(16, 36), 7, 27, 25, 5)), 0, 27, 23, 2);
+// The jamb: the wall cut down where it meets a west or east gate, three short logs lashed
+// together, so the wall ends cleanly and Milo stays in view in the gateway. It stands on its
+// tile's bottom edge and rises no more than 2 px above the tile, clear of Milo's feet on the
+// gate tile north of it. 16 x 18.
+const PALISADE_JAMB = logAt(logAt(inShade(logAt(blankRows(16, 18), 7, 15, 14, 5, 6)), 0, 15, 12, 2, 6), 4, 17, 18, 0, 7);
+const PALISADE_S = [
+  ...Array.from({ length: 30 }, () => '.'.repeat(16)),
+  ...grid(`
+    ......oo........
+    .....onbo.......
+    .....onBo.......
+    .....omBo.......
+    .....onBo.......
+    ....oooooo......
+  `),
+];
+
+// The gatehouse: two stout dark-timber posts, a lintel under a little shingle roof, and a lantern
+// hanging in the opening, so Milo walks under it. 32 x 48, anchored on the gate tile.
+//   frame 0: facing you, for the gates in the north and south walls (n, sw). The posts stand on
+//            the edges of the gate tile and the whole tile between them is open.
+//   frame 1: end-on, for the gates in the west and east walls (w, e): the north post carrying a
+//            little shingle roof seen from its gable end, with the lantern hanging under it over
+//            the gateway. Draw it with dy = -15 so it stands on the gate's north edge and sorts
+//            behind Milo; everything stays above his head (rows 0-40), and palisade.jamb closes
+//            the south side low enough that he stays in view.
+const GATE_ROOF = recolor(sym(grid(`
+  ...........ooooo
+  .........oorrrrr
+  .......oorrRrrrr
+  .....oorrrrrrrRr
+  ...oorrRrrrrrrrr
+  .oorrrrrrrRrrrrr
+  oRRRRRRRRRRRRRRR
+  oooooooooooooooo
+`)), { r: 'R', R: 'Q' }, { top: 1, bottom: 6, left: 16 });
+const GATE_POST_ROW = 'obBBmo';
+const GATE_FRONT = (() => {
+  const w = 32;
+  const blank = '.'.repeat(w);
+  let rows = Array.from({ length: 48 }, () => blank);
+  const postsAt = (y, row) => { rows[y] = `...${row}..............${row}...`; };
+  for (let y = 12; y <= 44; y += 1) postsAt(y, y % 11 === 6 ? 'omBBmo' : GATE_POST_ROW);
+  rows[45] = '..oobBBmoo............oobBBmoo..';
+  rows[46] = '..ossssSSo............ossssSSo..';
+  rows[47] = '..oooooooo............oooooooo..';
+  rows = stamp(rows, GATE_ROOF, 0, 2);
+  rows = stamp(rows, [
+    `.o${'o'.repeat(28)}o.`,
+    `.on${'n'.repeat(26)}bo.`,
+    `.ob${'b'.repeat(26)}Bo.`,
+    `.o${'o'.repeat(28)}o.`,
+  ], 0, 9);
+  // braces from each post up to the lintel, and the lantern on its hook
+  rows = stamp(rows, grid(`
+    .........BBo...oo...oBB.........
+    .........Bo..oBBBBo..oB.........
+    .........o...oucuUo...o.........
+    .............ouuuUo.............
+    .............oBBBBo.............
+    ..............oooo..............
+  `), 0, 13);
+  return rows;
+})();
+const GATE_SIDE = (() => {
+  let rows = Array.from({ length: 48 }, () => '.'.repeat(32));
+  for (let y = 14; y <= 44; y += 1) rows[y] = `.............${y % 11 === 6 ? 'omBBmo' : GATE_POST_ROW}.............`;
+  rows[45] = '...........ooobBBmooo...........';
+  rows[46] = '...........osssssSSSo...........';
+  rows[47] = '...........ooooooooo............';
+  // the back gable's peak, both slopes running toward you (courses lit on the west, shaded on
+  // the east), the planked front gable, and the lantern on its hook
+  return stamp(rows, grid(`
+    .........oooo.........
+    .......oorrRRoo.......
+    .....oorrrrRRRRoo.....
+    ...oorrRrrrRRQRRRoo...
+    .oorrrrRrrrRRQRRRRRoo.
+    orrrRrrRrrrRRQRRRQRRRo
+    orrrRrrRrrrRRQRRRQRRRo
+    orrrRrrRrrrRRQRRRQRRRo
+    orrrRrrRrrrRRQRRRQRRRo
+    orrrRrrRrrrRRQRRRQRRRo
+    orrrRrrRroooRQRRRQRRRo
+    orrrRrrooBnnoooRRQRRRo
+    orrrRoonnnnnbbBooQRRRo
+    orroonnnnnnnbbbBBooRRo
+    ooonnnnnnnnnbbbBBBBooo
+    oRRRRRRRRRRRQQQQQQQQQo
+    oooooooooooooooooooooo
+    .........oBBo.........
+    ........oucuUo........
+    ........ouuuUo........
+    ........oBBBBo........
+    .........oooo.........
+  `), 5, 14);
+})();
+const GATEHOUSE = [GATE_FRONT, GATE_SIDE];
+
+// The Gate Bell: a brass bell under a little roof, in a timber frame, with a pull rope. 16 x 24.
+const GATE_BELL = grid(`
+  ....oooooooo....
+  ..oorrrrrrrroo..
+  .orrRrrrRrrrRro.
+  oRRRRRRRRRRRRRRo
+  oooooooooooooooo
+  onnnnnnnnnnnnnbo
+  oBBBBBBBBBBBBBBo
+  oooooooooooooooo
+  onbo...oo...onbo
+  onbo..ouUo..onbo
+  onbo.oucuUo.onbo
+  onbo.ouuuUo.onbo
+  onbo.ouuUUo.onbo
+  onbooUUUUYYoonbo
+  onbo.oooooo.onbo
+  onbo....n...onbo
+  onbo....n...onbo
+  onbo....n...onbo
+  onbo....r...onbo
+  onbo....R...onbo
+  onbo........onbo
+  onbo........onbo
+  osSo........osSo
+  oooo........oooo
+`);
+
+// The War Table: a sturdy table with the frontier map pinned out on it. 32 x 18.
+const WAR_TABLE = grid(`
+  ....oooooooooooooooooooooooo....
+  ...occcccccccccccccccccccccCo...
+  ..occwwwccclllccccCccccwwwwCCo..
+  ..ocwwwccclLllccccccrccccwwwCo..
+  .occwwcccclllLlcccccccccccwwCCo.
+  .occcccccccllllccceccccccccccCo.
+  .occccrcccccccccccccccclllcccCo.
+  .occccccccccccccccccccllLlcccCo.
+  ooooooooooooooooooooooooooooooo.
+  onnnnnnnnnnnnnnnnnnnnnnnnnnnnbo.
+  oBBBBBBBBBBBBBBBBBBBBBBBBBBBBBo.
+  ooooooooooooooooooooooooooooooo.
+  .onbo..onbo..........onbo..onbo.
+  .onbo..onbo..........onbo..onbo.
+  .onbo..onbo..........onbo..onbo.
+  .onbo..onbo..........onbo..onbo.
+  .omBo..omBo..........omBo..omBo.
+  .oooo..oooo..........oooo..oooo.
+`);
+
+// A Hearth banner on a pole: clay cloth with a honey lantern, two frames of a slow sway. 12 x 30.
+const BANNER_CLOTH = grid(`
+  ..orrrrrRo..
+  ..orrrrrRo..
+  ..orrouoRo..
+  ..orroucoo..
+  ..orouuUoo..
+  ..orouUUoo..
+  ..orrooooo..
+  ..orrrrrRo..
+  ..orrrrrRo..
+  ..orrrrrRo..
+  ..orro.orRo.
+  ..oro...oRo.
+  ..oo.....oo.
+`);
+const BANNER_POLE = grid(`
+  .....oo.....
+  ....ouUo....
+  .....oo.....
+  .ooooooooooo
+  .onnnnnnnnbo
+  .ooooooooooo
+`);
+const BANNER = [0, 1].map((sway) => {
+  let rows = Array.from({ length: 30 }, (_, y) => (y >= 6 ? '....onbo....' : '.'.repeat(12)));
+  rows = stamp(rows, BANNER_POLE, 0, 0);
+  rows = stamp(rows, shiftRows(BANNER_CLOTH, sway, 7, 13), 0, 6);
+  rows[28] = '...oonboo...';
+  rows[29] = '...oooooo...';
+  return rows;
+});
+
+// A bridge tile for the wilds, planks running north-south between two rails; it tiles east-west. 16 x 16.
+const BRIDGE_H = grid(`
+  oooooooooooooooo
+  nnnnnnnnnnnnnnnn
+  bbbbbbbbbbbbbbbb
+  oooooooooooooooo
+  onbbonbbonbbonbb
+  onbbonbBonbbonbb
+  onbbonbbonbbonbB
+  onbBonbbonbbonbb
+  onbbonbbonBbonbb
+  onbbonbbonbbonbb
+  onbbonbBonbbonbb
+  oooooooooooooooo
+  nnnnnnnnnnnnnnnn
+  bbbbbbbbbbbbbbbb
+  BBBBBBBBBBBBBBBB
+  oooooooooooooooo
+`);
+
+// ---------- Elsewhere ----------
+
+// The way home: a doorway torn in the page, cream and honey light spilling onto the floor. 18 x 26.
+const EXIT_DOOR = grid(`
+  ......oooooo......
+  .....occCCCco.....
+  ....oCccccccCo....
+  ...oCuccccccuCo...
+  ...oCuccccccuCo...
+  ..oCuuccccccuuco..
+  ..oCCuccccccuuco..
+  ..ocuuccccccuuco..
+  .oCUuuccccccuuUCo.
+  ..ocuuccccccuCCo..
+  ..oCuuccccccuuco..
+  .oCUuuccccccuuUco.
+  ..oCuuccccccuuCo..
+  ..oCuuccccccuuCo..
+  ..oCuuccccccuuco..
+  ..oCuuccccccuuco..
+  .ocUuuccccccuuUCo.
+  ..ooCccccccccCCo..
+  .occuccccccccucco.
+  .ocUuccccccccuUCo.
+  .oCCCCCCCCCCCCCCo.
+  ...ucuucucuucuc...
+  ..u.ucuucuucuu.u..
+  ....u.ucu.ucu.u...
+  ..u...u.u.u.u...u.
+  ......u.....u.....
+`);
+
+// A curio on a stone pedestal: a softly glowing orb with a spark or two. 12 x 18.
+const CURIO = grid(`
+  ......c.....
+  ..c...c.....
+  ....ooooc...
+  ...ocvvVo...
+  ..ocvvvvVo..
+  ..ovvvvVVo..
+  ..ovvvVVVo..
+  ...oVVVVo...
+  ....oooo....
+  ..oooooooo..
+  ..occccccSo.
+  ..oSSSSSSzo.
+  ...osssSo...
+  ...ossSSo...
+  ...ossSSo...
+  ..ooooooooo.
+  ..osssssSSo.
+  ..oooooooo..
+`);
+
+// ---------- echoes: small calm signs that float over a place in the vale (10 x 10) ----------
+
+export const ECHO_ICONS = {
+  // Nocturne: a moon
+  moon: grid(`
+    ...oooo...
+    ..ouuUUo..
+    .ouuooo...
+    .ouo......
+    ouuo......
+    ouUo......
+    ouUUo.....
+    .oUUUoooo.
+    ..ooUUUUo.
+    ....oooo..
+  `),
+  // Gothic: a door knocker
+  knocker: grid(`
+    ...oooo...
+    ..osssSo..
+    ..oSzzSo..
+    ...oSSo...
+    ..oosSoo..
+    .osSooSSo.
+    .oSo..oSo.
+    .oSo..oSo.
+    ..oSSSSo..
+    ...oooo...
+  `),
+  // Neon: a spark
+  spark: grid(`
+    ....o.....
+    ...oeo....
+    ...oeo....
+    .ooecEoo..
+    oeecccEEo.
+    .ooEcEoo..
+    ...oEo....
+    ...oEo....
+    ....o.....
+    ..........
+  `),
+  // Starlight: a star
+  star: grid(`
+    ....oo....
+    ...ouUo...
+    ...ouUo...
+    oooouUoooo
+    ouuucUUUUo
+    .ouuuUUUo.
+    ..ouuUUo..
+    .ouUooUUo.
+    .oUo..oUo.
+    .oo....oo.
+  `),
+  // The story rift: a crack with light inside
+  crack: grid(`
+    .....o....
+    ....ovo...
+    ....ocvo..
+    ...ovco...
+    ..ovcvo...
+    ...ovcvo..
+    ....ovco..
+    ...ovco...
+    ...ovo....
+    ....o.....
+  `),
+};
+
+// ---------- Milo chops (16 x 20, headSplit 11): axe up, then down into the wood ----------
+
+const CHOP_PATCHES = {
+  // right: wound up behind the head, then swung level into the trunk low in front: both hands on a
+  // wooden handle, and a flared steel head (outlined in ink) whose bright edge bites at his reach
+  right: [
+    grid(`
+      .oooo...........
+      osSSno..........
+      ocSSno..........
+      osSSno..........
+      .ooono..........
+      ....n...........
+      ....n...........
+      ....n...........
+      ....n...........
+      ....n...........
+      ....n...........
+      ...otto.........
+      ...otto.........
+    `),
+    grid(`
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ..............oo
+      .......U.....oSc
+      ........ttBBBzSc
+      .............zSc
+      .............oSc
+      ..............oo
+    `),
+  ],
+  down: [
+    grid(`
+      .oooo...........
+      osSSno..........
+      ocSSno..........
+      osSSno..........
+      .ooono..........
+      ....n...........
+      ....n...........
+      ....n...........
+      ....n...........
+      ....n...........
+      ....n...........
+      ...otto.........
+      ...otto.........
+    `),
+    // struck down by his right side, where the tree in front of him leaves the axe in sight
+    grid(`
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ................
+      ..........tt....
+      ..U.......ttBo..
+      ............oBo.
+      ...........ozSSo
+      ...........ozSSo
+      ...........occco
+    `),
+  ],
+  // up: raised over the shoulder, then the blade bites the wood above his head
+  up: [
+    grid(`
+      ...........oooo.
+      ..........onSSso
+      ..........onSSco
+      ..........onSSso
+      ..........onooo.
+      ...........n....
+      ...........n....
+      ...........n....
+      ...........n....
+      ...........n....
+      ...........n....
+      .........otto...
+      .........otto...
+    `),
+    // the handle up the back of his head, the head over it, its edge in the trunk behind him
+    grid(`
+      ....occccco.....
+      ....ozSSSzo.....
+      .....oonoo......
+      .......n........
+      .......n........
+      .......n........
+      .......n........
+      ................
+      ................
+      ................
+      ................
+      ..oorrrrrrrroo..
+      .otoUbbbbbbUoto.
+    `),
+  ],
+};
+// A small burst of wood chips flies from where the blade bites (strike frames only), each chip a
+// pixel on its own, clear of the axe. They go behind Milo: a chip only lands on a transparent pixel,
+// so it never covers him, and none touches his head, so none reads as a speck on his hair.
+const CHOP_CHIPS = {
+  right: grid(`
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ...............c
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ...........b.n..
+  `),
+  down: grid(`
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ................
+    ...............b
+    ................
+    ................
+    ................
+    ................
+    n...............
+    ................
+    .c..............
+  `),
+  up: grid(`
+    .n............b.
+    c..............c
+  `),
+};
+const underlay = (rows, patch) => rows.map((row, y) => [...row].map((ch, x) => (ch === '.' && patch[y] && patch[y][x] && patch[y][x] !== '.' ? patch[y][x] : ch)).join(''));
+const MILO_CHOP = Object.fromEntries(['right', 'down', 'up'].map((dir) => [dir, CHOP_PATCHES[dir].map((patch, i) => {
+  const rows = stamp(MILO[dir][0], patch, 0, 0);
+  return i === 1 ? underlay(rows, CHOP_CHIPS[dir]) : rows;
+})]));
+MILO_CHOP.left = MILO_CHOP.right.map(mirror);
+
 // ---------- registry ----------
 
 export const SPRITES = {
@@ -1334,6 +2398,49 @@ export const SPRITES = {
   'lamp.post': [LAMP_POST],
   fog: [FOG_PUFF],
   smoke: [SMOKE],
+  // the wilds
+  'tree.birch': [TREE_BIRCH, shiftRows(TREE_BIRCH, 1, 0, 18)],
+  'pine.snow': [PINE_SNOW, shiftRows(PINE_SNOW, 1, 0, 16)],
+  crag: [CRAG],
+  'crag.snow': [CRAG_SNOW],
+  'basalt.column': [BASALT_COLUMN],
+  'rock.basalt': [ROCK_BASALT],
+  'dice.stone': [DICE_STONE],
+  'lantern.post': LANTERN_POST, // [sleeping, lit]
+  ruin: [RUIN],
+  cave: [CAVE],
+  chest: [CHEST_CLOSED, CHEST_OPEN],
+  'chest.mimic': [MIMIC_CLOSED, MIMIC_AWAKE],
+  note: [NOTE],
+  hamlet: [HAMLET],
+  statue: [STATUE],
+  'landmark.stone': [LANDMARK_STONE],
+  'ore.node': [ORE_NODE],
+  herbs: [HERBS],
+  'fishing.spot': FISHING_SPOT,
+  thicket: THICKET, // two variants: pick one per tile
+  // the Stockade
+  'palisade.post': [PALISADE_POST],
+  'palisade.n': [PALISADE_N],
+  'palisade.s': [PALISADE_S],
+  'palisade.e': [PALISADE_E],
+  'palisade.w': [PALISADE_W],
+  'palisade.jamb': [PALISADE_JAMB], // drawn as it is, on the wall tile just south of the w and e gates
+  gatehouse: GATEHOUSE, // [facing you (n, sw gates), end-on (w, e gates, drawn at dy -15)]
+  'gate.bell': [GATE_BELL],
+  'war.table': [WAR_TABLE],
+  banner: BANNER,
+  'bridge.h': [BRIDGE_H],
+  // Elsewhere
+  'exit.door': [EXIT_DOOR],
+  curio: [CURIO],
+  // echoes
+  ...Object.fromEntries(Object.entries(ECHO_ICONS).map(([id, rows]) => [`echo.${id}`, [rows]])),
+  // Milo chopping
+  'milo.chop.down': MILO_CHOP.down,
+  'milo.chop.up': MILO_CHOP.up,
+  'milo.chop.left': MILO_CHOP.left,
+  'milo.chop.right': MILO_CHOP.right,
 };
 
 export function spriteSize(name) {
@@ -1354,13 +2461,21 @@ function hexToRgba(hex) {
 
 const RGBA = Object.fromEntries(Object.entries(PALETTE).map(([key, { hex }]) => [key, hexToRgba(hex)]));
 
-export function rowsToImageData(rows, makeImageData) {
+// A colour table maps palette keys to [r, g, b, a] (alpha 0..255; three numbers mean opaque).
+// Keys a table leaves out keep their base colour, so a genre table only needs the keys it changes.
+function colourOf(table, key) {
+  const rgba = (table && table[key]) || RGBA[key];
+  if (!rgba) return null;
+  return rgba.length > 3 ? rgba : [rgba[0], rgba[1], rgba[2], 255];
+}
+
+export function rowsToImageData(rows, makeImageData, table = RGBA) {
   const w = rows[0].length;
   const h = rows.length;
   const image = makeImageData(w, h);
   rows.forEach((row, y) => {
     for (let x = 0; x < w; x += 1) {
-      const rgba = RGBA[row[x]];
+      const rgba = colourOf(table, row[x]);
       if (!rgba) continue;
       const i = (y * w + x) * 4;
       image.data[i] = rgba[0];
@@ -1376,14 +2491,22 @@ export function rgbaOf(key) {
   return RGBA[key];
 }
 
+// A copy of the base colour table, for building genre tables from.
+export function baseTable() {
+  return Object.fromEntries(Object.entries(RGBA).map(([key, rgba]) => [key, rgba.slice()]));
+}
+
 // Builds canvases for every sprite frame. `createCanvas(w, h)` must return a canvas.
-export function buildAtlas(createCanvas) {
+// `table` recolours the whole atlas (a genre's palette); `names` limits it to those sprites.
+export function buildAtlas(createCanvas, { table = RGBA, names = null } = {}) {
   const atlas = {};
+  const wanted = names ? new Set(names) : null;
   for (const [name, frames] of Object.entries(SPRITES)) {
+    if (wanted && !wanted.has(name)) continue;
     atlas[name] = frames.map((rows) => {
       const canvas = createCanvas(rows[0].length, rows.length);
       const ctx = canvas.getContext('2d');
-      ctx.putImageData(rowsToImageData(rows, (w, h) => ctx.createImageData(w, h)), 0, 0);
+      ctx.putImageData(rowsToImageData(rows, (w, h) => ctx.createImageData(w, h), table), 0, 0);
       return canvas;
     });
   }
