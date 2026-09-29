@@ -298,7 +298,7 @@ This is the gameplay phase, with combat as its spine. It ships in slices, each w
 - **4.1 The first fight:** the rules on paper (three actions and a reaction, the four degrees, heat and edge, Integrity and damage kinds, the grid, the round and a seeded sim, all headless); one room of a wild Elsewhere as the board, with the round planner and Run, and companions drafting from their personalities alone; saving after every action, and pausing at the next action when a focus session starts or a rest ends.
 - **4.2 The full rules:**
   - Callings to level 5 (the Wayfarers' to 12), about 10 spells, conditions and weapon arts; Road XP, Warding and Spellcraft; Breathers and Campfires wired to real rests.
-  - Height, light, the Hooklight and the 8 surfaces.
+  - Height, light, the Hooklight and the 11 surfaces.
   - The bestiary, with temperaments, telegraphs, Sneak and talking down; resistances and weaknesses by damage kind; elites; strays that adapt by rank and level, and Tale-leads that feint; one Tale-lead mechanic per genre with its bow, and a plain fallback for the rest; each genre's noise at Run; the three modes.
   - **They learn from you:** each companion's notebook, drafts with confidence and *why?*, the sync score, and the notebook page at camp.
   - Every way to play (Guided, Command, *Let them handle it*, *Tell me how it went*) on one shared round driver.
