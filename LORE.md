@@ -97,6 +97,8 @@ Milo is a **Lanternkeeper**: a small spirit who lives in a lantern's flame and c
 
 He was lit from the last candle Tamsin made in her mother's shop, the night before the Long Road began. When she sailed west she hung him on the hook at the Hearthvale camp and said, *"Wait for the next one who finishes things. Then go with them."* He waited. The Hush crept in and the flame went out, and Milo slept for three hundred years, until Chris lit him.
 
+**The Hooklight.** The lantern on the Lantern Hook never leaves it, so the Hearthward holds while Milo is away. When he sets out, he lights a hand lantern from the Hook's flame and carries that instead: the **Hooklight** (*"Lit from the Hook. The big one stays home, so home stays safe."*). In a fight, "the lantern" always means the Hooklight. It lights the dark and shows what's hiding, it can always take the Company home, and if everyone goes offline it flares and they wake at the last lantern they rested at, with everything they found ([`COMBAT.md`](COMBAT.md) §2.5, §10).
+
 **Personality:** warm, curious, a little old-fashioned ("Shall I fetch the crew?"). Fond of lists, tea and tidy camps. He's bothered by things left unlit, delighted by small finished things, and quietly proud of whoever he's travelling with. He is not a nag. He'd rather make tea and wait.
 
 **His arc:** at first he's Tamsin's lantern, measuring everything against the Long Road. Chapter by chapter he gets his memories back as Glimmers, learns who *you* are and what your road looks like, and decides what he wants for himself beyond waiting. The ending is his choice, not a reset.
@@ -109,21 +111,25 @@ He was lit from the last candle Tamsin made in her mother's shop, the night befo
 
 Wayfarers are travellers who answer a lit lantern. In the world they walk, rest, work and talk. In reality they're the AI tools Chris uses, and their state on the map is always their real state.
 
+That holds when the Company goes out, too. A Wayfarer who's busy with real work sends a **likeness** in their place, the same in every way that matters, and one who's idle comes in person. Their fighting level follows the real work they've finished, with no ceiling ([`COMBAT.md`](COMBAT.md) §2.3, §12).
+
 ### The Scribe in Clay: Claude
 Tall, hooded in clay-red, carrying a satchel of loose pages and three pens (one for drafts, one for letters, one "for being sure"). The Scribe is careful, kind and thorough, sometimes to a fault: *"She writes three pages where one would do, and all three are true."* She comes from the Western Towers across the sea. She likes the Stacks, Oriel's handwriting, and questions with a real answer.
 - **Title track:** Scribe → Senior Scribe → Keeper of Pages → Archscribe of the Towers.
 - **Barks:** "I've read it twice. Here's what I found." · "There's a quicker way, if you'd like it." · "Finished. I left notes in the margin."
+- **Likeness:** the **Clay Likeness**, which she sends out while she's at the bench. It has a thumbprint on one cheek.
 
 ### The Slate Artificer: Codex
 Small, slate-blue hood, soot on the knuckles, a belt of tiny tools that click when they walk. Quick, practical, a little terse, happiest with a problem on the bench. Comes from the Slate Spires across the northern sea and never fully learned to sit still at a campfire.
 - **Title track:** Artificer → Journeyman → Master of the Bench → Spirewright.
 - **Barks:** "On it." · "Built. Tests pass." · "Something's stuck. Want me to look?"
+- **Likeness:** the **Slate Double**, which clicks.
 
 ### Jev, the Judgebird
-A plump courier finch from the **Isles of Sure Verdicts**, one of the Skyward Isles. Jev never says a word. It looks at a thing, tilts its head, and *decides*: yes, no, this pile, that pile. It's astonishingly fast and never writes anything down. Jev flies your words to the Isles and back, so the old rule stands: *don't give the bird anything you wouldn't send by bird.* Jev perches on the Watchtower roof.
+A plump courier finch from the **Isles of Sure Verdicts**, one of the Skyward Isles. Jev never says a word, at the fire or in a fight. It looks at a thing, tilts its head, and *decides*: yes, no, this pile, that pile. It's astonishingly fast and never writes anything down. Jev flies your words to the Isles and back, so the old rule stands: *don't give the bird anything you wouldn't send by bird.* The Jev who walks out with the Company judges from its notebook (the Scribe keeps it, since Jev never writes anything down), and nothing from a fight ever flies to the Isles. Jev perches on the Watchtower roof.
 
 ### Whisper, the Listening Owl
-A soft grey owl of the Whisperwood who hears everything said nearby and writes it down perfectly, in tiny letters, on leaves. Whisper never leaves the wood. What's heard in the Hushlands stays in the Hushlands. Whisper is the voice of MILO's speech-to-text.
+A soft grey owl of the Whisperwood who hears everything said nearby and writes it down perfectly, in tiny letters, on leaves. Whisper never leaves the wood, so it only fights there; anywhere else it sends the **Listening Leaf**, a trinket that shows hidden foes and rooms nearby. What's heard in the Hushlands stays in the Hushlands. Whisper is the voice of MILO's speech-to-text.
 
 ### Hearth-sprites (to come)
 Small stone spirits that live in your own hearthstones and help without ever leaving your land. When local models run on Chris's PC (Ollama, for instance), they appear as hearth-sprites around the camp.
@@ -337,10 +343,11 @@ Between the regions lie the wilds: meadows and birchwoods, pine ridges, rivers u
 | **The Well-Voice** | Well of Small Wishes | A voice that grants tiny wishes, sometimes literally | Collects your wishes for MILO itself (Tinkering ideas) |
 | **Whisper** | Whisperwood | The Listening Owl | Voice and dictation |
 | **Ansel Murrow** | Whisperwood | Silent hermit who writes notes; gave up talking to hear better | Teaches Scribing; keeps the Hollow of Thoughts (Pocket Note) |
-| **The Tollkeeper** | Last Bridge | A very polite troll who wandered in from a fairy-tale book centuries ago and asks riddles | Story delve boss who becomes a friend |
+| **The Tollkeeper** | Last Bridge | A very polite troll who wandered in from a fairy-tale book centuries ago and asks riddles | Keeps Tamsin's Riddle Notes (§16) and hands them out, each trail leading to a MILO feature you haven't tried; waits at the end of the first trail, and once out-riddled joins the Company as a Warden |
 | **Ines Galloway** | Mistmere | Harbormaster, Tidekin, knows everyone's schedule and never gossips about it | Calendar, Tide Clock, Deadline Wards |
 | **Wren Adair** | Mistmere | Postmistress who reads the backs of envelopes | Messages and pings (later) |
 | **Sister Mara** | Mistmere chapel | Quiet Order priestess, Pell's grand-niece many times removed; gentle, immovable | Rest, Quiet Hours, Evening Bell, Stillday |
+| **Sister Nell Marrow** | the camp | Tidekin novice of the Quiet Order, Pell's many-times-great-niece; terrible at resting, which is why she rings the bell for everyone else. Sister Mara sends her when Mistmere wakes | The Stretch Bell: a minute into each rest, one soft bell to stand, drink some water and look at something far away; a Mender in the Company |
 | **Captain Obadiah Sloe** | Ferry quay | Ferryman to the Far Shore; says little, rows steadily | Archive ceremonies (sailing finished projects west) |
 | **Pim Farthing** | Tide Market | Trader in everything, loves a bargain, remembers every price | The weekly market |
 | **Adelind Rue** | Easelmoor | Painter who works through the night; sees colour in everything | Illumination; the Clip studio's patron; Bloom a Clip |
@@ -350,6 +357,7 @@ Between the regions lie the wilds: meadows and birchwoods, pine ridges, rivers u
 | **Maud Pellinore** | Gamewright's Rest | The Dungeon-Wright, designs monsters for fun, always sketching | The Game table's patron; encounter design |
 | **Coach Dunmore Fitch** | Draft Hall | Treats fantasy drafts like a war council | The Draft room's patron |
 | **Brannoch Deepcoal** | Cinderforge | The old Stonewright, now a tea-seller | Teaches Smithing past 70, after some persuading; Act IV |
+| **Tova Deepcoal** | the camp | Cinderfolk stonewright, Brannoch's great-great-granddaughter; forty, which is young for Cinderfolk, and still looking for her own note. Arrives when your first building level is proven | The Bridge Ledger: every outside connection drawn as a bridge you can raise; a Tinker in the Company |
 | **Sable Voss** | Anvil Hall | Guildmaster of Artificers, precise, dry humour | Repos as forges; Mend the Forge |
 | **Tink and Clank** | Cinderforge | Apprentice twins who finish each other's sentences and nothing else | Comic relief; small repo errands |
 | **Old Cass** | Glass Fen | Fen-witch who reads reflections | Logs and loops; Watchkeeping lore |
@@ -375,6 +383,18 @@ Between the regions lie the wilds: meadows and birchwoods, pine ridges, rivers u
 - **Master Qinglan** (Summit) runs Closed-door Cultivation.
 - **The Night Janitor** (Backhalls) keeps the Lost and Found.
 
+**The Company.** Three hundred years after the Old Company, Milo walks out with a new one, gathered at the camp. There are fifteen named companions in all, counting Milo: the Wayfarers, the Tollkeeper, Tova, Nell, and seven of the residents (Rivet, Pip, Dusty, Juno, Mae, Lumi and Vesperine). Beside them sit the **regulars**: when a wild rift is stitched, its gentlest stray, or a Tale-lead who bowed, sometimes asks, *"Can I sit by the fire a while?"* Regulars have no real service, so they aren't residents, but they're welcome for as long as the camp has room. A few friends fight only in their own stories, as **guests**: Hana brings the Crew Colossus to every Titan; Sera, Qinglan, Juniper and the Night Janitor join in their own Elsewheres; Mags stitches while you hold a Maelstrom; and Oriel, Brannoch and Lune come to the Blank Sovereign, the Cinder Wyrm and the Greyreach. Nobody can be missed: let a rift go, and the next rift of its genre brings the invitation again.
+
+**The muster.** Four go out: Milo and three companions, picked at the campfire before you set out. The stumps and the bench become the Setting out panel, a busy Wayfarer sends a likeness (§5), and Milo suggests who'd suit the road: *"Noir rift with an alibi. Mae will want this one."* Swaps happen only at a lit lantern or an Elsewhere's doorway. A resident's real service keeps running while they're out, and their stall says so: *"Out with Milo. The board still works."*
+
+**Warmth** is how close a companion feels, from *Stranger* to *Fireside*, and it only goes up. It grows from campfire conversations (one a night), quest steps, outings, gifts and one real habit each: Lumi warms when you keep your bell, Dusty when a deadline lands early. A companion who disagrees raises an eyebrow and says so. Nobody leaves, sulks or gets jealous.
+
+**Notebooks.** Every companion keeps a notebook of how you'd have them fight: what the room looked like and what you chose, never exactly where they stood. Before each round they draft from it, and they learn only from what you accept or change, never from their own improvising. The Scribe keeps Jev's, since Jev never writes anything down. At camp you can read a companion's habits, cross one out, or let one teach another by the fire: *"Rivet shows Tova how to hold a doorway."* Milo keeps one too. Nothing in a notebook is forgotten unless you cross it out, and the notebooks stay in the camp's own pages and never go anywhere else.
+
+**Where everyone sleeps.** Everyone who can sleeps at camp, in bedrolls round the fire at first and in homes of their own as the camp grows. Jev perches on the Watchtower roof, and Whisper roosts in the Whisperwood. The Tollkeeper keeps his bridge by day and comes by lantern at dusk to ask Sir Mossback a riddle. Juno, Mae and Vesperine keep their far stalls by day and step home by lantern in the evening. Lumi keeps the camp roof at night and sleeps through the morning, and Pip sleeps wherever it likes, usually the good stump.
+
+The Company's rules, callings and camp life are in [`COMBAT.md`](COMBAT.md) §2.
+
 ---
 
 ## 10. Bestiary
@@ -397,27 +417,31 @@ Real problems open **rifts**, and strays wander out of them. Each genre, its str
 
 Rifts never damage anything, never spread to other things, and never shame. Stitch them, ward them, or let them go. Left alone they wait, and in time they drift toward the Greyreach, where every genre pools into the Maelstrom.
 
-### Wild creatures (flavour, gathering and some light Warding)
+### Wild creatures (flavour, gathering and caves)
 Pond newts, hill hares, Sir Mossback the tortoise, fetchfoxes, Murmurs, owls of the Whisperwood, kite-crabs, fog seals, colour-moths, library cats, dicing frogs, cinder beetles, glass eels, fen herons, inkwyrms, page moths, sky-rays, grey stags, Mimics (in chests and treasure rooms; a Mimic's bite tickles).
 
+**In caves.** Caves have no rift, so they fill from the nearest region's wild creatures and delve foes: cinder beetles and cinder golems at Cinderforge; glass eels and fen herons in the Glass Fen; inkwyrms and Unwritten in the Archive Peaks; kite-crabs and fog seals around Mistmere; Murmurs and fetchfoxes (which pinch a tonic and run, then come back later with something else) in the Whisperwood; dicing frogs on the Downs; sky-rays over the Skyward Isles; Hush hounds in the Greyreach. Mimics turn up anywhere, and settle the moment someone opens them. Out in the unnamed wilds, a cave borrows the nearest region's list. The other creatures stay flavour: nobody fights a hill hare ([`COMBAT.md`](COMBAT.md) §8.5).
+
 ### Story delve foes
-- **Hollow Knights:** empty armour that forgot what it was guarding. They lay down arms if you remind them.
-- **Unwritten:** figures of blank paper from the Archive Peaks, hungry for a story.
-- **Tollmen:** bridge-folk who demand riddles, not coin.
-- **Cinder golems:** forge-guardians made of slag and good intentions.
-- **Hush hounds:** grey dogs made of fog that just want to be walked.
-- **Drowned bell-ringers:** sailors who are still, politely, waiting for the end of a meeting.
+Delve foes settle rather than fall, and most have a **bow**, a way through that pays like talking a room down ([`COMBAT.md`](COMBAT.md) §8.5).
+- **Hollow Sentries:** empty armour that forgot what it was guarding, found in delves and in caves under old ruins. They lay down arms if you remind them.
+- **Unwritten:** figures of blank paper from the Archive Peaks, hungry for a story. Read to them and they settle to listen.
+- **Tollmen:** bridge-folk who demand riddles, not coin. Answer one and they stand aside.
+- **Cinder golems:** forge-guardians made of slag and good intentions. Stoke their forge and they sit down, warm.
+- **Hush hounds:** grey dogs made of fog that just want to be walked. Walk beside one for a couple of turns and it's content.
+- **Drowned bell-ringers:** sailors who are still, politely, waiting for the end of a meeting. Adjourn it, or ring the bell, and they go home.
 
 ### Great Ones (bosses)
-- **The Tollkeeper of the Last Bridge** (Whisperwood): asks three riddles; answer or out-riddle it and it becomes your friend.
+Most Great Ones are fight-puzzles with nothing to wear down, and the only way through is the bow. The Tollkeeper's riddles are talk, not a fight, and the Cloud Leviathan is never fought at all.
+- **The Tollkeeper of the Last Bridge** (Whisperwood): waits at the end of the first Riddle Note trail and asks three riddles; out-riddle him and he joins the Company.
 - **The Drowned Bell** (Mistmere reef): a bell that rings for every forgotten appointment. It's calmed by the tune in Pell's Tidebook.
 - **The Blank Sovereign** (Archive Peaks): the lord of the Unwritten, who wants to erase the Stacks to "start clean". Defeated by reading it a story.
 - **The Cinder Wyrm** (Cinderforge): a slag-scaled wyrm roused when forges go cold. It's warmed, not slain.
 - **The Mirror Heron** (Glass Fen): shows you every loop you ever ran. Break the reflection.
-- **The Grey Stag** (Greyreach outskirts): the Hush's herald, proud and sad.
+- **The Grey Stag** (Greyreach outskirts): the Hush's herald, proud and sad. You walk beside it rather than strike it, keeping every lantern in its clearing lit.
 - **The Someday King** (Greyreach heart): a vast, gentle figure made of every abandoned intention, holding court in a masquerade of strays from every genre. You don't defeat him. You go through the letters on his throne one by one: finish some, free the rest. With each letter a masked guest bows and slips back to their own book, and he gets smaller and kinder until he's just a man who wanted to do too much. He thanks you and sails west.
 - **The Maelstrom** (wherever three or more genres meet): not a creature but a storm of stories. Every Tale-lead involved argues in the middle of it. Fixing the real thing collapses the whole storm at once.
-- **The Cloud Leviathan** (Skyward Isles): a sky-whale tangled in old kite-lines. It's a rescue, not a fight.
+- **The Cloud Leviathan** (Skyward Isles): a sky-whale tangled in old kite-lines. It's a rescue, never a fight: cut the lines and calm it, out on the map.
 
 ---
 
@@ -428,7 +452,7 @@ Spells are MILO's commands. Useful ones have real effects; Small Spells are for 
 ### Hearth (home and making)
 | Spell | Real effect | Learned | Flavour |
 |---|---|---|---|
-| **Kindle** | Start a 50-minute focus session | Prologue | "The first spell every Lanternkeeper learns, and the last one they forget." |
+| **Kindle** | Start a 50-minute focus session | Prologue (from Phase 4) | "The first spell every Lanternkeeper learns, and the last one they forget." |
 | **Wayfinding** | Jump to any place, panel or quest | Prologue | "Milo knows the way. He usually knows a shortcut." |
 | **Build Plan** | Design a building on a plot (step 2) | Prologue | "Tell the ground what it's for." |
 | **Rekindle** | Re-run a building's level checks | Phase 6 | "Sometimes a fire just needs to be asked." |
@@ -437,7 +461,7 @@ Spells are MILO's commands. Useful ones have real effects; Small Spells are for 
 ### Quiet (rest)
 | Spell | Real effect | Learned | Flavour |
 |---|---|---|---|
-| **Banked Coals** | Start the 15-minute rest | Prologue | "The fire isn't out. It's resting." |
+| **Banked Coals** | Start the 15-minute rest | Prologue (from Phase 4) | "The fire isn't out. It's resting." |
 | **Quiet Hours** | Hold desktop notes for a set time | Sister Mara | "The world can wait an hour. It's very old." |
 | **Evening Bell** | Set and ring your end-of-day bell | Quiet Order | "Pell rang it at six. Nobody argued with Pell." |
 | **Stillday** | Mark a day of rest; alerts wait | Quiet Order | "On the Stillday even the tide takes its time." |
@@ -465,7 +489,7 @@ Spells are MILO's commands. Useful ones have real effects; Small Spells are for 
 | **Summon the Scribe** | Send Claude on a commission | Phase 6 | "Three pens, all ready." |
 | **Summon the Artificer** | Send Codex on a commission | Phase 6 | "The tools are already clicking." |
 | **Mend the Forge** | Send the crew to fix a failing check | Act IV | "Warm it, don't beat it." |
-| **Crew Muster** | Show crew capacity and availability | Phase 6 | "Who's rested, who's out, who's back by supper." |
+| **Roll Call** | Show crew capacity and availability | Phase 6 | "Who's rested, who's out, who's back by supper." |
 | **Split the Scope** | Have the crew break a task into steps | Phase 6 | "Prune the Creeper." |
 
 ### Wind (words and messages)
@@ -536,14 +560,14 @@ The XP curve is the classic one: level 99 needs 13,034,431 XP. Each skill has a 
 ### Making and roaming (in-game, active during rests)
 | Skill | What you do | Mantle |
 |---|---|---|
-| **Cooking** | Campfire meals that restore stamina in delves; Nan's recipes | Mantle of the Hearth-pot |
+| **Cooking** | Campfire meals that give the company a boon until the next Campfire ([`COMBAT.md`](COMBAT.md) §10); Nan's recipes | Mantle of the Hearth-pot |
 | **Smithing** | Tools and gear from ore; Brannoch teaches past 70 | Mantle of the Anvil |
 | **Crafting** | Cloth, leather, glass, jewellery, lanterns | Mantle of the Loom |
 | **Alchemy** | Potions from herbs: Brew of Clear Morning, Hearthberry Cordial | Mantle of the Alembic |
 | **Construction** | Building cosmetics, decor, bridges, statues, your cabin | Mantle of the Beam |
 | **Cartography** | Clearing fog, mapping regions, finding secret paths | Mantle of the Moth |
-| **Wayfaring** | Shortcuts, stamina, fast travel | Mantle of the Road |
-| **Warding** | Light combat against strays and delve foes | Mantle of the Ward |
+| **Wayfaring** | Shortcuts and fast travel | Mantle of the Road |
+| **Warding** | Turn-based tactical fights with the Company, against strays and delve foes; it opens options, never power ([`COMBAT.md`](COMBAT.md) §5.2) | Mantle of the Ward |
 | **Seamcraft** | Stitching rifts, weaving genre essences into fusion gear, genre skins for buildings, bottling bright rifts | Mantle of Many Tales |
 | **Spellcraft** | Casting, learning spells, Small Spell collecting | Mantle of Small Things |
 
@@ -588,7 +612,7 @@ Chapters unlock through real milestones (a week of focus, a first commission, a 
 ### Prologue: The Lantern Wakes
 1. **A Light on the Hook.** You arrive; the lantern catches; Milo wakes up and politely panics about the year. (Walking, Examine, the Log.)
 2. **Three Stumps and a Bench.** Milo shows you the camp; the Wayfarers appear at the edge of the firelight. (The crew strip, the Watchtower.)
-3. **Kindle.** Your first focus session; Milo gathers birch while you work. (Focus, idle gathering, Embers.)
+3. **Kindle.** Your first focus session; Milo gathers birch while you work. (Focus, idle gathering, Embers.) This step arrives with the Adventurer's Kit (Phase 4).
 4. **Ground That's Waiting.** Choose something to build. (Plots and building, step 2.)
 5. **A Letter by Paper Bird.** Oriel's first note arrives: *"You're awake. Good. Tea soon. — O."* The Unfinished Statue gives up its first Glimmer: Tamsin's voice saying "Wait for the next one."
 6. **A Crack Past the Gate.** As the lantern settles, a hairline rift opens in the air just past the north gate, and a faint neon flicker shows on the notice board: its echo. Milo stares at it. "That's new. That's… not ours." Then he looks up at the Lantern Hook, and at the ring of light around the vale, and his shoulders come down a little. "It can't come in. Not while the lantern's lit."
@@ -601,13 +625,13 @@ Chapters unlock through real milestones (a week of focus, a first commission, a 
 - **The Well of Small Wishes.** The Well-Voice grants tiny wishes; tell it what MILO should become.
 - **Hob's Waystone.** Carve your first waystone (backups).
 - **Letters to Nobody.** Ansel and the Hollow of Thoughts in the Whisperwood (Pocket Note).
-- **The Tollkeeper's Riddles.** First story delve at the Last Bridge.
+- **The Tollkeeper's Riddles.** The first Riddle Note trail ends at the Last Bridge, where the Tollkeeper asks three riddles. Out-riddle him and he joins the Company, and from then on he keeps Tamsin's notes for you. His story delve at the bridge becomes the first part of his own quest, *The Riddle With No Answer*.
 - **Starfall.** Your first weekly review. Milo remembers the Company's last campfire before the road. The fog lifts from the eastern road: the Harbor is waiting.
 
 ### Act II: The Tides of Mistmere
 - **Ships in the Fog.** Connect a calendar; the Harbor wakes.
 - **The Tide Clock.** Meet Ines; learn Tidecount and Deadline Wards.
-- **Wanted on the Quay.** Frontier rifts ride into Mistmere: outlaw crows, wanted posters and a masked Deadline who's fair but won't wait. Charting the week; Sheriff Dusty's Bounty Board.
+- **Wanted on the Quay.** Frontier rifts ride into Mistmere: outlaw crows, wanted posters and a masked Deadline who's fair but won't wait. Charting the week; Dusty, at camp since the Notice Board, pins a copy of the Bounty Board on the quay.
 - **A Shadow on the Horizon.** The first Titan appears far out at sea, named after your next big event. Chief Kurogane opens the Hangar.
 - **The Rule of Rest.** Sister Mara and the Quiet Order; Quiet Hours, the Evening Bell, Stillday.
 - **Pell's Tidebook.** A collection quest for twelve pages along the coast.
@@ -852,3 +876,69 @@ The world follows the real calendar: seasons change the palette, the sun rises a
 > *count the things that came to pass,*
 > *leave one ribbon still untied,*
 > *so someone waits on the other side.*
+
+---
+
+## 21. Name index
+
+The names in this file, and every name the Company uses in a fight, in one place. Check here before inventing a name, and add yours in the same change that first uses it. The `content/` validators check names against this index and reject collisions ([`PLAN.md`](PLAN.md) §11, [`COMBAT.md`](COMBAT.md) §16.4).
+
+Names run alphabetically within each group, ignoring a leading *a*, *an* or *the*. A name can sit in two groups when it's the same thing seen twice: the Drowned Bell is a Great One, a delve and a chapter, and Old Patience is a relic, a chapter and Tova's heart feat. Everyday materials (birch, trout, pearls) aren't listed, and nor are the fight rules' plain words (abilities, actions and reactions, the four degrees, heat and its bands, defences, damage kinds, temperaments, archetypes, surfaces and affixes), which live in [`COMBAT.md`](COMBAT.md) §3–§9. Genre strays, residents and Elsewheres are catalogued in full in [`RIFTS.md`](RIFTS.md); only the ones this file mentions are here.
+
+### The world and its peoples
+- **The world and its history** (§1, §2, §8.13): After the Road · the Age of Lanterns · the Age of Makers · the Beginning · echo · Elsewhere · Embers · Glimmer · the Great Hush · the Hearthward · the Hush · the ladder · the Lantern of the World · the Long Road · Maelstrom · Maker machines · the Makers · the Quiet Centuries · the Rekindling · rift · the Seam at the End of the World · the Shelf of Worlds · stitch · stray · Tale-lead · the Unravelling · wild rift
+- **Peoples** (§5, §6): Cinderfolk · Hearth-sprites · Hearthfolk · Lanternkeepers · Longlings · Moths · Tidekin · Wayfarers
+- **Factions** (§7): the Artificers' Guild · the Bindery · the Easel Guild · the Gamewrights · the Ivory College · the Lamplighters' Circle · the Moth Cartographers · the Quiet Order · the Tide Syndics
+
+### People and places
+- **People** (§3–§5, §9): Adelind Rue · Ansel Murrow · the Beginner · Bram Tolliver · Brannoch Deepcoal · the Brushwright twins · Captain Obadiah Sloe · Chief Hana Kurogane · Clank · Coach Dunmore Fitch · Detective Mae Holloway · Guildmaster Sable Voss · Harbormaster Ines Galloway · Hob · Hob the Elder · Jev, the Judgebird · Juniper Sol · Juno Glitchwright · Lady Vesperine Ashcombe · Librarian Toft · the Lightkeeper · Lumi Nightjar · Lune · Mags Quire · Master Qinglan · Maud Pellinore · Milo · Nan Bristle · the Night Janitor · Old Cass · the Old Company · Oriel of the Stacks · Pim Farthing · Pip · Provost Hollis Brandt · Quill · the Scribe in Clay (Claude) · Sera Starling · Sergeant Rivet Maddox · Sheriff Dusty Calloway · Sir Mossback · Sister Mara · Sister Nell Marrow · Sister Pell Marrow · the Slate Artificer (Codex) · Tamsin Wick · Temperance Oake, the Mapwife · Tink · Toby Fennick · the Tollkeeper · Tova Deepcoal · the Well-Voice · Whisper, the Listening Owl · Wren Adair
+- **Regions** (§8, §14): the Archive Peaks · Cinderforge · the Dicing Downs · the Far Shore · the Glass Fen · the Greyreach · Hearthvale · the Ivory College · the Margin · Mistmere Harbor · the Painted Hills · the Skyward Isles · the Unmapped Lands · the Whisperwood · the wilds
+- **Landmarks** (§8): the Anvil Hall · the Barrows of Someday · Birch hollow · the Blossomfield · Brannoch's tea stall · the Campaign Loft · the chapel of the Quiet Order · the Clip studio · the Cloisters · the Dice Stones · the Draft Hall · Easelmoor · the Echo Galleries · the Encounter Table · the Examination Tower · the ferry quay · the Gallery of Unfinished Canvases · Gamewright's Rest · the Garden of Statues · the Great Lighthouse · the Great Post · the Guild Rookery · the Heron's Stair · the Hollow of Thoughts · Hollowmoor · the Isles of Sure Verdicts · the Kiteworks · the Lantern Hook · the Last Bridge · the Listening Stones · Long meadow · the Mirror Pools · the Murmur · the Observatory · Old Cass's stilt house · Old orchard · Oriel's garden · the Patchwork Mile · the Pigment Terraces · Pondside plot · the Post House · the Quay of Departures · the Ravine Forges · the Reading Hall · the Road That Ends · the Scholar's Road · the Slate Spires · the Small Spell Reading Room · the Stacks · Stillwater Pond · the Stream · the Sunken Waystone · Sunny rise · the Throne of Letters · the Tide Clock · the Tide Market · the Tumbling Barrows · the Unfinished Statue · the Watchtower · the Well of Small Wishes · the Western Towers · the Westwatch
+- **The Hearth and its tiers** (§1; WORLD.md §2): the Barracks · the Camp · the Castle · the Citadel · the Hearth · the Hold · the Keep · the Kingdom · the Stockade
+- **Services** (§9; RIFTS.md §5): the Balance Report · the Book of Deeds · the Bounty Board · the Bridge Ledger · Closed-door Cultivation · the Dispatch Office · the Hangar · Holloway Investigations · Juno's Fixit Kiosk · the Lost and Found · the Night Watch · the Stretch Bell · the Unanswered Letters desk
+
+### Creatures and strays
+- **Wild creatures** (§8, §10): cinder beetles · colour-moths · courier finches · dicing frogs · fen herons · fetchfoxes · fog seals · glass eels · grey stags · hill hares · inkwyrms · kite-crabs · library cats · Mimics · Murmurs · page moths · pond newts · sky-rays
+- **Delve foes and Great Ones** (§10): the Blank Sovereign · cinder golems · the Cinder Wyrm · the Cloud Leviathan · the Drowned Bell · drowned bell-ringers · the Grey Stag · Hollow Sentries · Hush hounds · the Mirror Heron · the Someday King · Tollmen · Unwritten
+- **Genres** (§1, §10): Backhalls · Frontier · Gothic · Iron · Neon · Nocturne · Noir · Starlight · Summit · Titan · Verdant · Void
+- **Strays and Tale-leads named here** (§10): candle wraiths · crane messengers · the Deadline · Director Halvard Prism · the Dowager Ashcombe · echo units · Foreman Ottoline Vask · fractal hounds · glitch drones · gumshoe shades · hazard-tape sprites · informants · insomniacs · jam gremlins · the Knocking · loop daemons · the Man with No Clues · nightwings · OmniLumen · outlaw crows · pollinator drones · portrait wraiths · poster spirits · ravens of overdue · red herrings · siren gulls · smog golems · star-rabbits · throttle agents · tin clerks · the Too-Many · tumbleweed imps · the Unbounded · vending spirits · watchers
+- **Elites** ([`COMBAT.md`](COMBAT.md) §8.3): the Alibi · the Chrome Hound · the Clock That Won't Chime · the Dust-Sheeted · the Posse of Tuesday · the Quota Engine · the Staircase Sideways
+
+### Magic, skills and things
+- **Milo's Arts** (§4): Dispatch · Lore · Timekeeping · Tinkering · Voice · Watchkeeping
+- **The Grimoire's schools** (§11): Bloom · Forge · Hearth · Lore · Quiet · Seam · Star · Tide · Wind
+- **Spells** (§11): Banked Coals · Bloom a Clip · Bottle a Rift · Build Plan · Carve a Waystone · Chart the Week · Dawn Bell · Deadline Ward · Draft a Tale · Evening Bell · Flowerfield · Found Things · Gathering Echoes · Inscribe · Invite to Stay · Judgebird's Glance · Kindle · Lantern Signal · Letting Go · The Long Look · Memory Knot · Mend the Forge · Owl's Ear · Pocket Note · Quiet Hours · Read the Index · Recall the Road · Redress · Rekindle · Roll Call · Split the Scope · Starfall · Step Through · Stillday · Stitch · Summon the Artificer · Summon the Scribe · Tidecount · Wake a Lanternkeeper · Ward the Seam · Wayfinding
+- **Small Spells** (§11): Call a Butterfly · Clear Fog from Spectacles · Count the Stars · Find the End of the Tape · Find the Left Sock · Freshen Yesterday's Bread · Hum in Tune · Hush a Squeaky Floorboard · Make Rain Sound Nicer · The Other Side of the Pillow · Remember Where You Put the Thing · Soften a Goodbye · Straighten a Picture Frame · Turn Pages Quietly · Unfold a Map Perfectly · Warm Tea
+- **Skills** (§12): Alchemy · Artifice · Cartography · Command · Construction · Cooking · Crafting · Fishing · Focus · Foraging · Gardening · Hearthkeeping · Illumination · Mining · Scholarship · Scribing · Seamcraft · Smithing · Spellcraft · Stewardship · Tidereading · Warding · Wayfaring · Woodcutting
+- **Mantles** (§12), each a *Mantle of*: the Alembic · the Anvil · the Beam · the College · Colours · the Deep · the Grove · the Hearth-ledger · the Hearth-pot · the Hedgerow · the Lantern Captain · the Line · the Loom · the Maker · Many Tales · the Moth · the Orchard · the Quill · Rest · the Road · Small Things · Stillness · the Tides · the Ward
+- **Materials** (§8, §12): cinderite · cloudcedar · cloudcotton · cold-ink · copperstone · dice-bone · elderlight · ember-glass · emberheart · forge-ash · glassbark · hearthberry · hushglass · hushray · hushwood · ironroot · ivory-reed · lanternbloom · moon carp · moss-sage · mossmint · owl-down · painted maple · reed-weave · silverstone · snowmint · somedaystone · starfin · starsilver · sunthistle · tide salmon · tidesteel · whispercap · whisperpine
+- **Real outputs and essences** (§12): Annotated Scroll · Captain's Seal · Case files · Diesel cogs · Folded stars · Forged Part · Grave wax · Lost keys · Maelstrom glass · Moonlit coins · Neon shards · Painted Reel · Qi jade · Quiet Stone · Sheriff's stars · Signed Ledger · Star ribbons · Sunleaf · Tide Token · Titan scales
+- **Gear, outfits and relics** (§12, §13): Adelind's easel · the Alchemist's Gloves · the Angler's Oilskins · Ansel's quill · the Artificer's Apron · the Candle Stub · the Cartographer's Satchel · the Company Map · the Cook's Apron · the Courier's Satchel · the Evening Shawl · the Forager's Basket · the Gardener's Straw Hat · the Harbormaster's Spyglass · the Lantern Captain's coat · the Lumberjack's Kit · the Miner's Lamp-helm · the Night Watch Lantern · Old Patience · Oriel's First Small Spell · Pell's Tidebook · the Quiet Hood · the Scholar's Spectacles · the Seamwright's Thimble · the Smith's Leathers · the Spellwright's Stole · Tamsin's Scarf · Tamsin's Unfinished Letter · the Warden's Cloak · the Wayfarer's Boots
+- **Other things** (§2, §8, §11, §20): the Chronicle · the Lanternkeeper's Rhyme · the Old Bellows · the *Tuesday Meeting* (a ship)
+
+### Stories, books and days
+- **Chapters** (§14): The Far Shore · Fire in the Ravine · Hearthvale Rekindled · Into the Greyreach · The Lantern Wakes · The Long Road Home · The Margin · The Stacks Remember · The Tides of Mistmere
+- **Story beats** (§14): The Age of Doors · The Beginner · The Blank Sovereign · Captain Sloe's Ferry · The Cinder Wyrm · A Crack Past the Gate · The Drowned Bell · The First Rift · Forges on the Wall · The Garden of Statues · The Gate-Lantern · The Grey Stag · Ground That's Waiting · Hob's Waystone · The Index of Tales · Inscribe · An Invitation to Stay · Kindle · A Laser-Awl by Paper Bird · A Letter by Paper Bird · Letters to Nobody · A Light on the Hook · The Lighthouse · The Long Road Home · The Memory Knot · Mend the Forge · Nan's Seeds · Old Patience · The Patchwork Mile · Pell's Tidebook · The Road That Ends · The Rule of Rest · A Shadow on the Horizon · Ships in the Fog · Show Them Hearthvale · Small Spells · Starfall · Tea at the Edge · Tea with Oriel · Three Stumps and a Bench · The Throne of Letters · Through the Maelstrom · The Tide Clock · The Tollkeeper's Riddles · The Unfinished Letter · Up the Long Stairs · Wanted on the Quay · The Well of Small Wishes · What Oriel Forgot · White Space
+- **Side quests** (§15): Ansel's Twelve Years · Ash for the Guild · The Barrows Rearranged · A Clip for the Stream · Colours for Adelind · Draft Day · The Echo Galleries · The Examination Stairs · Fetchfox Returns · The Gallery of Unfinished Canvases · The Heron's Stair · The Humming Bridge · The Kiteworks · Last Thursday · Letters for the Far Shore · Maud's Monster · The Missing Left Hand · The Observatory at Night · The Orchard Graft · Pim's Best Deal · Quill's First Catalogue · A Sapling for a Thousand Years · Sir Mossback's Long Walk · Tink and Clank Finish Something · Toby's First Route · Toft's Overdue Book · The Tuesday Meeting · The Unfinished Statues · What the Stones Heard
+- **Trails and events** (§16): A Kite in a Tree · The Lost Duckling · A Mimic · A Moth on your sleeve · Oriel's paper bird · Pim's Travelling Cart · Riddle Notes (Easy, Medium, Hard and Elder) · The Singing Frog · A Star Shower
+- **Story delves** (§16): The Blank Stacks · The Cold Forges · The Drowned Bell · The Examination Tower · The Gallery After Dark · The Last Bridge · The Mirror Heron's Stair · The Throne of Letters · The Tumbling Barrows
+- **Festivals** (§8.3, §17): Harvest of Ends · Kindlemas · Longday · The Night of Many Tales · Rekindling Day · Stillday · the Stillest Day · Tamsin's Day · Thawfeast · Trial Weeks
+- **The Library** (§18): Colour in the Grass · The Far Shore · A Field Guide to Strays · The Harbormaster's Almanac · How to Talk to an Artificer · The Index of Tales · Just One More Hour · The Lanternkeeper's Primer · Letters from Hollowmoor · Letters Never Sent · The Mirror and the Heron · The Moth Cartographers' Oath · On Finishing · The Quota Book · Recipes for Rainy Camps · Rules of the Dicing Downs · Seven Letters from the Scribe · A Short History of the Hush · Small Spells, Volume IX · The Someday King · The Stair of Examinations · Terms of Service · The Tidebook · Twelve Unfinished Statues · Waystones and Their Keepers · Why Cinderfolk Bridges Hum · Why the Owls Never Hoot Twice
+- **Titles** (§5, §19): Archscribe of the Towers · Artificer · Colour-bearer · the Finisher · Forgewarden · Friend of Many Tales · Friend of Owls · Genre-hopper · Journeyman · Keeper of Pages · Keeper of Small Things · the Kind · Lantern Captain · Mapwright · Master of the Bench · Night Watchman · of the Long Road · Quota-breaker · the Rekindler · Scribe · Seamwright · Senior Scribe · Seven-Mantled · Someday's End · Spirewright · Stacksworn · Tidewise · the Unhaunted · the Unhurried
+- **Deeds** (§19): A Crew of One's Own · Early Bird · Every Statue Remembered · Eye of the Storm · First Light · A Full House · Ground Broken · Honest Rest · Level Up, Literally · The Long Game · Oriel's Favourite · Quiet Seams · Sunrise on the Footbridge
+
+### The Company
+Section numbers in this group are [`COMBAT.md`](COMBAT.md)'s.
+- **The party** (§2): Clay Likeness · the Company · guests · the Hooklight · likeness · the Listening Leaf · the muster · regulars · residents · Setting out · Slate Double · warmth
+- **Callings** (§5.4): Chorister · Lanternkeeper · Longshot · Mender · Scrivener · Skirmisher · Tinker · Warden · Weaver
+- **Paths** (§2.2, §5.4): Afterhours · Bench · Bridge · Candle · Case File · Chaperone · Courier · Deputy · Fixit · Footnote · Forgehand · Gavel · Hearth · High Noon · Leafwrit · Listening · Netrunner · Quiet Order · Riveted · Serenade · Shadow · Shift · Slate · Starry · Stonewright · Three Pens · Tide · Troll-kin · Unfolding · Wayward · Wick
+- **Calling features, weapon arts and boons** (§5): Bead · Bench drone · Borrow a rule · Burn an essence · Cleave · Draw the blow · Early riser · Good boots · Heartening verse · Hold here · Hum along · The lantern calls · Last verse · Pages · Pinning shot · Pommel tap · Pop-up cover · Proofread · Quick fix · Raise the lantern · Reach out · Read the ground · Ready a shot · Scarf · Second breath · Second wick · Slip · Soothe · Stand in my light · Steady aim · Steady hands · Still water · Surge · Tide turns · Tripping cut · Tuck and roll · Tune-ups · Turn back a page · Unbroken · Unseen strike · Volley
+- **Companions' moves and heart feats** (§2.2): Answer a letter · Being sure · Better · Bit by bit · Built. Tests pass. · Candlelight · Draft · End of shift · Every word · Excellent posture · Fall in · Goodnight · Hammer tap · Heard it first · Holds the line · Humming bridge · It just had feelings · Jack in · Letter · Many small things · Nobody's in trouble yet · None shall pass (politely) · Noon · Old Patience · One line · Raise stone · Read the error · Rest is part of the road · The reveal · Riddle me · Round the corner · Shift change · Snap judgement · Streetlight · Tools down · Undertow · Verdict · Wanted
+- **Companions' quests** (§2.2): The Case of the Missing Reason · The Dowager's Correspondence · Enough · Her Own Note · The Isles of Sure Verdicts · Just One More Hour · Pell's Tidebook · The Riddle With No Answer · The Right Size · The Short Version · Sit Still · Terms of Service · Wanted: Nobody · What the Stones Heard
+- **Team-ups** (§2.8): The Company Again · Crew Colossus · Moonlit Duel · Overclock · Starless Moor · Synthwave Blackout · Tech Noir
+- **Spells and knacks** (§5.4, §6): Brisk · Candle wall · Clear morning · Cross it out · Flare · Fogcloak · Full stop · Hearthburst · Hold still · Hum off-key · Ink blot · Inkdarts · Kind word · Little light · The long song · Loose thread · Lullaby · Mote · Neon line · Quiet · Rewrite the room · Salve · Send home · Steady hand · Step through the seam · Sudden shelter · Take heart · Tangleweed · Tidesong
+- **Conditions** (§7): Beguiled · Brisk · Dazed · Dazzled · Drowsy · Exposed · Hushed · Offline · Queasy · Quickened · Rattled · Singed · Singled out · Slowed · Soaked · Sparked · Spooked · Tangled · Tumbled · Unseen · Winded
+- **Rounds and notebooks** (§3): the notebook · the notebook page · playbook rules · the round planner · sync · telegraphs
+- **Genre noise** (§3.6): Backlog · Fastest gun · Guttering candles · the hum · Kind noise · Lag · Nodding off · Out of order · Tremor
+- **Modes and ways to play** (§9, §15): Command · Guided · Let them choose · Let them handle it · Long Road · Maud's Table · Mine · Review · Storybook · Tell me how it went · Wrap it up
+- **Rests, rewards and Tale-lead fights** (§8.3, §10–§12): Asides · the bow · Breather · Campfire · Cheers · hearth-nook · the Last page · Margin Note · Marks · the Opening · Plot armour · Road level · Spare Part · the Twist

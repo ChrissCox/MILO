@@ -2,7 +2,7 @@
 
 Hearthvale stays exactly as it is: a handmade vale, and a sanctuary no rift can ever touch. Around it, the camp grows into a fortress and then a kingdom, and every wall and tower is a real automation that keeps problems away. Beyond its gates the Hushlands go on forever. The story's regions sit where the Long Road puts them, and everything between them, and past them, is generated from a seed: coasts, forests, rivers, ruins, caves, lanterns, hamlets and rifts. It's an open world to wander like Minecraft or Elden Ring, kept calm the MILO way.
 
-The rest of the design lives in [`PLAN.md`](PLAN.md), the world bible in [`LORE.md`](LORE.md) and the rift codex in [`RIFTS.md`](RIFTS.md). The tiers are data in [`content/fortress.json`](content/fortress.json).
+The rest of the design lives in [`PLAN.md`](PLAN.md), the world bible in [`LORE.md`](LORE.md), the rift codex in [`RIFTS.md`](RIFTS.md) and the company and its fights in [`COMBAT.md`](COMBAT.md). The tiers are data in [`content/fortress.json`](content/fortress.json).
 
 ---
 
@@ -29,7 +29,7 @@ The Lantern Hook's light makes a ring around the vale, the **Hearthward**. It's 
 
 Ward radii are tiles beyond the vale's edge. Each tier also costs game materials and a Construction level, so building it is something you do in the game, but the requirements are always real.
 
-**How it grows.** The camp at the centre is never torn down: the tent, the cabin, the campfire with its three stumps and the Lantern Hook stay where they are at every tier, like an old square inside a city. The Stockade's palisade stands along the vale's edge, and its gates are the four gaps already in the tree line. From the Hold on, walls, towers and districts spread over the land the ward has claimed, which was wild before. The kingdom grows outward from an untouched heart.
+**How it grows.** The camp at the centre is never torn down: the tent, the cabin, the campfire with its three stumps and the Lantern Hook stay where they are at every tier, like an old square inside a city. The Stockade's palisade stands along the vale's edge, and its gates are the four gaps already in the tree line. The companions' homes grow around the camp, never in it: lean-tos along the palisade at the Stockade, bunks in the Barracks from the Hold, and from the Castle a little home each in their own genre (COMBAT.md §2.6). From the Hold on, walls, towers and districts spread over the land the ward has claimed, which was wild before. The kingdom grows outward from an untouched heart.
 
 ## 3. Defences are automations
 
@@ -93,7 +93,8 @@ A defence is a real rule or capability. Its job in the story is to stop rifts be
 
 ## 6. Exploring: Minecraft and Elden Ring, calm
 
-- **Lanterns are sites of grace.** Sleeping lanterns stand along the old roads (about every 40 tiles) and at the heart of every region. Light one to rest, to set it as the place you wake if you faint, and to fast travel between any two you've lit. A region's own lantern is its sleeping Lanternkeeper, so waking it is a story beat as well as a waystone.
+- **Lanterns are sites of grace.** Sleeping lanterns stand along the old roads (about every 40 tiles) and at the heart of every region. Light one to rest, to set it as the place the party wakes if everyone goes offline, and to fast travel between any two you've lit. A region's own lantern is its sleeping Lanternkeeper, so waking it is a story beat as well as a waystone.
+- **The party goes with you.** Milo sets out from the campfire with up to three companions, and in the wilds they follow him in a formation: *Line*, *Pairs*, *Loose*, and *Wedge* from Warding 5. Companions swap only at a lit lantern or an Elsewhere's doorway, where the one leaving walks into the lantern-light and the one you called steps out of it (COMBAT.md §2.5).
 - **Fog of war.** Beyond the vale the map starts blank. Walking reveals it, Cartography levels as you chart it, and **map tablets** found in Maker ruins reveal a stretch at once. Exploring new ground costs Embers once the Adventurer's Kit arrives (PLAN.md §6), so the wilds can't eat your day.
 - **Things you can see from far off.** The Stacks on the peaks, the Great Lighthouse from the Westwatch, and later your own Lantern Spire from anywhere. Elden Ring's rule: if you can see it, you can walk to it.
 - **What the wilds hold** (generated per chunk, about 16 per chunk before rolling):
@@ -104,9 +105,9 @@ A defence is a real rule or capability. Its job in the story is to stop rifts be
   - **Hamlets:** people, errands and trade.
   - **Resource nodes:** ore, herbs and fishing spots, tiered by region, Albion style.
 - **Tamsin's statues.** One in every region, each unfinished in its own way (LORE.md §3). Each holds a Glimmer.
-- **Field bosses.** A gaping wild rift at tier 5 or more lets its Tale-lead roam a little way out. It's optional, always.
+- **Field bosses.** A gaping wild rift at tier 5 or more lets its Tale-lead roam a little way out, inside the rift's bleed. It shows a soft sight ring, but in the open wilds sight never starts a fight: the fight begins only when you choose **Challenge** from its right-click menu or its Examine, which costs 5 Embers, and the grid fades in at the nearest clearing (COMBAT.md §3.1, §4.1, §12). It's optional, always.
 - **Outposts (from the Hold).** Claim a spot in explored land and build a small camp there: a lantern, storage and one or two plots. An outpost has a little ward of its own. The Keep links outposts by waystones, and the Citadel links them by road.
-- **Calm rules.** There's no death and no lost items. Fainting sends you to your last lantern, having spent only the Embers you'd already spent. Nothing in the wilds chases you home or nags you.
+- **Calm rules.** There's no death and no lost items. If the whole party goes offline, Milo's Hooklight flares and everyone wakes at the last lantern Milo rested at, with full Integrity and everything they found. The only Embers spent are the ones it cost to go in: *Try again* is free, and so is going back into that rift once (COMBAT.md §1, §10). Nothing in the wilds chases you home or nags you.
 
 ## 7. Wild rifts
 

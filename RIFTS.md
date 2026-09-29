@@ -88,6 +88,8 @@ Every genre has **common strays** that wander inside the bleed, an **elite**, an
 - *"Portrait wraith: its eyes follow 'Email the landlord', untouched for 19 days."*
 - *"Glitch drone: the Habitack checks have failed 3 times since Tuesday."*
 
+Inside an Elsewhere, strays can also be met in a turn-based fight with the Company ([`COMBAT.md`](COMBAT.md) §8). There they're settled, not slain: at 0 Integrity a stray gives a little wave and drifts home through the tear, and talking a kind down pays in full, exactly what fighting it would. A Tale-lead fights in three phases (two in a hairline rift's Elsewhere), and every Tale-lead has a peaceful win, **the bow**, that beats its mechanic without bringing it to 0 Integrity. The bow pays a little extra, and a wild Tale-lead who bows can be invited to stay.
+
 ### 2.5 What you can do
 
 | Action | Real effect | In the world |
@@ -95,9 +97,11 @@ Every genre has **common strays** that wander inside the bleed, an **elite**, an
 | **Stitch** | Fix the real thing: do the quest, answer the crew, pass the check, go to bed | The Bindery's thread runs through the tear and it closes with a soft snap; strays wave and go home; loot drops |
 | **Send the crew** | A commission to fix it | The crew member walks into the rift and comes back with the spoils |
 | **Ward** | Snooze it for a few days | A temporary binding stitch; the rift stops growing |
-| **Let go** | Release the quest (archive it with thanks) | The Tale-lead bows, the tear becomes a moth, and the moth flies west |
+| **Let go** | Release the quest (archive it with thanks) | The Tale-lead tips its hat, the tear becomes a moth, and the moth flies west |
 | **Step through** | Nothing real; it's for fun (costs Embers) | Visit the genre's **Elsewhere** for a short adventure (§3) |
-| **Invite to stay** | Unlocks that genre's resident and service | After a stitch, the stray or Tale-lead may settle in the Hushlands |
+| **Invite to stay** | Unlocks that genre's resident and service; from a wild rift, a regular joins the camp ([`COMBAT.md`](COMBAT.md) §2.4) | After a stitch, the stray or Tale-lead may settle in the Hushlands |
+
+**Fighting in a real rift's Elsewhere** is for fun, like stepping through, and never fixes the real thing. The seam still refuses the thread, and a settled or bowing Tale-lead yields and names the cause: *"Settle me all you like. The Habitack checks are still red."* The card after the fight names the cause in plain words and offers the rift's real actions, one click each: **Stitch** (which opens the real cause: the quest, the session, the check), **Send the crew**, **Ward** and **Let go**. A real rift's essences come only from its real stitch ([`COMBAT.md`](COMBAT.md) §8.4).
 
 ### 2.6 Bright rifts
 Bright rifts are gifts. They open on good patterns, need no stitching, and close gently after a few days. While open they grow gardens, throw celebrations and bless your gathering. With Seamcraft you can **bottle** one and keep a small version as decor.
@@ -141,10 +145,10 @@ Each entry covers the look, the strays, how to stitch it, loot, the resident who
   - *Insomniacs* are sleepwalking shadows holding cans of moonbrew, murmuring "just one more".
   - *Vending spirits* hum a lullaby and then sell you coffee.
   - **Elite:** *the Clock That Won't Chime*, stuck at 3:07.
-  - **Tale-lead:** **Lumi Nightjar**, a vampire on a squeaky bicycle who thinks the night is the best part. Sometimes she's right.
+  - **Tale-lead:** **Lumi Nightjar**, a vampire on a squeaky bicycle who thinks the night is the best part. Sometimes she's right. She's never fought: in a fight, a Nocturne rift's lead is a generated one ([`COMBAT.md`](COMBAT.md) §8.3), and Afterhours has no boss.
 - **Stitch:** end the session and ring the Evening Bell; take the rest you skipped. The Night Shift seals itself at dawn with the morning report.
 - **Loot:** Moonlit coin, Nightwing scale, Canned moonbrew.
-- **Resident:** **Lumi Nightjar.** Decline her invitation to stay up three times and she laughs and stays anyway. She becomes the **Night Watch**: while you sleep she watches the crew's overnight runs and tells you at breakfast what happened. The temptress turns out to be the night's guardian. Unlocks streetlamps that light your paths at real night, and the track *Afterhours*.
+- **Resident:** **Lumi Nightjar.** Her invitation to stay up comes on late nights, and also from the Night Shift and from wild Nocturne rifts, as a note or a visit, never a fight. Each "no" is going to bed on time, so you can meet her without a single late night. Decline three times and she laughs and stays anyway. She becomes the **Night Watch**: while you sleep she watches the crew's overnight runs and tells you at breakfast what happened. The temptress turns out to be the night's guardian. Unlocks streetlamps that light your paths at real night, and the track *Afterhours*.
 - **Elsewhere: Afterhours.** A city where it's always 3:07 a.m.: rooftops, a convenience store called Moon Mart, a footbridge over empty rails, cats.
   - **Arc:** *Just One More Hour*. You help Lumi face the one thing she avoids: the sunrise.
   - **Boss:** there's no boss. The chapter ends when you watch the sun come up together from the footbridge, and she complains, being a vampire. You win by going to bed.
@@ -255,9 +259,9 @@ Each entry covers the look, the strays, how to stitch it, loot, the resident who
   - **Landfall:** the day itself.
 - **Strays:** *siren gulls* (screeching in tune with the siren) and *hazard-tape sprites*.
   - **Tale-lead:** **the Titan of [the event]**, named after the real thing ("the Titan of RT 2105 Finals"), with its own title card.
-- **Stitch:** finish the deliverable. Every crew run and focus session aimed at it adds a piece to the **Crew Colossus**, a mecha assembled from Milo, the Scribe and the Artificer. The final battle is the real finish.
+- **Stitch:** finish the deliverable. Every crew run and focus session aimed at it adds a piece to the **Crew Colossus**, a mecha assembled from Milo, the Scribe and the Artificer. The real finish is the stitch; the Colossus's fight in its Elsewhere tells the story of it and never mends the deadline ([`COMBAT.md`](COMBAT.md) §8.4).
 - **Loot:** Titan scale, Colossus bolt.
-- **Resident:** **Chief Engineer Hana Kurogane** of the Titan Defense Hangar. She keeps a countdown for your big deadlines, with a plan broken into crew runs and focus sessions. Unlocks hangar doors and hazard stripes, a Colossus figurine for your cabin, and the track *Assemble*.
+- **Resident:** **Chief Engineer Hana Kurogane** of the Titan Defence Hangar. She keeps a countdown for your big deadlines, with a plan broken into crew runs and focus sessions. Unlocks hangar doors and hazard stripes, a Colossus figurine for your cabin, and the track *Assemble*.
 - **Elsewhere: Titan Bay.** A coastal city with a hangar under the harbour.
   - **Arc:** *Assemble*.
   - **Boss:** your season's Titan.
@@ -336,21 +340,23 @@ When one real thing carries more than one signal (a failing build nobody has tou
 
 Strays who stay make Hearthvale a crossover town. Each resident brings one real service, one stall or home, a quest line, a music track and a set of genre skins.
 
-| Resident | From | Lives | Real service |
-|---|---|---|---|
-| **Juno Glitchwright** | Neon | Cinderforge | Explains failing checks in one line (read locally) |
-| **Lumi Nightjar** | Nocturne | the camp roof, at night | The Night Watch: overnight crew report at breakfast |
-| **Lady Vesperine Ashcombe** | Gothic | the Stacks | The Unanswered Letters desk: everything waiting on you |
-| **Sergeant Rivet Maddox** | Iron | the Dispatch Office, Hearthvale | Your in-progress limit, the crew queue, the evening whistle |
-| **Pip** | Void | anywhere it likes | Unfolds big quests into small steps |
-| **Detective Mae Holloway** | Noir | Mistmere | The board of open questions and unexplained failures |
-| **Sheriff Dusty Calloway** | Frontier | the notice board | The Bounty Board: deadlines ranked |
-| **Chief Hana Kurogane** | Titan | the Hangar, Mistmere cliffs | Big-deadline countdown and plan |
-| **Juniper Sol** | Verdant | the Old orchard | The weekly Balance Report |
-| **Sera Starling** | Starlight | the Garden of Statues | The Book of Deeds; your celebrations |
-| **Master Qinglan** | Summit | a tea house on Sunny rise | Deep-work and study-sprint plans |
-| **The Night Janitor** | Backhalls | behind any door | The Lost and Found (search) |
-| **Mags Quire** | a space opera | the Bindery, the Stacks | Leads the Bindery; teaches Seamcraft |
+Seven of them also join the Company as companions, each with a calling ([`COMBAT.md`](COMBAT.md) §2.2), and their services keep running while they're out with you. The rest fight only as guests in their own stories. Companions sleep at camp, and those with far stalls step home by lantern each evening.
+
+| Resident | From | Lives | Sleeps | Calling | Real service |
+|---|---|---|---|---|---|
+| **Juno Glitchwright** | Neon | Cinderforge | at camp | Weaver | Explains failing checks in one line (read locally) |
+| **Lumi Nightjar** | Nocturne | the camp roof, at night | at camp, through the morning | Chorister | The Night Watch: overnight crew report at breakfast |
+| **Lady Vesperine Ashcombe** | Gothic | the Stacks | at camp | Mender | The Unanswered Letters desk: everything waiting on you |
+| **Sergeant Rivet Maddox** | Iron | the Dispatch Office, Hearthvale | at camp | Warden | Your in-progress limit, the crew queue, the evening whistle |
+| **Pip** | Void | anywhere it likes | wherever it likes, usually the good stump | Weaver | Unfolds big quests into small steps |
+| **Detective Mae Holloway** | Noir | Mistmere | at camp | Skirmisher | The board of open questions and unexplained failures |
+| **Sheriff Dusty Calloway** | Frontier | the notice board | at camp | Longshot | The Bounty Board: deadlines ranked |
+| **Chief Hana Kurogane** | Titan | the Hangar, Mistmere cliffs | at home | A guest in Titan fights, with the Crew Colossus | Big-deadline countdown and plan |
+| **Juniper Sol** | Verdant | the Old orchard | at home | A guest in Solace Gardens | The weekly Balance Report |
+| **Sera Starling** | Starlight | the Garden of Statues | at home | A guest at Starfall Plaza | The Book of Deeds; your celebrations |
+| **Master Qinglan** | Summit | a tea house on Sunny rise | at home | A guest at Cloudgate Peak | Deep-work and study-sprint plans |
+| **The Night Janitor** | Backhalls | behind any door | at home | A guest in the Backhalls | The Lost and Found (search) |
+| **Mags Quire** | a space opera | the Bindery, the Stacks | at home | A guest in Maelstroms, stitching while you hold | Leads the Bindery; teaches Seamcraft |
 
 ---
 
@@ -475,7 +481,7 @@ Every rift is built entirely from a seed by [`src/world/riftgen.js`](src/world/r
 | **Name** | Patterns and word banks per genre ("The {noun} of {name}", "{adj} {noun} of {place}", "Level {num}: {adj} {noun}"), with real rifts naming their cause ("The Portrait of {subject}", "{subject}, Error {num}"). A named fusion titles its real rifts ("Haunted Machine: Habitack"), a Maelstrom is "The Maelstrom of the MILO plan", and wild rifts wear their first affix ("The Crowded Grinding Crypt"). |
 | **Affixes** | Real rifts have none or one; wild rifts have one to three, from 38 (Flooded, Overgrown, Mirrored, Labyrinthine, Candlelit, Rainbound, Clockwork, Upside-down, Bookmarked and more). Each changes the Elsewhere's shape, the loot, the number of strays, or brings a guest genre. |
 | **Strays** | Three kinds (four in a fusion, plus any guest genre). Each is a body archetype (floater, walker, crawler, flier, ghost, construct) with one or two of its genre's 48 parts: visors, bat wings, candles, smokestacks, extra eyes, a fedora, a cowboy hat, hazard stripes, a leaf crown, a bow, a topknot, a mop. In a fusion a stray often wears a part from the other genre, coloured by that genre's palette, so a Haunted Machine's candle wraith has a neon visor. Each has a name, a temperament and a count. |
-| **Tale-lead** | A title from the genre's boss patterns ("Chief Architect Lux of the Rainline"), a mechanic (sometimes borrowed from the second genre), and a line. A Maelstrom's Tale-lead sits with a council, one from each other genre. |
+| **Tale-lead** | A title from the genre's boss patterns ("Chief Architect Lux of the Rainline"), a mechanic (sometimes borrowed from the second genre), and a line. A Maelstrom's Tale-lead sits with a council, one from each other genre. In a fight, each mechanic is a rule with its own bow ([`COMBAT.md`](COMBAT.md) §8.3). |
 | **Loot** | Essences of each genre (more for deeper stages, higher tiers and lucky affixes), Maelstrom glass from a Maelstrom, and sometimes a relic with a story: *"Once belonged to Kiro, who filed everything, including themselves."* |
 | **The Elsewhere** | Rooms joined by a minimum spanning tree, plus a few loops. Labyrinthine adds winding corridors; Mirrored reflects the left half onto the right. The entrance is leftmost, the Tale-lead is in the room farthest away, loot is in dead ends, and a puzzle room is halfway. Water and growth come from affixes. Size grows with stage and depth. |
 
