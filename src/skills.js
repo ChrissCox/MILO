@@ -171,3 +171,7 @@ export function evaluateSkills(snapshot, state = null) {
   }
   return result;
 }
+
+// Phase 4: these six are Milo's Arts, so Chris's own 24 skills (src/lifeskills.js) keep the name.
+export const ARTS = SKILLS;
+export const evaluateArts = evaluateSkills;

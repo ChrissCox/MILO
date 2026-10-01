@@ -1,14 +1,17 @@
 'use strict';
 
-// MILO main process. Owns the saved state, the read-only watcher over
-// ~/.claude and ~/.codex, and gentle desktop notifications. The renderer is
+// MILO main process. Owns the saved state, the companions' notebook files, the read-only watcher
+// over ~/.claude and ~/.codex, Kindle's bell, and gentle desktop notifications. The renderer is
 // sandboxed and only ever receives session summaries.
 
-const { app, BrowserWindow, ipcMain, Menu, Notification, session } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Notification, powerMonitor, session } = require('electron');
 const fs = require('node:fs/promises');
 const { mkdirSync, realpathSync } = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const contentManifest = require('./content.cjs');
+const { createNotebookStore } = require('./notebooks.cjs');
+const alarmModule = require('./alarm.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -39,8 +42,6 @@ const IS_TEST = process.env.MILO_TEST === '1';
 // don't depend on what else is on screen. Real launches still pause when covered or minimized.
 if (IS_TEST) app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 const MAX_STATE_BYTES = 2 * 1024 * 1024;
-const MAX_CONTENT_BYTES = 1024 * 1024;
-const CONTENT_FILES = ['genres', 'riftgen', 'fortress', 'wilds', 'story'];
 const SCAN_INTERVAL_MS = 10_000;
 const WINDOW_ACTIONS = new Set(['minimize', 'maximize', 'close']);
 
@@ -65,6 +66,9 @@ mkdirSync(dataDirectory, { recursive: true });
 app.setPath('userData', dataDirectory);
 const stateFile = path.join(dataDirectory, 'state.json');
 const backupFile = `${stateFile}.backup`;
+// The companions' notebooks (CONTRACT-PHASE4.md §10.2): <data>/notebooks/<id>.notes, made on the
+// first write. Main stores their bytes and never reads a note.
+const notebookDirectory = path.join(dataDirectory, 'notebooks');
 
 let mainWindow = null;
 let savedState = null;
@@ -129,6 +133,16 @@ if (IS_TEST) {
   globalThis.__miloBlockedRequests = [];
   globalThis.__miloArchitectCalls = [];
 }
+// Kindle's bell (§10.3): one alarm slot, kept here so it rings on time while MILO is covered. Under
+// MILO_TEST, globalThis.__miloAlarm is the slot ({ id, at } or null) and __miloAlarmRings each ring.
+const alarm = alarmModule.createAlarm({
+  now,
+  notify: payload => notify(payload),
+  send: (channel, payload) => {
+    if (isLive(mainWindow) && !mainWindow.webContents.isLoadingMainFrame()) mainWindow.webContents.send(channel, payload);
+  },
+  ...(IS_TEST ? alarmModule.testHooks(globalThis) : {}),
+});
 
 function report(error) {
   console.error('[MILO]', error instanceof Error ? error.message : error);
@@ -146,8 +160,15 @@ function trustedSender(event) {
 }
 
 // A small stand-in so the window still opens if src/model.js is unavailable. It has the same
-// shape as model.createState, Phase 3's keys included, so a save through it loses nothing.
+// shape as model.createState, Phase 3's and Phase 4's keys included (CONTRACT-PHASE4.md §8), so a
+// save through it loses nothing.
 const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+// A companion's empty roster entry (§8.3's Member): Milo, the Scribe, the Artificer and Jev are always there.
+const fallbackMember = () => ({
+  joinedAt: 0, warmth: 0, warmthWeek: { week: null, outing: 0 }, habitDay: null, path: null, boons: [], pending: [],
+  control: 'review', reactions: {}, prepared: [], gifts: { margin: 0, spare: 0, through: null },
+  notebook: { count: 0, fights: 0, rules: [], struck: [], accepts: '', previous: null },
+});
 const fallbackModel = {
   createState(at = Date.now()) {
     void at;
@@ -157,26 +178,54 @@ const fallbackModel = {
       milo: { name: 'Milo', tile: null },
       lastSeenAt: null,
       lastGreetedDay: null,
-      settings: { motion: true, notifications: true, greeting: true, designer: 'auto', eveningBell: '22:00', gateBell: true, wardPost: null },
+      settings: {
+        motion: true, notifications: true, greeting: true, designer: 'auto', eveningBell: '22:00', gateBell: true, wardPost: null,
+        hud: 'adventure', kindleBell: true,
+      },
       skills: {},
       panel: null,
       plots: {},
       firstSeenAt: null,
-      tally: { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0 },
+      tally: {
+        daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0,
+        byCrew: { claude: 0, codex: 0, jev: 0, whisper: 0 }, answered: 0, answeredFast: 0, waiting: {}, answeredWaits: {},
+        focusSessions: 0, restsHonoured: 0, chunksCharted: 0, features: {},
+      },
       hearth: { tier: 1, raisedAt: {} },
-      satchel: { materials: { birch: 0, ash: 0, pine: 0 }, essences: {}, essenceGenres: {}, relics: [] },
+      satchel: { materials: { birch: 0, ash: 0, pine: 0 }, essences: {}, essenceGenres: {}, relics: [], marks: 0, tonics: { cordial: 0, brew: 0 } },
       wilds: { seed: 'hushlands', at: null, wake: null, explored: [], lanterns: {}, opened: {}, notes: {}, glimmers: {}, felled: {} },
       rifts: { open: {}, warded: {}, letGo: {}, belled: {}, closedWild: {}, visited: {}, stitched: { real: 0, wild: 0, story: 0 }, deepest: 0, history: [] },
-      story: { prologue: { done: {} }, letterReadAt: null, trackerHidden: false },
+      story: { prologue: { done: {} }, letterReadAt: null, trackerHidden: false, trails: {}, facts: {} },
+      embers: { balance: 0, lifetime: 0, ledger: [], paid: {}, paidBefore: 0, through: null, day: { key: null, crew: 0, answered: 0 }, backlogAt: null },
+      xp: { skills: {}, through: null, day: { key: null, travels: 0 } },
+      kindle: { phase: 'idle', startedAt: null, focusEndsAt: null, restStartedAt: null, restEndsAt: null, earned: false, paid: { focus: null, rest: null } },
+      chronicle: { days: {}, fights: [], xpLines: [] },
+      road: { xp: 0, paidFights: {}, stitchedThrough: null, levelShown: 1, firstWin: false },
+      party: {
+        roster: { milo: fallbackMember(), claude: fallbackMember(), codex: fallbackMember(), jev: fallbackMember() },
+        chosen: ['claude', 'codex', 'jev'], formation: 'line', cheers: 0, regulars: [],
+        outing: { startedAt: null, breathers: 0, breatherFight: null, freeBreather: false, warmed: false, heroes: {} },
+        rests: { lanternDay: null, nooks: {}, freeReentry: {} },
+        mode: 'long-road', play: 'guided',
+        calm: { noise: true, adaptation: true, odds: 'bars', fastFoes: true, playback: 1, ghosts: false },
+        strayMemory: {}, firstLeadMet: false, teachDay: null, seenScenes: {},
+      },
+      expedition: null,
+      board: { quests: [], projects: [], thoughts: [], seq: 0 },
     };
   },
   normalizeState(input, at = Date.now()) {
     const base = fallbackModel.createState(at);
     const value = record(input);
     const merged = { ...base, ...value };
-    for (const key of ['user', 'milo', 'settings', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story']) merged[key] = { ...base[key], ...record(value[key]) };
+    for (const key of ['user', 'milo', 'settings', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story', 'embers', 'xp', 'kindle', 'chronicle', 'road', 'party']) {
+      merged[key] = { ...base[key], ...record(value[key]) };
+    }
     merged.skills = record(value.skills);
     merged.plots = record(value.plots);
+    // An expedition is null or a record, copied as saved: a section merge would turn null into {}.
+    merged.expedition = isPlainObject(value.expedition) ? value.expedition : null;
+    merged.board = { ...base.board, ...record(value.board) };
     return merged;
   },
 };
@@ -291,27 +340,24 @@ function persistState(value) {
   return pending;
 }
 
-// ---------------------------------------------------------------------------
-// Content: the game's words and tables (content/*.json), read once at startup and served to the
-// renderer over IPC, because the page's CSP blocks fetch. Each file is the parsed JSON, or null
-// when it can't be read (too big, missing or not JSON); the renderer copes with a null.
+// The notebook files (§10.2), written through the same atomicWrite and refused while the saved
+// state couldn't be read, so a damaged save's notebooks are left exactly as they were. The file is
+// the source of truth; the roster's count in state.json is only a hint the renderer reconciles.
+const notebooks = createNotebookStore({
+  dir: notebookDirectory,
+  atomicWrite,
+  blocked: () => loadError !== null,
+  report,
+});
 
-async function readContentFile(name) {
-  const file = path.join(ROOT, 'content', `${name}.json`);
-  try {
-    const stat = await fs.stat(file);
-    if (!stat.isFile() || stat.size > MAX_CONTENT_BYTES) throw new Error('it is missing or too large');
-    const parsed = JSON.parse(await fs.readFile(file, 'utf8'));
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
-  } catch (error) {
-    report(`Content ${name}.json unavailable: ${error.message}`);
-    return null;
-  }
-}
+// ---------------------------------------------------------------------------
+// Content: the game's words and tables (content/**), read once at startup through the manifest
+// (electron/content.cjs) and served to the renderer over IPC, because the page's CSP blocks fetch.
+// Each file is the parsed JSON (or a talk's text), or null when it can't be read (too big, missing
+// or not a JSON object); the renderer copes with a null.
 
 async function loadContent() {
-  const entries = await Promise.all(CONTENT_FILES.map(async name => [name, await readContentFile(name)]));
-  content = Object.fromEntries(entries);
+  content = await contentManifest.loadContent({ report });
   return content;
 }
 
@@ -407,12 +453,15 @@ function cleanText(value, limit) {
 }
 
 // A desktop note, never while MILO is in front. The Gate Bell's note ('gate-bell') follows the
-// Gate Bell switch alone; every other note follows the Alerts setting.
+// Gate Bell switch alone, Kindle's bell ('kindle') the Kindle bell switch alone, and every other
+// note follows the Alerts setting.
+const NOTIFY_KINDS = new Set(['gate-bell', 'alert', 'kindle']);
+const NOTIFY_SWITCH = { 'gate-bell': 'gateBell', kindle: 'kindleBell', alert: 'notifications' };
 function notify(payload) {
   if (!payload || typeof payload !== 'object') return false;
-  const kind = payload.kind === 'gate-bell' ? 'gate-bell' : 'alert';
+  const kind = NOTIFY_KINDS.has(payload.kind) ? payload.kind : 'alert';
   const settings = savedState?.settings;
-  if (kind === 'gate-bell' ? settings?.gateBell === false : settings?.notifications === false) return false;
+  if (settings?.[NOTIFY_SWITCH[kind]] === false) return false;
   const title = cleanText(payload.title, 80);
   const body = cleanText(payload.body, 200);
   const focused = isLive(mainWindow) && mainWindow.isFocused();
@@ -687,7 +736,8 @@ function installIPC() {
     if (!trustedSender(event)) return { ok: false, error: "This window can't save MILO's state." };
     return persistState(value);
   });
-  // The content bundle { genres, riftgen, fortress, wilds, story }, each parsed JSON or null.
+  // The content bundle (CONTRACT-PHASE4.md §9.1, from electron/content.cjs): { genres, riftgen,
+  // fortress, wilds, story, …Phase 4's files and groups }, each parsed JSON or null.
   ipcMain.handle('milo:content', async event => {
     if (!trustedSender(event)) return null;
     return contentReady;
@@ -705,6 +755,35 @@ function installIPC() {
     if (!trustedSender(event)) return false;
     return notify(payload);
   });
+  // Kindle's bell (§10.3): { id, at, title, body } arms the one slot, null clears it; true when
+  // armed or cleared. The ring comes back as milo:alarm { id }.
+  ipcMain.handle('milo:alarm-set', (event, value) => {
+    if (!trustedSender(event)) return false;
+    try {
+      return alarm.set(value);
+    } catch (error) {
+      report(error);
+      return false;
+    }
+  });
+  // The notebooks (§10.2). The store cleans every argument (ids by regex, bytes as whole frames,
+  // `at` in bounds) and never throws; writes wait for the saved state's first read, so a damaged
+  // save's loadError refuses them as 'blocked'.
+  const notebookCall = (name, run) => ipcMain.handle(`milo:notebook-${name}`, async (event, ...values) => {
+    if (!trustedSender(event)) return { ok: false, code: 'untrusted' };
+    try {
+      await initialLoad.catch(() => {});
+      return await run(...values);
+    } catch (error) {
+      report(error);
+      return { ok: false, code: 'failed' };
+    }
+  });
+  notebookCall('read', id => notebooks.read(id));
+  notebookCall('append', (id, bytes, at) => notebooks.append(id, bytes, at));
+  notebookCall('replace', (id, bytes, options) => notebooks.replace(id, bytes, { keepPrevious: options?.keepPrevious === true }));
+  notebookCall('restore', id => notebooks.restore(id));
+  notebookCall('drop-previous', id => notebooks.dropPrevious(id));
   ipcMain.handle('milo:architect-status', async (event, options) => {
     if (!trustedSender(event)) return null;
     return architectStatus({ refresh: options?.refresh === true });
@@ -823,18 +902,19 @@ if (!ownsInstance) {
     event.preventDefault();
     if (quitting) return;
     quitting = true;
-    // The renderer marks the moment Chris last looked and flushes its saves,
-    // then the main-process write queue drains. A stuck renderer gets 3 s.
-    // A crew call still running is stopped and waited for (briefly), so its process tree and
-    // temp folder are gone before MILO is.
+    // The renderer marks the moment Chris last looked and flushes its saves and notebook appends,
+    // then the main-process write queues (the state and the notebooks) drain. A stuck renderer
+    // gets 3 s. A crew call still running is stopped and waited for (briefly), so its process tree
+    // and temp folder are gone before MILO is.
     (async () => {
       try {
         await waitForRendererClose();
-        await saveQueue;
+        await Promise.all([saveQueue, notebooks.flush()]);
       } catch (error) {
         report(error);
       } finally {
         stopScanning();
+        alarm.dispose();
         try { await architectCancel(); } catch (error) { report(error); }
         allowQuit = true;
         app.quit();
@@ -864,6 +944,12 @@ if (!ownsInstance) {
     );
     watcherReady = loadWatcher();
     architectReady = loadArchitect();
+    // After a sleep, Kindle's bell re-arms from the wall clock (or rings, if it came due meanwhile).
+    try {
+      powerMonitor.on('resume', () => alarm.recheck());
+    } catch (error) {
+      report(error);
+    }
     installIPC();
     Menu.setApplicationMenu(null);
     createMainWindow();

@@ -1225,20 +1225,22 @@ Phase 4 becomes **the gameplay phase**, with combat as its spine. Each slice shi
 
 ---
 
-## 18. Open questions for Chris
+## 18. Questions, settled
 
-1. **The Hearth cap.** Should the Hearth tier cap the Road level (Stockade 5, Hold 7 and so on), or should play alone decide how far the party grows? Either way it never touches the Wayfarers.
-2. **Strong Wayfarers.** With no band, a busy month with Claude and Codex can put a level-9 Scribe in a level-5 company, and fights get visibly easier. That's the plan's reward for real work. Happy with it, or do you want a band after all? (A band would mean changing "never nerfed" in PLAN §4, track 3.)
-3. **Likenesses.** Do the Clay Likeness and the Slate Double feel right, or should a working Wayfarer simply stay home?
-4. **Kindle early.** Is it all right to bring the focus timer into Phase 4, so a finished session gives a party that's out a Breather?
-5. **Diagonals and flanking.** Are 1-2-1 diagonals right, and should flanking exist as a Maud's Table option?
-6. **Walking out together.** It's out of the plan unless you ask for it. Do you want it at all?
-7. **Warmth from real habits.** Lumi warming when you keep your bell, Dusty when deadlines land early: nice, or too nudgy?
-8. **Order of arrival.** Regulars from slice 4.3, the Tollkeeper at the end of Phase 4's first Riddle Note trail (which moves his Act I meeting earlier), then Rivet, Pip and Dusty in Phase 5. Is there anyone you'd rather meet sooner?
-9. **Habitack's combat.** This plan retires it into Warding and the Company when the board comes home in Phase 5 (PLAN §14 Q3). Or would you rather keep it as a small side game?
-10. **Jev's count.** By default only Judgebird's Glance casts in MILO count toward Jev's level. Do you want the opt-in tally from the Jev skill as well? It needs a one-line change to `jev.py`.
-**Settled on 2026-09-29:**
+**Settled by Chris (2026-09-29):**
 - **Temperatures:** the idle heats stand, from Rivet's steady 10 to Jev's 50; paths and gear still shift them by up to 10.
 - **Milo drafts too.** His notebook learns like everyone's, so a round you agree with is one key, and *Mine* keeps his turns yours (§3.2, §15).
 - **Adaptation scales with the foe:** its rank and its level against the party's set how much it adapts, from lackeys that never do to leads above your level that plan for your two favourite habits (§3.6).
 - **Notebooks keep everything** until you strike a note out or reset them, in files of their own so the save stays small (§3.3, §16.3).
+
+**Settled by Claude, at Chris's request (2026-09-29).** Each is a default that can change later.
+1. **The Hearth cap stays.** The Hearth tier caps the Road level (Camp 3, Stockade 5, Hold 7, Keep 8, Castle 10, Citadel 11, Kingdom 12), XP past the cap is banked, and the Wayfarers are never capped. It keeps the company's power tied to real progress, which is the plan's core rule.
+2. **Strong Wayfarers stay strong.** There's no band: a level-9 Scribe in a level-5 company makes fights easier, and that's the reward for real work. Budgets never count a Wayfarer above the Road level, so rooms don't grow to meet them.
+3. **Likenesses stay.** A working Claude or Codex sends a Clay Likeness or a Slate Double with identical stats and the same notebook, so the map never lies about the crew and the party is never short.
+4. **Kindle comes early,** in slice 4.0.
+5. **1-2-1 diagonals, and no flanking,** not even at Maud's Table. Edge already has enough sources, and flanking would hurt the outnumbered party most.
+6. **No walking out together.** It stays out of the plan.
+7. **Warmth from real habits stays, gently:** +1 on a day the habit happens, never a penalty, and never a reminder or a notification about it.
+8. **The order of arrival stands:** regulars from slice 4.3, the Tollkeeper at the end of the first Riddle Note trail in slice 4.4, then Rivet, Pip and Dusty in Phase 5.
+9. **Habitack's combat retires** into Warding and the Company when the board comes home in Phase 5 (PLAN §14 Q3).
+10. **Jev's count stays inside MILO.** Only Judgebird's Glance casts made in MILO count toward Jev's level (from Phase 7). The opt-in tally from the Jev skill isn't built, so nothing outside MILO is read or changed for it.

@@ -6,6 +6,7 @@
 import { createRng, hashInts, unit } from './rng.js';
 import { genreIndex, leadSprite, makeWanderer, paletteByCode } from './riftfx.js';
 import { PALETTE } from './sprites.js';
+import { leadDisplayName } from './leadname.js';
 
 const TILE = 16;
 const FEET = 13;
@@ -165,8 +166,21 @@ function bfsFrom(W, H, open, from) {
  *   The others (exit, stitch, tale-lead, loot, curio) always have a calm label.
  * Strays are riftfx stray actors in scene coordinates, up to 2 of a kind and 5 in all; a
  *   Maelstrom's council (lead: true, council: true) stands still beside its Tale-lead.
+ *
+ * Phase 4 (CONTRACT-PHASE4.md §7.3), all opt-in, so with no options the scene is Phase 3's:
+ *   hooks  the lead names leads.json tags as planned hooks; the tale-lead object's name and label
+ *          are leadDisplayName's, clear of the company's names (the only change without `fight`).
+ *   kind   'cave' places no stitch and no Tale-lead.
+ *   fight  { plan: ArenaPlan (arena.js), encounters: Encounters | null } builds on the arena pass's
+ *          widened layout: it paints the dais heights, stands the genre props as blocking scenery
+ *          (kind 'prop'), adds the hearth-nook (kind 'nook', clickable) and a cave's added chests
+ *          (plan.chests, as `loot:<n>` after the layout's own), makes the Tale-lead block
+ *          its 2×2 footprint with its approach beside it, and keeps foliage inside every fight
+ *          arena as reeds, never bushes, so the ground the fight uses is the ground drawn. With
+ *          encounters it also sets scene.encounters (the rooms) and gives encounters.chests'
+ *          loot objects `locked` and `mimic`. scene.strays is never touched.
  */
-export function buildElsewhere(spec, layout, { genres, kind = null, words } = {}) {
+export function buildElsewhere(spec, layout, { genres, kind = null, words, hooks = [], fight = null } = {}) {
   const W = layout.w;
   const H = layout.h;
   const index = genreIndex(genres);
@@ -177,7 +191,9 @@ export function buildElsewhere(spec, layout, { genres, kind = null, words } = {}
   const door = { x: layout.entrance.x, y: layout.entrance.y }; // E, where the way home stands
   // The layout's blocking marks: the seam, the Tale-lead, loot and the curio.
   const marks = [layout.stitch, layout.boss, layout.puzzle, ...(layout.loot || [])].filter(Boolean);
-  const fords = findFords(cells, W, H, door, marks);
+  // A fight-ready scene's Tale-lead blocks its whole footprint, so no stepping stone runs under it.
+  const plannedLead = kind !== 'cave' && spec.taleLead && fight?.plan?.lead ? fight.plan.lead.footprint : [];
+  const fords = findFords(cells, W, H, door, [...marks, ...plannedLead.filter((t) => !(t.x === layout.boss.x && t.y === layout.boss.y))]);
   const cell = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? VOID : cells[y * W + x]);
   const isFord = (x, y) => x >= 0 && y >= 0 && x < W && y < H && fords[y * W + x] === 1;
   const ground = (x, y) => {
@@ -188,6 +204,9 @@ export function buildElsewhere(spec, layout, { genres, kind = null, words } = {}
   const open = (x, y) => ground(x, y) && !blocked.has(keyOf(x, y));
   const riftKind = kind || (String(spec.key || '').startsWith('story:') ? 'story' : spec.kind || 'wild');
   const refused = riftKind === 'real';
+  const cave = riftKind === 'cave';
+  const plan = fight?.plan || null;
+  const encounters = fight?.encounters || null;
 
   // ---------- objects at the layout's marks ----------
   const objects = [];
@@ -199,37 +218,68 @@ export function buildElsewhere(spec, layout, { genres, kind = null, words } = {}
   };
   // The way home stands in the entrance, a step behind where Milo arrives.
   place({ id: 'exit', kind: 'exit', x: door.x, y: door.y, dy: -5, sprite: 'exit.door', native: true, label: 'The way home' });
-  const lead = spec.taleLead || null;
+  const lead = cave ? null : spec.taleLead || null;
+  const shown = lead ? leadDisplayName(spec, words, { hooks }) : null;
+  // In a fight-ready Elsewhere the Tale-lead stands on its 2×2 footprint (B.x−1..B.x, B.y−1..B.y).
+  const footprint = lead && plan?.lead ? plan.lead.footprint : null;
   if (lead) {
     const { sprite, archetype } = leadSprite(spec, { words });
-    place({
+    const object = place({
       // Drawn at 2x, it stands a little back from the seam beside it (dx).
       id: 'tale-lead', kind: 'tale-lead', x: layout.boss.x, y: layout.boss.y, dx: -6, blocks: true,
-      name: lead.name, line: lead.line, mechanic: lead.mechanic, genre: lead.genre, council: lead.council || null,
-      archetype, sprite, scale: 2, feet: { x: 10, y: lowestRow(sprite.rows) }, label: lead.name,
+      name: shown, line: lead.line, mechanic: lead.mechanic, genre: lead.genre, council: lead.council || null,
+      archetype, sprite, scale: 2, feet: { x: 10, y: lowestRow(sprite.rows) }, label: shown,
+    });
+    if (footprint) {
+      object.footprint = footprint.map((t) => ({ x: t.x, y: t.y }));
+      for (const t of footprint) blocked.add(keyOf(t.x, t.y));
+    }
+  }
+  if (!cave) {
+    place({
+      id: 'stitch', kind: 'stitch', x: layout.stitch.x, y: layout.stitch.y, blocks: true, sprite: 'tear',
+      stage: spec.stage, genre: spec.genres?.[0] || null, refused,
+      label: refused ? 'The seam, holding for now' : 'The seam · stitch it',
     });
   }
-  place({
-    id: 'stitch', kind: 'stitch', x: layout.stitch.x, y: layout.stitch.y, blocks: true, sprite: 'tear',
-    stage: spec.stage, genre: spec.genres?.[0] || null, refused,
-    label: refused ? 'The seam, holding for now' : 'The seam · stitch it',
-  });
   (layout.loot || []).forEach((spot, n) => {
     place({ id: `loot:${n}`, kind: 'loot', x: spot.x, y: spot.y, blocks: true, sprite: 'chest', label: 'A chest' });
   });
   if (layout.puzzle) place({ id: 'curio', kind: 'curio', x: layout.puzzle.x, y: layout.puzzle.y, blocks: true, sprite: 'curio', label: 'A curio' });
+  if (plan) {
+    // A cave's added chests (the arena pass's plan.chests), numbered after the layout's own loot.
+    (plan.chests || []).forEach((spot, i) => {
+      place({ id: `loot:${(layout.loot || []).length + i}`, kind: 'loot', x: spot.x, y: spot.y, blocks: true, sprite: 'chest', label: 'A chest' });
+    });
+    if (plan.nook) place({ id: 'nook', kind: 'nook', x: plan.nook.x, y: plan.nook.y, blocks: true, sprite: 'hearth-nook', label: 'Hearth-nook · rest here' });
+    for (const prop of plan.props || []) {
+      place({ id: `prop:${prop.x},${prop.y}`, kind: 'prop', x: prop.x, y: prop.y, blocks: true, sprite: prop.state, state: prop.state, flags: [...prop.flags], ...SCENERY(prop.x, prop.y) });
+    }
+  }
+  if (encounters) {
+    for (const chest of encounters.chests || []) {
+      const known = objects.find((o) => o.id === chest.id);
+      const flags = { locked: Boolean(chest.locked), mimic: chest.mimic || null };
+      if (known) Object.assign(known, flags, chest.locked ? { label: 'A locked chest' } : {});
+      else place({ id: chest.id, kind: 'loot', x: chest.x, y: chest.y, blocks: true, sprite: 'chest', label: chest.locked ? 'A locked chest' : 'A chest', ...flags });
+    }
+  }
 
-  // Each object is reached from a free neighbour (south first, so Milo faces up at it).
+  // Each object is reached from a free neighbour (south first, so Milo faces up at it); the
+  // Tale-lead on its footprint from a free tile beside the footprint.
   let reach = bfsFrom(W, H, open, door);
   for (const object of objects) {
+    if (object.scenery) continue;
     if (!object.blocks) { object.approach = { x: object.x, y: object.y }; continue; }
-    const options = DIRS4.map(([dx, dy]) => ({ x: object.x + dx, y: object.y + dy })).filter((t) => open(t.x, t.y));
+    const around = object.footprint ? besideFootprint(object.footprint) : DIRS4.map(([dx, dy]) => ({ x: object.x + dx, y: object.y + dy }));
+    const options = around.filter((t) => open(t.x, t.y));
     const reached = options.filter((t) => reach[t.y * W + t.x] >= 0);
     let approach = reached[0] || null;
     if (!approach) {
       // Boxed in: it stops blocking rather than become unreachable.
       object.blocks = false;
       blocked.delete(keyOf(object.x, object.y));
+      for (const t of object.footprint || []) blocked.delete(keyOf(t.x, t.y));
       reach = bfsFrom(W, H, open, door);
       approach = { x: object.x, y: object.y };
     }
@@ -244,13 +294,17 @@ export function buildElsewhere(spec, layout, { genres, kind = null, words } = {}
   // ---------- growth: reeds everywhere, bushes where they don't cut anything off ----------
   const keep = new Set(objects.flatMap((o) => [keyOf(o.x, o.y), keyOf(o.approach.x, o.approach.y)]));
   for (const at of [door, spawn]) for (let y = at.y - 1; y <= at.y + 1; y += 1) for (let x = at.x - 1; x <= at.x + 1; x += 1) keep.add(keyOf(x, y));
+  for (const t of footprint || []) keep.add(keyOf(t.x, t.y));
+  // Inside a fight arena, growth is reeds (a foliage surface in the fight), never a bush.
+  const arenaRects = plan ? plan.rooms.filter((room) => room.arena).map((room) => room.arena.rect) : [];
+  const inArena = (x, y) => arenaRects.some((r) => x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h);
   let reachable = countTrue(reach);
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
       if (cells[y * W + x] !== FOLIAGE || keep.has(keyOf(x, y))) continue;
       const roll = unit(hashInts(seed, x, y, 'growth'));
       const jitter = { dx: Math.round((unit(hashInts(seed, x, y, 'jx')) - 0.5) * 6), dy: Math.round((unit(hashInts(seed, x, y, 'jy')) - 0.5) * 3) };
-      if (roll < 0.34) {
+      if (roll < 0.34 && !(plan && inArena(x, y))) {
         blocked.add(keyOf(x, y));
         const next = bfsFrom(W, H, open, door);
         if (countTrue(next) === reachable - 1) {
@@ -397,7 +451,7 @@ export function buildElsewhere(spec, layout, { genres, kind = null, words } = {}
     walkable: (x, y) => Number.isInteger(x) && Number.isInteger(y) && open(x, y),
     isFord,
     get ground() {
-      if (!groundCache) groundCache = paintGround({ cells, fords, W, H, seed });
+      if (!groundCache) groundCache = paintGround({ cells, fords, W, H, seed, ...(plan ? raised(plan, W, H) : {}) });
       return groundCache;
     },
     palettes,
@@ -436,7 +490,50 @@ export function buildElsewhere(spec, layout, { genres, kind = null, words } = {}
     strays,
     spawn,
   };
+  if (encounters) scene.encounters = encounters.rooms;
   return scene;
+}
+
+/**
+ * The stepping stones buildElsewhere lays for this layout (1 where water is a ford), with extra
+ * marks that no ford may run under and that must be reachable beside: a fight-ready scene passes
+ * the Tale-lead's footprint. The arena pass reads this so its idea of open ground is the scene's.
+ */
+export function fightFords(layout, extraMarks = []) {
+  const cells = readCells(layout);
+  const marks = [layout.stitch, layout.boss, layout.puzzle, ...(layout.loot || []), ...extraMarks].filter(Boolean);
+  return findFords(cells, layout.w, layout.h, { x: layout.entrance.x, y: layout.entrance.y }, marks);
+}
+
+// The free tiles beside a 2×2 footprint, the way in first: south of B, then round.
+function besideFootprint(footprint) {
+  const xs = footprint.map((t) => t.x);
+  const ys = footprint.map((t) => t.y);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const x1 = Math.max(...xs);
+  const y1 = Math.max(...ys);
+  return [
+    { x: x1, y: y1 + 1 }, { x: x0, y: y1 + 1 },
+    { x: x0 - 1, y: y1 }, { x: x0 - 1, y: y0 },
+    { x: x0, y: y0 - 1 }, { x: x1, y: y0 - 1 },
+    { x: x1 + 1, y: y0 }, { x: x1 + 1, y: y1 },
+  ];
+}
+
+// The arena pass's heights and stairs, for the ground painter.
+function raised(plan, W, H) {
+  const heights = typeof plan.heights === 'string' && plan.heights.length === W * H ? plan.heights : null;
+  const stairs = new Set();
+  for (const room of plan.rooms || []) {
+    const arena = room.arena;
+    if (!arena) continue;
+    for (let i = 0; i < arena.cells.length; i += 1) {
+      if (arena.cells[i] !== '=') continue;
+      stairs.add(keyOf(arena.rect.x + (i % arena.rect.w), arena.rect.y + Math.floor(i / arena.rect.w)));
+    }
+  }
+  return { heights, stairs };
 }
 
 const BASE_CODES = (() => {
@@ -533,8 +630,11 @@ function countTrue(dist) {
  *           stepping stones on a ford;
  *   growth  moss (l, q, L) under the reeds and bushes;
  *   void    the space between pages: ink with the odd faint star.
+ * A fight-ready Elsewhere also passes the arena pass's heights (w*h '0'–'2') and stairs (a Set of
+ * 'x,y'): a raised tile gets a lit lip where it rises and a short brick face where it drops, and a
+ * stair tile its treads. Without them the ground is exactly Phase 3's.
  */
-export function paintGround({ cells, fords, W, H, seed }) {
+export function paintGround({ cells, fords, W, H, seed, heights = null, stairs = null }) {
   const PW = W * TILE;
   const PH = H * TILE;
   const out = new Uint8Array(PW * PH);
@@ -631,6 +731,20 @@ export function paintGround({ cells, fords, W, H, seed }) {
       }
     }
     return key;
+  }
+
+  // A dais: 8 px a step (COMBAT.md §4.2), drawn as a lit lip on its top edge, a brick face with an
+  // ink foot where it drops to lower ground, and treads on a stair tile.
+  const heightOf = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : Number(heights[y * W + x]) || 0);
+  function raisedKey(tx, ty, lx, ly, base) {
+    const h = heightOf(tx, ty);
+    if (!h) return base;
+    if (stairs?.has(`${tx},${ty}`)) return ly === 5 || ly === 10 || ly === 15 ? K.o : ly === 6 || ly === 11 ? K.h : base;
+    const drop = heightOf(tx, ty + 1) < h;
+    if (drop && ly >= 13) return ly === 15 ? K.o : lx % 4 === 0 ? K.z : K.S;
+    if (ly === 0 && heightOf(tx, ty - 1) < h) return K.h;
+    if ((lx === 0 && heightOf(tx - 1, ty) < h) || (lx === 15 && heightOf(tx + 1, ty) < h)) return K.G;
+    return base;
   }
 
   function fordKey(lx, ly, base) {
@@ -730,6 +844,7 @@ export function paintGround({ cells, fords, W, H, seed }) {
           } else if (c !== WALL) {
             key = floorKey(px, py, tx, ty, lx, ly);
             if (c === FOLIAGE) key = mossKey(px, py, tx, ty, lx, ly, key);
+            if (heights) key = raisedKey(tx, ty, lx, ly, key);
           }
           put(px, py, key);
         }

@@ -2,23 +2,23 @@
 // CONTRACT-PHASE3 §6). The tiers are content (content/fortress.json); what MILO can count for
 // them is real and lives here. Requirements MILO can't count yet say what brings them, materials
 // the wilds don't give yet say so, and Construction is shown but not asked for until the skills
-// engine arrives. Pure ESM.
-import { toTime } from './model.js';
+// engine arrives. Pure ESM. Phase 4: focus sessions count (Kindle, src/kindle.js).
+import { toTime } from './clean.js';
 
 /** Ward radius per tier (tiles beyond the vale's edge), used when content/fortress.json can't be read. */
 export const WARD_RADII = Object.freeze([0, 12, 28, 48, 72, 100, 140, 200]);
 export const TIER_MAX = 8;
 
-// Requirement kinds MILO counts from real state in Phase 3.
+// Requirement kinds MILO counts from real state (focus sessions from Phase 4's Kindle).
 const COUNTED = Object.freeze({
   'crew-sessions-finished': (state) => whole(state.tally?.sessionsFinished),
   'buildings-designed': (state) => whole(state.tally?.buildingsDesigned),
   'days-with-milo': (state) => whole(state.tally?.daysSeen),
+  'focus-sessions': (state) => whole(state.tally?.focusSessions),
 });
 
 // Everything else arrives with a later part of MILO (PLAN.md §13).
 const FUTURE_NOTES = Object.freeze({
-  'focus-sessions': 'Arrives with the Notice Board and its focus timer',
   'quests-finished': 'Arrives with the Notice Board',
   'delve-finished': 'Arrives with the Notice Board',
   residents: 'Arrives with the Notice Board',

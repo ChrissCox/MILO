@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "about": "Exploring banter for Phase 5: short exchanges while walking, at most one every three minutes. Never fight barks, and Jev only gestures (COMBAT.md §2.7).",
+  "banter": [
+    {
+      "id": "scribe-artificer-map",
+      "between": ["claude", "codex"],
+      "from": "Phase 5",
+      "lines": [
+        { "speaker": "claude", "text": "I’ve drawn the path we took. It loops twice." },
+        { "speaker": "codex", "text": "It loops once. The second one was a shortcut." }
+      ]
+    },
+    {
+      "id": "milo-jev-pile",
+      "between": ["milo", "jev"],
+      "from": "Phase 5",
+      "lines": [{ "speaker": "milo", "text": "Which way, Jev?" }, { "gesture": "Jev looks left, looks right, and hops left" }]
+    },
+    {
+      "id": "tollkeeper-scribe-riddle",
+      "between": ["tollkeeper", "claude"],
+      "from": "Phase 5",
+      "lines": [
+        { "speaker": "tollkeeper", "text": "What has pages but never reads?" },
+        { "speaker": "claude", "text": "A book, usually. Mine are read twice." }
+      ]
+    }
+  ]
+}

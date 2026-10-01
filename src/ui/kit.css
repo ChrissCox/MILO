@@ -1,0 +1,268 @@
+/* The Adventurer's Kit's chrome (CONTRACT-PHASE4.md §12.1, §12.4 K1): the title bar's wallet and
+   Kindle orb, the Adventure HUD (#hud), the Log (#log), the context menu (#context-menu), and the
+   Chronicle, Kindle, Skills, Riddle Notes and Satchel panels. Uses styles.css's tokens and pixel
+   chrome (.px, .px-btn, .switch, .levels …). Fits 1000×700: the HUD sits top right under the
+   title bar, the Log bottom right, and nothing here overlaps .places (left 14 px, bottom 18 px)
+   or the 240 px its list pops up into. Every control shows the ink focus ring; inside a scroller
+   the ring is drawn inward so nothing clips it. Nothing here animates.
+
+   Where they sit in index.html (§12.1: all after #map-view): #hud, #log and #context-menu inside
+   main#stage, after #map-view, so the panel (z 10), the bubble (12) and the map (14) stack with
+   them as they should; #kindle-orb and #wallet after #map-button, outside main, as the Map button
+   is, because main#stage is its own stacking context under the title bar (z 20). */
+
+:root {
+  --kit-wallet-w: 64px;
+  --kit-orb-w: 88px;
+  --kit-hud-w: 158px;
+}
+
+/* ---------- The title bar: the Kindle orb and the wallet, left of the Map button ----------
+   Like #map-button they come after the stage in the DOM (so nothing focusable comes before
+   #bubble), are drawn in the title bar with position: fixed, and each has a .titlebar-slot spacer
+   (data-slot="kindle" and data-slot="wallet", before the Map's own slot). */
+.titlebar-slot[data-slot="wallet"] { width: var(--kit-wallet-w); }
+.titlebar-slot[data-slot="kindle"] { width: var(--kit-orb-w); }
+html:not(.phase4) .titlebar-slot[data-slot="wallet"], html:not(.phase4) .titlebar-slot[data-slot="kindle"] { display: none; }
+
+#wallet, #kindle-orb {
+  position: fixed;
+  top: 0;
+  height: 32px;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+}
+#wallet { right: calc(132px + 76px); width: var(--kit-wallet-w); }
+#kindle-orb { right: calc(132px + 76px + var(--kit-wallet-w)); width: var(--kit-orb-w); }
+#wallet[hidden], #kindle-orb[hidden] { display: none; }
+#wallet:hover, #kindle-orb:hover { background: var(--cream-3); color: var(--ink); }
+#wallet:focus-visible, #kindle-orb:focus-visible { outline: 2px dashed var(--focus); outline-offset: -4px; }
+#wallet svg, #kindle-orb svg { flex: none; fill: currentColor; }
+#wallet .wallet-glyph { color: var(--clay); }
+#wallet .wallet-core { fill: var(--cream); }
+.wallet-n { font-variant-numeric: tabular-nums; color: var(--ink); }
+.wallet-n[data-full="true"] { text-decoration: underline; text-decoration-color: var(--clay); text-underline-offset: 3px; }
+#kindle-orb .orb-glyph { color: var(--idle); }
+#kindle-orb[data-phase="focus"] .orb-glyph { color: var(--clay); }
+#kindle-orb[data-phase="rest"] .orb-glyph { color: var(--done); }
+.orb-time { font-variant-numeric: tabular-nums; }
+.orb-time[data-phase="focus"], .orb-time[data-phase="rest"] { color: var(--ink); }
+
+/* ---------- The Adventure HUD: orbs and the minimap, then the side tabs ---------- */
+#hud {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  width: var(--kit-hud-w);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+#hud[hidden] { display: none; }
+#hud[data-mode="quiet"] { width: auto; align-items: flex-end; }
+.stage[data-area="elsewhere"] #hud { top: 70px; }
+/* The panel takes the right-hand side; the HUD steps out of its way (and out of the tab order). */
+.stage[data-panel="open"] #hud { visibility: hidden; }
+/* A focus session dims the Adventure HUD, until it's pointed at or focused. */
+html[data-focus] #hud { opacity: 0.55; }
+html[data-focus] #hud:hover, html[data-focus] #hud:focus-within { opacity: 1; }
+
+.hud-top { display: flex; align-items: flex-start; justify-content: flex-end; gap: 8px; }
+.hud-orbs { display: flex; flex-direction: column; gap: 6px; }
+.hud-orb {
+  width: 50px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: var(--cream);
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 0 4px 0 0 var(--drop);
+}
+.hud-orb:hover { background: var(--cream-2); }
+.hud-orb:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+.hud-orb svg { flex: none; fill: currentColor; }
+.hud-orb[data-orb="ember"] svg { color: var(--clay); }
+.hud-orb[data-orb="mana"] svg { color: var(--slate); }
+.hud-orb[data-orb="focus"] svg { color: var(--green-deep); }
+.orb-value { font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hud-minimap { width: 96px; height: 96px; display: block; flex: none; image-rendering: pixelated; background: #e6e0c8; }
+
+.side-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.side-tab {
+  padding: 4px 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  text-align: center;
+  white-space: nowrap;
+  background: var(--cream-2);
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 0 3px 0 0 var(--drop);
+}
+.side-tab:hover { background: var(--cream-3); }
+.side-tab:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+.hud-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 24px; }
+.hud-sneak[aria-pressed="true"] { background: var(--green); }
+.hud-quiet { font-size: 11.5px; }
+
+/* In a fight the minimap folds to its orbs, the side tabs collapse and the tracker hides. Sneak is
+   for walking about, so it waits for the fight to end too. */
+.stage[data-mode="combat"] #hud .hud-minimap,
+.stage[data-mode="combat"] #hud .side-tabs,
+.stage[data-mode="combat"] #hud .hud-sneak,
+.stage[data-mode="combat"] #hud .hud-quiet { display: none; }
+.stage[data-mode="combat"] .tracker { display: none; }
+
+/* ---------- The Log: tabs, the lines and the command bar, bottom right ---------- */
+#log {
+  position: fixed;
+  right: 14px;
+  bottom: 18px;
+  z-index: 5;
+  width: min(360px, 34vw);
+  max-height: 30vh;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px 8px;
+}
+#log[hidden] { display: none; }
+/* With the panel open the Log moves left of it, still clear of the place list's 240 px. */
+.stage[data-panel="open"] #log {
+  right: calc(var(--panel-w) + 28px);
+  width: min(360px, 34vw, calc(100vw - var(--panel-w) - 282px));
+}
+.log-tabs { display: flex; flex-wrap: nowrap; gap: 3px; flex: none; padding-bottom: 5px; border-bottom: 2px solid var(--line); }
+.log-tab { padding: 2px 8px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.log-tab:hover { background: var(--cream-2); color: var(--ink); }
+.log-tab[aria-selected="true"] { background: var(--green-soft); color: var(--ink); }
+.log-tab:focus-visible { outline: 2px dashed var(--focus); outline-offset: 1px; }
+/* The tab panel holds the lines; it passes the Log's leftover height down so the list scrolls. */
+.log-panel { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.log-lines { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 4px 0 6px; padding: 2px 2px 2px 0; font-size: 12.5px; line-height: 1.35; }
+.log-lines:focus-visible { outline: 2px dashed var(--focus); outline-offset: -2px; }
+.log-line { padding: 2px 4px; overflow-wrap: anywhere; }
+.log-line + .log-line { margin-top: 1px; }
+.log-time { display: inline-block; min-width: 38px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.log-toggle { text-align: left; text-decoration: underline dotted; text-underline-offset: 3px; }
+.log-toggle[aria-expanded="true"] { text-decoration: none; font-weight: 600; }
+.log-line button:focus-visible { outline: 2px dashed var(--focus); outline-offset: -2px; }
+.log-act { font-size: 11.5px; }
+.log-detail { margin: 2px 0 4px 42px; padding: 0; font-size: 11.5px; color: var(--ink-soft); }
+.log-detail li + li { margin-top: 2px; }
+.log-empty { padding: 4px; font-size: 12px; color: var(--muted); }
+.log-command { flex: none; }
+.log-input {
+  width: 100%;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--cream-2);
+  border: 0;
+  box-shadow: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink);
+}
+.log-input::placeholder { color: var(--muted); }
+.log-input:focus { outline: none; }
+.log-input:focus-visible { outline: 2px dashed var(--focus); outline-offset: 4px; }
+.log-hint { margin-top: 4px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-hint:empty { display: none; }
+
+/* ---------- The context menu ---------- */
+#context-menu { position: fixed; z-index: 13; min-width: 180px; max-width: 300px; padding: 4px; }
+#context-menu[hidden] { display: none; }
+.menu-title { padding: 3px 8px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-items { display: flex; flex-direction: column; }
+.menu-item { display: block; width: 100%; padding: 6px 10px; font-size: 13px; text-align: left; }
+.menu-item:hover, .menu-item:focus { background: var(--cream-2); }
+.menu-item:focus { outline: none; }
+.menu-item:focus-visible { outline: 2px dashed var(--focus); outline-offset: -3px; }
+.menu-item[aria-disabled="true"] { color: var(--muted); cursor: default; }
+/* Examine, always last, sits under a rule; so does a hero's group of planned actions. */
+.menu-items > .menu-item:last-child { border-top: 2px solid var(--line); }
+.menu-items > .menu-item:only-child { border-top: 0; }
+.menu-group { border-top: 2px solid var(--line); }
+.menu-items > .menu-group:first-child { border-top: 0; }
+.menu-group-title { padding: 3px 10px 1px; font-size: 10.5px; font-weight: 700; color: var(--muted); }
+
+/* ---------- Kindle ---------- */
+.kindle-art { margin: 2px 0 10px; display: flex; justify-content: center; }
+.kindle-flame {
+  display: block;
+  width: 24px;
+  height: 30px;
+  background: var(--idle);
+  clip-path: polygon(40% 0, 60% 0, 60% 20%, 80% 20%, 80% 40%, 100% 40%, 100% 90%, 80% 90%, 80% 100%, 20% 100%, 20% 90%, 0 90%, 0 40%, 20% 40%, 20% 20%, 40% 20%);
+}
+.kindle-flame[data-phase="focus"] { background: var(--clay); }
+.kindle-flame[data-phase="rest"] { background: var(--done); }
+.kindle-actions { margin-top: 12px; }
+.kindle-note { margin-top: 10px; line-height: 1.45; }
+.kindle-today, .kindle-settings { margin-top: 16px; }
+.kindle-count { font-size: 13px; }
+
+/* ---------- The Chronicle ---------- */
+.chronicle-view .group { margin-top: 16px; }
+.chronicle-view .group:first-of-type { margin-top: 12px; }
+.chronicle-line { font-size: 13px; line-height: 1.45; margin-top: 4px; }
+.wallet-big { font-size: 15px; }
+.week-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 6px; }
+.week-day { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0 3px; font-size: 11px; }
+.week-day:hover { background: var(--cream-2); }
+.week-day[aria-pressed="true"] { background: var(--green-soft); }
+.week-day[data-today="true"] .week-label { font-weight: 700; color: var(--ink); }
+.week-bar { width: 12px; height: 36px; display: flex; align-items: flex-end; background: var(--cream-3); box-shadow: inset 0 0 0 1px var(--line); }
+.week-bar i { display: block; width: 100%; background: var(--green-deep); }
+.week-n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.week-label { color: var(--muted); }
+.ledger, .xp-lines, .fight-list { margin-top: 6px; }
+.ledger-row, .xp-lines li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 3px 0; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+.xp-lines li { grid-template-columns: auto minmax(0, 1fr); }
+.ledger-when { font-size: 11px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ledger-text { overflow-wrap: anywhere; }
+.ledger-note { display: block; font-size: 11px; color: var(--muted); }
+.ledger-n { font-variant-numeric: tabular-nums; }
+.ledger-row[data-sign="out"] .ledger-n { color: var(--ink-soft); font-weight: 600; }
+.fight-row { padding: 6px 0; border-bottom: 1px solid var(--line); }
+.fight-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; }
+.fight-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.fight-summary { font-size: 12.5px; margin-top: 3px; line-height: 1.4; }
+.chronicle-more { margin-top: 6px; }
+
+/* ---------- Skills (the 24; the camp's own are Milo's Arts) ---------- */
+.skills-view .group { margin-top: 14px; }
+.life-skill { padding: 6px 0 7px; border-bottom: 1px solid var(--line); }
+.life-skill-head { width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; text-align: left; }
+.life-skill-head:hover .life-skill-name { text-decoration: underline; text-underline-offset: 3px; }
+.life-skill-level { font-size: 11.5px; font-weight: 650; color: var(--ink-soft); white-space: nowrap; }
+.xp-bar { height: 6px; margin-top: 4px; background: var(--cream-3); box-shadow: inset 0 0 0 1px var(--line); }
+.xp-bar i { display: block; height: 100%; background: var(--green-deep); }
+.life-skill-xp { font-size: 11px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.life-skill-guide { margin-top: 6px; }
+.guide-list { margin-top: 6px; }
+
+/* ---------- Riddle Notes ---------- */
+.trail-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.trail-view .group { margin-top: 12px; }
+.riddle-note { margin-top: 6px; }
+.riddle-note p + p { margin-top: 6px; }
+.trail-view [data-note="hint"]:focus-visible { outline: 2px dashed var(--focus); outline-offset: 3px; }
+.trail-view .coming { margin-top: 14px; }
+
+/* ---------- The satchel ---------- */
+.satchel-view .group { margin-top: 12px; }
+.satchel-big { font-size: 13px; margin-top: 4px; }
+.satchel-big strong { font-size: 15px; }
+.tonic-text { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }

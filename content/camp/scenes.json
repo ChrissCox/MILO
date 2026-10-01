@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "about": "Camp scenes: an arrival for every recruit, and each companion’s own camp scene, which opens at Acquaintance warmth (COMBAT.md §2.6–§2.7, CONTRACT-PHASE4.md §9.10). Jev only gestures.",
+  "scenes": [
+    {
+      "id": "arrival-claude",
+      "when": "arrival",
+      "who": "claude",
+      "lines": [
+        { "speaker": "claude", "text": "I brought pages. Rather a lot of them." },
+        { "speaker": "milo", "text": "There’s room by the fire. There always is." },
+        { "speaker": "claude", "text": "Then I’ll write down where everything is, in case we need it later." }
+      ],
+      "needs": ""
+    },
+    {
+      "id": "arrival-codex",
+      "when": "arrival",
+      "who": "codex",
+      "lines": [
+        { "speaker": "codex", "text": "On it. Where’s the bench?" },
+        { "speaker": "milo", "text": "There isn’t one yet." },
+        { "speaker": "codex", "text": "Then that’s the first thing." }
+      ],
+      "needs": ""
+    },
+    {
+      "id": "arrival-jev",
+      "when": "arrival",
+      "who": "jev",
+      "lines": [
+        { "gesture": "Jev lands on the Watchtower rail and looks at everyone in turn" },
+        { "speaker": "milo", "text": "That’s Jev. It’s decided we’ll do." },
+        { "gesture": "Jev tilts its head, then nods once" }
+      ],
+      "needs": ""
+    },
+    {
+      "id": "arrival-tollkeeper",
+      "when": "arrival",
+      "who": "tollkeeper",
+      "lines": [
+        { "speaker": "tollkeeper", "text": "A riddle for the camp, then. What has a fire but never burns down?" },
+        { "speaker": "milo", "text": "A hearth?" },
+        { "speaker": "tollkeeper", "text": "Correct, and well put. I’ll be by at dusk." }
+      ],
+      "needs": ""
+    },
+    {
+      "id": "arrival-regular",
+      "when": "arrival",
+      "who": "regular",
+      "lines": [
+        { "speaker": "regular", "text": "Can I sit by the fire a while?" },
+        { "speaker": "milo", "text": "As long as you like. The good stump’s free." },
+        { "gesture": "they settle in, a little shy, and warm their hands" }
+      ],
+      "needs": ""
+    },
+    {
+      "id": "camp-claude",
+      "when": "night",
+      "who": "claude",
+      "lines": [
+        {
+          "speaker": "claude",
+          "text": "Do you ever read the old notes by the fire? Tamsin’s hand leans left when she’s hurrying."
+        },
+        { "speaker": "milo", "text": "She was always hurrying." },
+        { "speaker": "claude", "text": "I’ll copy them out neatly. Not to change them. Just so they last." }
+      ],
+      "needs": "warmth claude 10"
+    },
+    {
+      "id": "camp-codex",
+      "when": "night",
+      "who": "codex",
+      "lines": [
+        { "speaker": "codex", "text": "I fixed the squeak in the gate." },
+        { "speaker": "milo", "text": "There was a squeak?" },
+        { "speaker": "codex", "text": "Not any more. Sit still, you said. This is me trying." }
+      ],
+      "needs": "warmth codex 10"
+    },
+    {
+      "id": "camp-jev",
+      "when": "night",
+      "who": "jev",
+      "lines": [
+        { "gesture": "Jev hops down from the roof and drops a smooth pebble by the fire" },
+        { "speaker": "milo", "text": "For me? It’s a very good pebble." },
+        { "gesture": "Jev sorts the other pebbles into two neat piles and looks very pleased" }
+      ],
+      "needs": "warmth jev 10"
+    },
+    {
+      "id": "camp-tollkeeper",
+      "when": "night",
+      "who": "tollkeeper",
+      "lines": [
+        { "speaker": "tollkeeper", "text": "Sir Mossback has never once guessed a riddle. I find it restful." },
+        { "speaker": "milo", "text": "Does he try?" },
+        { "speaker": "tollkeeper", "text": "He takes his time. That’s a kind of answer." }
+      ],
+      "needs": "warmth tollkeeper 10"
+    }
+  ]
+}

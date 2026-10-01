@@ -15,6 +15,10 @@
 //               strays, seals and let-gos (scene-rifts.js); echoes floating over their place in the vale
 //   entities    what can be clicked, hovered, reached with Enter or listed (§4.5)
 //   area        where Milo is (onAreaChange) and which chunks the view has shown (onExplore)
+//   Phase 4     hidden(id) leaves trees (by place id), strays and landmarks out of draws, hits and
+//               entity lists for a fight (the wilds' `felled` is never touched); setLandmarks draws the
+//               Last Bridge over its deck and the Tollkeeper at its stand as entities of kind
+//               'landmark'; a field boss roams its bleed (scene-rifts.js) (CONTRACT-PHASE4.md §11)
 //
 // Pure data comes from worldgen, wilds, nav, riftgen, rifts and riftfx; this module only arranges it.
 import { TILE, MAP, isWalkable as mapIsWalkable, placeById } from './map.js';
@@ -28,6 +32,8 @@ import { bleedsFor, bleedAt, spriteTable, genreIndex, tearArt, tileDressAt, tile
 import { basePaletteByCode, paintRegion } from './wildsart.js';
 import { createRiftLayer, bleedReach } from './scene-rifts.js';
 import { isHushed, tableFromPalette, lampPoint } from './scene-art.js';
+import { lastBridgeRows } from './props4.js';
+import { exploreFrames } from './sprites-party.js';
 
 const FEET = 13;
 const SLICE = 64; // ground rows per idle slice
@@ -120,7 +126,11 @@ const GATE_LIST = Object.entries(GATES).map(([id, g]) => ({ id, x: g.edge.x + g.
 export function createWildsScene({
   content, seed = 'hushlands', makeCanvas, painter, art, now, requestIdle, cancelIdle,
   isHidden = () => false, isPaused = () => false, onReady = () => {}, onAreaChange = () => {}, onExplore = () => {},
+  hidden = () => false, hooks = [],
 }) {
+  const hiddenId = (id) => {
+    try { return !!id && !!hidden(id); } catch { return false; }
+  };
   const genres = content.genres;
   const words = content.riftgen || null;
   const index = genreIndex(genres);
@@ -185,7 +195,11 @@ export function createWildsScene({
   } catch {
     standing = [];
   }
-  const rifts = createRiftLayer({ genres, words, painter, walkable: navStatic.walkable, approach: (x, y, kind) => approachFor(x, y, kind), standing });
+  const rifts = createRiftLayer({
+    genres, words, painter, walkable: navStatic.walkable, approach: (x, y, kind) => approachFor(x, y, kind), standing,
+    hidden: hiddenId, hooks, leads: content.combat?.leads || null, rules: content.combat?.rules || null, worldgen, wilds,
+    deferRoams: true, onRoamQueued: () => wake(), // a field boss's arena check runs in an idle slice
+  });
   const wildRiftsSig = () => `${wildState.day}|${wildState.wardRadius}`;
   let wildSig = wildRiftsSig();
   const riftsKnown = new Set();
@@ -456,6 +470,13 @@ export function createWildsScene({
         if (buildRows(building, COLOUR_SLICE)) visibleDirty = true;
       };
     }
+    const roam = rifts.roamTask();
+    if (roam) {
+      return () => {
+        roam();
+        visibleDirty = true;
+      };
+    }
     return null;
   }
 
@@ -670,7 +691,7 @@ export function createWildsScene({
     for (const c of margin) {
       if (!allHeart(c.cx, c.cy)) {
         for (const p of placedIn(c.key)) {
-          if (!visible(p.sx, p.sy, p.sw, p.sh + 8)) continue;
+          if (!visible(p.sx, p.sy, p.sw, p.sh + 8) || hiddenId(p.place)) continue;
           if (p.shadow) shadow(p.baseX, p.baseY, p.shadow[0], p.shadow[1], p.shadow[2]);
           pushObject(drawables, target, p, t, c.cx, c.cy);
         }
@@ -699,6 +720,48 @@ export function createWildsScene({
       }
     }
     rifts.collect(drawables, target, visible, t, shadow);
+    collectLandmarks(drawables, target, visible, shadow);
+  }
+
+  // ---------- landmarks (Phase 4): the Last Bridge and the Tollkeeper at its stand ----------
+
+  let landmarks = [];
+  function setLandmarks(list) {
+    landmarks = [];
+    for (const l of Array.isArray(list) ? list : []) {
+      if (!l || typeof l.id !== 'string' || !Number.isInteger(l.x) || !Number.isInteger(l.y) || landmarks.some((o) => o.id === l.id)) continue;
+      const mark = { id: l.id, kind: l.kind === 'tollkeeper' ? 'tollkeeper' : 'last-bridge', x: l.x, y: l.y, dir: l.dir === 'v' ? 'v' : 'h', label: typeof l.label === 'string' ? l.label : '', dry: !!l.dry };
+      mark.deck = Array.isArray(l.deck) && l.deck.length ? l.deck.map((t) => ({ x: t.x, y: t.y })) : [{ x: l.x, y: l.y }];
+      if (mark.kind === 'last-bridge') {
+        const art2 = lastBridgeRows(mark.deck.length, mark.dir);
+        const first = mark.deck[0];
+        mark.art = { rows: art2.frames[0], sx: first.x * TILE - art2.span[0], sy: first.y * TILE - art2.span[1], w: art2.w, h: art2.h };
+      } else {
+        const frame = exploreFrames({ kind: 'rig', rig: 'toll', who: 'tollkeeper' }, 'down')[0];
+        const fx = mark.x * TILE + 8;
+        const fy = mark.y * TILE + FEET;
+        mark.art = frame ? { rows: frame.rows, sx: Math.round(fx - frame.feet[0]), sy: Math.round(fy - frame.feet[1]), w: frame.w, h: frame.h, feetY: fy, feetX: fx } : null;
+      }
+      landmarks.push(mark);
+    }
+    onReady();
+  }
+  const landmarksShown = () => landmarks.filter((l) => l.art && !hiddenId(l.id));
+  function collectLandmarks(drawables, target, visible, shadow) {
+    for (const l of landmarksShown()) {
+      const a = l.art;
+      if (!visible(a.sx, a.sy, a.w, a.h)) continue;
+      const canvas = painter.grid(a.rows, null, 'base', { tag: l.id });
+      // The bridge lies under everything on it; the Tollkeeper stands in the y-sort.
+      if (l.kind === 'last-bridge') target.drawImage(canvas, a.sx, a.sy);
+      else {
+        shadow(a.feetX, a.feetY, 12, 3, 0);
+        drawables.push({ y: a.feetY, x: a.feetX, draw: () => target.drawImage(canvas, a.sx, a.sy) });
+      }
+    }
+  }
+  function landmarkEntity(l, from = null) {
+    return { kind: 'landmark', id: l.id, x: l.x, y: l.y, label: l.label, landmark: l.kind, dry: l.dry, approach: approachFor(l.x, l.y, 'landmark', from) };
   }
 
   function revealStep(t) {
@@ -802,6 +865,8 @@ export function createWildsScene({
       return e ? echoEntity(e) : null;
     }
     if (id.startsWith('rift:') || id.startsWith('stray:')) return rifts.entityById(id, t);
+    const mark = id.startsWith('landmark:') ? landmarksShown().find((l) => l.id === id) : null;
+    if (mark) return landmarkEntity(mark, from);
     return null;
   }
 
@@ -809,11 +874,12 @@ export function createWildsScene({
   function entitiesIn(rect, t = null, from = null) {
     const out = [];
     try {
-      for (const e of wilds.entitiesIn(rect, entityState())) out.push(withApproach(e, from));
+      for (const e of wilds.entitiesIn(rect, entityState())) if (!hiddenId(e.id)) out.push(withApproach(e, from));
     } catch (error) {
       console.error(error);
     }
     out.push(...rifts.entities(rect, t));
+    for (const l of landmarksShown()) if (l.x >= rect.x0 && l.x <= rect.x1 && l.y >= rect.y0 && l.y <= rect.y1) out.push(landmarkEntity(l, from));
     for (const e of echoes) if (e.tile.x >= rect.x0 && e.tile.x <= rect.x1 && e.tile.y >= rect.y0 && e.tile.y <= rect.y1) out.push(echoEntity(e));
     return out;
   }
@@ -822,6 +888,11 @@ export function createWildsScene({
   function hit(ax, ay, t, opaque, from) {
     const riftHit = rifts.hit(ax, ay, t, opaque);
     if (riftHit) return riftHit;
+    for (const l of landmarksShown()) {
+      const a = l.art;
+      if (ax < a.sx || ay < a.sy || ax >= a.sx + a.w || ay >= a.sy + a.h) continue;
+      if (opaque(a.rows, Math.floor(ax - a.sx), Math.floor(ay - a.sy))) return landmarkEntity(l, from);
+    }
     for (const e of echoes) {
       if (Math.abs(ax - e.x) <= 7 && Math.abs(ay - e.y) <= 7) return echoEntity(e);
     }
@@ -831,7 +902,7 @@ export function createWildsScene({
       const ringHere = ring(ringLevel()).byChunk.get(c.key);
       if (ringHere) candidates.push(...ringHere);
     }
-    const front = candidates.filter((p) => p.place && ax >= p.sx && ay >= p.sy && ax < p.sx + p.sw && ay < p.sy + p.sh).sort((a, b) => b.baseY - a.baseY);
+    const front = candidates.filter((p) => p.place && !hiddenId(p.place) && ax >= p.sx && ay >= p.sy && ax < p.sx + p.sw && ay < p.sy + p.sh).sort((a, b) => b.baseY - a.baseY);
     for (const p of front) {
       if (!opaque(art.gridFor(p.sprite, art.objectFrame(p, null)), Math.floor(ax - p.sx), Math.floor(ay - p.sy))) continue;
       const e = entityForPlace(p.place, from);
@@ -856,7 +927,7 @@ export function createWildsScene({
       else reach = byTile || own;
       if (!reach) continue;
       const facing = e.x - tile.x === ahead[0] && e.y - tile.y === ahead[1];
-      const order = { rift: 0, stray: 1, lantern: 2, poi: 2, echo: 3, gate: 4, 'war-table': 3, tree: 5 }[e.kind] ?? 6;
+      const order = { rift: 0, stray: 1, lantern: 2, poi: 2, landmark: 2, echo: 3, gate: 4, 'war-table': 3, tree: 5 }[e.kind] ?? 6;
       ok.push({ e, score: (facing ? 0 : 10) + order });
     }
     ok.sort((a, b) => a.score - b.score);
@@ -1030,7 +1101,7 @@ export function createWildsScene({
     nearestWalkable: (tile, r) => navMilo.nearestWalkable(tile, r),
     approachFor,
     // state from the shell
-    setWildState, setRifts, closeRift, setEchoes, raiseReveal,
+    setWildState, setRifts, closeRift, setEchoes, raiseReveal, setLandmarks,
     get tier() { return wildState.tier; },
     get day() { return wildState.day; },
     // drawing

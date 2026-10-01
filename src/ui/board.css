@@ -1,0 +1,64 @@
+/* The Board (PLAN.md Phase 5): the quest panel. Built on styles.css's tokens and pixel chrome. */
+
+.board-view { display: flex; flex-direction: column; gap: 10px; }
+.board-add { display: flex; gap: 6px; }
+.board-add input[type="text"] { flex: 1; min-width: 0; }
+.board-view input[type="text"], .board-view textarea, .board-view select {
+  font: inherit;
+  color: var(--ink);
+  background: var(--cream);
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  padding: 4px 6px;
+}
+.board-view textarea { width: 100%; resize: vertical; box-sizing: border-box; }
+.board-view .group { margin: 0; }
+.board-view h3 .count { font-weight: 400; color: var(--muted); font-size: 11px; }
+.board-says { margin: 0; }
+.board-foot { margin: 0; text-align: right; }
+
+.quest-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.quest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--cream-2);
+  border: 2px solid var(--line);
+}
+.quest[data-status="done"] .quest-title { text-decoration: line-through; color: var(--muted); }
+.quest-kind {
+  flex: none;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  color: var(--ink);
+  background: var(--cream-3);
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  cursor: pointer;
+}
+.quest[data-kind="main"] .quest-kind { background: var(--needs); }
+.quest-title {
+  flex: 1 1 120px;
+  min-width: 0;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.quest-count, .quest-project { font-size: 11px; color: var(--muted); }
+.quest-actions { display: flex; gap: 4px; margin-left: auto; }
+.quest-details { flex: 1 0 100%; display: flex; flex-direction: column; gap: 6px; padding-top: 4px; border-top: 2px dotted var(--line); }
+.quest-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.quest-steps .done-text { text-decoration: line-through; color: var(--muted); }
+.quest-step-form { display: flex; gap: 6px; }
+.quest-step-form input { flex: 1; min-width: 0; }
+.quest-field { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
+.quest-field select { align-self: flex-start; }

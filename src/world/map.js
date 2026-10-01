@@ -510,6 +510,18 @@ export const MAP = {
       { x: 29, y: 20, seat: 'stump', dx: 0 },
       { x: 33, y: 20, seat: 'stump', dx: 0 },
     ],
+    // Phase 4's camp (CONTRACT-PHASE4.md §11.4): eight bedrolls round the fire for the company,
+    // each facing it. Crew already sat on the five seats above keep theirs.
+    camp4: [
+      { x: 29, y: 21, face: 'right' },
+      { x: 33, y: 21, face: 'left' },
+      { x: 28, y: 20, face: 'right' },
+      { x: 34, y: 20, face: 'left' },
+      { x: 30, y: 22, face: 'up' },
+      { x: 32, y: 22, face: 'up' },
+      { x: 28, y: 19, face: 'right' },
+      { x: 34, y: 19, face: 'left' },
+    ],
     // Just outside the camp's south gate, either side of the road.
     waiting: [
       { x: 29, y: 25 },

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "about": "The Hearth: Milo’s camp as a fortress that grows into a kingdom (WORLD.md §2). Hearthvale itself is always sanctuary: no rift ever opens inside it. Each tier pushes the Hearthward (wardRadius, in tiles beyond Hearthvale’s edge) further into the wilds. Tiers need real progress (requirements, which can’t be ground out), game materials and Construction (enforced from Phase 4; until then it’s shown as information). Every defence is a real MILO capability, usually an automation, so a stronger kingdom means fewer problems ever reach the walls.",
-  "constructionFrom": "Phase 4",
+  "constructionFrom": "Phase 5",
   "tiers": [
     {
       "id": "camp",

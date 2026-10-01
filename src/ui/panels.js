@@ -27,12 +27,21 @@ export function genreChips(chips = []) {
 // ---------------------------------------------------------------------------
 // Rift rows (the watchtower's Rifts section and the War Table).
 
-const ACTION_WORDS = Object.freeze({
+// Phase 4 (CONTRACT-PHASE4.md §12.4 "L"): Challenge, a field boss's only way into its fight, and
+// the cave's door ('enter-cave', poiPanel's action from wildtext.poiView with phase4World).
+export const ACTION_WORDS = Object.freeze({
   step: 'Step through', show: 'Show me on the map', visit: 'Visit', ward: 'Ward for 3 days', unward: 'Take the ward down',
   'let-go': 'Let go', 'let-be': 'Let it be', stitch: 'Stitch', deeper: 'Go deeper', leave: 'Leave', 'war-table': 'Open the War Table',
+  challenge: 'Challenge', 'enter-cave': 'Go in',
 });
 const PRIMARY = new Set(['step', 'show', 'visit', 'stitch', 'deeper']);
 export const actionWord = (id) => ACTION_WORDS[id] || id;
+
+/** An action's words with what it costs in Embers: 'Challenge · 5 Embers', 'Go deeper · 6 Embers', 'Step through' at 0. */
+export function costWord(id, cost) {
+  const n = Number.isFinite(cost) ? Math.max(0, Math.floor(cost)) : 0;
+  return n > 0 ? `${actionWord(id)} · ${n} ${n === 1 ? 'Ember' : 'Embers'}` : actionWord(id);
+}
 
 function letGoConfirm(row, scope) {
   const wild = row.kind === 'wild';
@@ -61,6 +70,7 @@ export function riftRow(row, { confirming = null } = {}) {
   html += genreChips(row.genres || []);
   if (row.cause) html += `<p class="rift-cause">${esc(row.cause)}</p>`;
   if (row.where) html += `<p class="rift-meta">${esc(row.where)}</p>`;
+  if (row.level) html += `<p class="rift-meta rift-level">${esc(row.level)}</p>`;
   if (confirming === row.id) html += letGoConfirm(row, 'row');
   else if (row.actions?.length) {
     html += `<div class="rift-row-actions">${row.actions.map((id) => `<button type="button" class="px-btn small" data-action="rift-${esc(id)}" data-rift-id="${esc(row.id)}" data-focus-key="${esc(id)}-${esc(row.id)}">${esc(actionWord(id))}</button>`).join('')}</div>`;
@@ -99,12 +109,16 @@ const LEAD_WHERE = Object.freeze({
  *   wardText, held: { name, text } | null, affixes, lead, loot, lootTaken, actions, confirming, says, artLabel, inside, busy }
  * An empty `stitch` leaves out "To mend it" (a rift stitched from inside has nothing left to mend);
  * `lootTaken`: its gifts are in the satchel already, so its loot reads as what it left.
+ * Phase 4 (§12.4): `level` is the suggested-level line (expedition.suggestedLevel's words: "Runs at
+ * level 5. Your company is level 3."), and `costs` ({ [actionId]: Embers }) adds each door's price to
+ * its button ('Step through · 5 Embers', 'Challenge · 5 Embers').
  */
 export function riftPanel(view, { miloSays = plainSays } = {}) {
   let html = `<div class="rift-view" data-rift-id="${esc(view.id)}" data-rift-kind="${esc(view.kind)}"${attr('data-real-kind', view.realKind)} data-stage="${esc(view.stageId)}"${view.inside ? ' data-inside="true"' : ''}>`;
   html += `<figure class="plot-art rift-art"><canvas class="plot-canvas" data-scene="rift" data-rift-id="${esc(view.id)}" role="img" aria-label="${esc(view.artLabel || view.name)}"></canvas></figure>`;
   html += `<div class="rift-tags">${genreChips(view.genres || [])}<span class="stage-tag" data-stage="${esc(view.stageId)}">${esc(view.stage)}</span>${view.kindWord ? `<span class="kind-tag">${esc(view.kindWord)}</span>` : ''}</div>`;
   if (view.where) html += `<p class="rift-where">${esc(view.where)}</p>`;
+  if (view.level) html += `<p class="rift-where rift-level">${esc(view.level)}</p>`;
   if (view.says) html += miloSays(view.says);
   if (view.wardText) html += `<p class="plot-note" data-note="ward">${esc(view.wardText)}</p>`;
   if (view.held) html += `<p class="plot-note" data-note="held">The ward-post’s rule “${esc(view.held.name)}” holds it back. ${esc(view.held.text)}</p>`;
@@ -132,7 +146,8 @@ export function riftPanel(view, { miloSays = plainSays } = {}) {
   html += '<section class="building-actions rift-actions" data-group="actions">';
   if (view.confirming) html += letGoConfirm(view, 'panel');
   else if (view.actions?.length) {
-    html += `<div class="ask-actions">${view.actions.map((id) => `<button type="button" class="px-btn${PRIMARY.has(id) ? ' primary' : ''}" data-action="rift-${esc(id)}" data-rift-id="${esc(view.id)}" data-focus-key="panel-${esc(id)}"${view.busy ? ' disabled' : ''}>${esc(actionWord(id))}</button>`).join('')}</div>`;
+    const label = (id) => (view.costs && Object.hasOwn(view.costs, id) ? costWord(id, view.costs[id]) : actionWord(id));
+    html += `<div class="ask-actions">${view.actions.map((id) => `<button type="button" class="px-btn${PRIMARY.has(id) ? ' primary' : ''}" data-action="rift-${esc(id)}" data-rift-id="${esc(view.id)}" data-focus-key="panel-${esc(id)}"${view.busy ? ' disabled' : ''}>${esc(label(id))}</button>`).join('')}</div>`;
   }
   return `${html}</section></div>`;
 }
@@ -268,7 +283,7 @@ export function satchelSection(satchel = {}) {
     html += `<h4 class="hearth-h4">Relics</h4><ul class="defence-list relic-list">${relics.map((r) => `<li><strong>${esc(r.name)}</strong> ${esc(r.text || '')}</li>`).join('')}</ul>`;
   }
   if (!essences.length && !relics.length && !(materials.birch || materials.ash || materials.pine)) {
-    html += '<p class="setting-hint">Empty for now. Logs come from trees in the wilds, and rifts leave essences and relics when they close.</p>';
+    html += '<p class="setting-hint">Empty for now.</p>';
   }
   return `${html}</section>`;
 }

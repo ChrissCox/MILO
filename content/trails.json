@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "about": "Tamsin’s Riddle Notes (LORE.md §16; the Phase 4 contract, §9.12): folded notes in her hand, each a riddle that leads somewhere, often to a part of MILO you haven’t tried yet. A trail’s first note turns up in a chest (found: chest) and each note after it is handed over when the one before is solved (found: given). A step is solved by using a feature, visiting a place, examining something or reading something (solve.kind), and its target names which. The first trail ends at the Last Bridge, where the Tollkeeper asks his three riddles and then joins the Company.",
+  "tiers": {
+    "easy": { "name": "Birch-bark" },
+    "medium": { "name": "Parchment" },
+    "hard": { "name": "Sealed" },
+    "elder": { "name": "Written in five hands" }
+  },
+  "trails": [
+    {
+      "id": "first-trail",
+      "tier": "easy",
+      "title": "The Tollkeeper’s Riddles",
+      "from": "Tamsin",
+      "steps": [
+        {
+          "id": "first-trail-1",
+          "found": "chest",
+          "riddle": [
+            "Found you. I hid this where somebody curious would look.",
+            "First riddle: what do you light but never carry, and sit beside with one thing until it says you’re done?",
+            "Fifty minutes, Milo will tell you. He always counted for me."
+          ],
+          "sign": "— T.",
+          "solve": { "kind": "feature", "target": "kindle" },
+          "hint": "Kindle the lantern: start a focus session."
+        },
+        {
+          "id": "first-trail-2",
+          "found": "given",
+          "riddle": [
+            "Well done. Now the harder part, which I was always bad at.",
+            "What do you bank to keep it warm for later, and sit beside for a quarter of an hour?",
+            "Pell says rest is part of the road. Pell is right, which is annoying."
+          ],
+          "sign": "— T.",
+          "solve": { "kind": "feature", "target": "rest" },
+          "hint": "Bank the coals: take the fifteen-minute rest after a focus session."
+        },
+        {
+          "id": "first-trail-3",
+          "found": "given",
+          "riddle": [
+            "I once wrote down everything I did in a day, then lost the book. Don’t be like me.",
+            "Where does a day go when it’s over? Somewhere you can read it back. Go and have a look."
+          ],
+          "sign": "— T.",
+          "solve": { "kind": "feature", "target": "chronicle" },
+          "hint": "Open the Chronicle and look back over your day."
+        },
+        {
+          "id": "first-trail-4",
+          "found": "given",
+          "riddle": [
+            "The owls all face one way out of the vale, and so should you.",
+            "Go out by the gate where the road starts climbing toward the pines. Wave at the thicket as you pass."
+          ],
+          "sign": "— T.",
+          "solve": { "kind": "visit", "target": "gate:n" },
+          "hint": "Walk out through the north gate."
+        },
+        {
+          "id": "first-trail-5",
+          "found": "given",
+          "riddle": [
+            "Brannoch built a bridge in the rain, and it came out very level.",
+            "Go north till the pines start whispering, and look for the bridge that hums. Someone very polite waits at its end.",
+            "Tell him I said hello. He’ll pretend he doesn’t remember me."
+          ],
+          "sign": "— T.",
+          "solve": { "kind": "visit", "target": "landmark:last-bridge" },
+          "hint": "Take the north road to the Whisperwood’s edge and find the Last Bridge."
+        }
+      ],
+      "end": { "landmark": "landmark:last-bridge", "talk": "tollkeeper-riddles", "joins": "tollkeeper" },
+      "reward": { "smallSpell": null }
+    }
+  ]
+}

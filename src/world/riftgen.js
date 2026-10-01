@@ -328,7 +328,13 @@ function carve(rng, W, H, tweaks, target) {
     puzzle: puzzle ? mark(puzzle, 'P') : null,
     loot: loot.map((room) => mark(room, 'L')),
   };
-  return { w: W, h: H, rows: grid.map((row) => row.join('')), rooms: rooms.length, ...spots };
+  // Each room's rectangle and role, for the fight rooms (CONTRACT-PHASE4.md §7.3). Read from the
+  // rooms already carved, with no new draws, and appended last so every other field stays as it was.
+  // Rects cover rooms only (corridors that cut through a room aren't in any rect). An id is the
+  // room's index here, and its fight room id is `r<id>` (the Tale-lead's room is `lead`).
+  const roleOf = (room) => (room === boss ? 'lead' : room === entrance ? 'entrance' : loot.includes(room) ? 'loot' : room === puzzle ? 'puzzle' : 'room');
+  const roomRects = rooms.map((room, id) => ({ id, x: room.x, y: room.y, w: room.w, h: room.h, role: roleOf(room), ...(room.mirror ? { mirror: true } : {}) }));
+  return { w: W, h: H, rows: grid.map((row) => row.join('')), rooms: rooms.length, ...spots, roomRects };
 }
 
 function bfs(grid, from) {

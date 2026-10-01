@@ -2,6 +2,7 @@
 // so the same place always says the same thing; chest and ruin loot rolled from content ranges,
 // seeded by id; chopping; notes, statues, lanterns and landmarks. Pure ESM, runs in Node.
 import { hashString, hashInts } from '../world/rng.js';
+import { entryCost } from '../embers.js';
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const lines = (value) => (Array.isArray(value) ? value.filter((line) => typeof line === 'string' && line.trim()) : []);
@@ -154,8 +155,10 @@ export function strayOf(spec, n) {
  * `poi` is the wilds point of interest ({ id, type, x, y, name, region?, mimic?, note? }).
  * `state.wilds` says what's been opened, read and heard. `night` picks the Westwatch's night lines.
  * `fresh`: Milo has only just opened or searched it, so the lines for coming back to it wait.
+ * `phase4World`: caves are open (a cave's action is { id: 'enter-cave', label: 'Go in · 3 Embers', cost: 3 },
+ * and no `later`). `economy` is content/economy.json: the cost and its label are its `spend.cave`.
  */
-export function poiView(poi, content, state, { regionId = null, night = false, fresh = false } = {}) {
+export function poiView(poi, content, state, { regionId = null, night = false, fresh = false, phase4World = false, economy = null } = {}) {
   const wilds = isRecord(content) ? content : {};
   const examine = isRecord(wilds.examine) ? wilds.examine : {};
   const later = isRecord(wilds.notes_later) ? wilds.notes_later : {};
@@ -200,7 +203,14 @@ export function poiView(poi, content, state, { regionId = null, night = false, f
     }
     case 'cave':
       say(examine.cave);
-      out.later = later.cave || '';
+      // Phase 4's world (CONTRACT-PHASE4.md §7.7): the company can go in, for economy.json's
+      // `spend.cave` Embers (§18.2 item 14; embers.entryCost reads it, and without `economy` A's
+      // defaults, which a test pins to the file). Without it (its content missing), the cave says
+      // what's to come, as in Phase 3.
+      if (phase4World) {
+        const cost = entryCost('cave', { economy });
+        out.action = { id: 'enter-cave', label: cost > 0 ? `Go in · ${cost} ${cost === 1 ? 'Ember' : 'Embers'}` : 'Go in', cost };
+      } else out.later = later.cave || '';
       break;
     case 'hamlet': {
       say(examine.hamlet);

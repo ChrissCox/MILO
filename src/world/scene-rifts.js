@@ -8,6 +8,8 @@
 // scene-art.js. With motion off (t === null) everything stands still and draws the same every time.
 import { tearArt, tearFrameAt, sealArt, letGoFrame, strayActors, weatherPixels, spriteTable, genreIndex, bleedReach as riftReach, ANIMATION_MS } from './riftfx.js';
 import { HEART } from './worldgen.js';
+import { isFieldBoss, leadRoam, sightRing } from './fieldboss.js';
+import { ring as ringRows } from './fx.js';
 
 // A fusion's bleed is one lobe per genre; riftfx makes the lobes wherever a rift bleeds (bleedsFor,
 // bleedAt, weatherPixels, strayActors), so the ground, sprites, weather and every map agree. They
@@ -65,8 +67,16 @@ export const glideMs = (tiles) => Math.min(GLIDE_MAX_MS, Math.round(350 + tiles 
  * createRiftLayer({ genres, words, painter, walkable, approach }) → the rifts in the world.
  * walkable(x, y) is where strays may stand (the world without Milo's own blockers); approach(x, y)
  * gives the tile Milo walks to for a tile (the engine's choice).
+ * Phase 4 (CONTRACT-PHASE4.md §11.4): hidden(id) leaves those strays out of draws, hits and entity
+ * lists (a fight in the wilds); hooks names the leads that keep their own names; and a field boss
+ * (fieldboss.isFieldBoss, with leads and rules, content.combat's) roams its bleed on
+ * fieldboss.leadRoam's wander instead of standing still, with its sight ring drawn softly round the
+ * tear. Sight never starts anything here: the ring only shows where Challenge would fight.
  */
-export function createRiftLayer({ genres, words = null, painter, walkable = () => true, approach = null, standing = [] } = {}) {
+export function createRiftLayer({ genres, words = null, painter, walkable = () => true, approach = null, standing = [], hidden = () => false, hooks = [], leads = null, rules = null, worldgen = null, wilds = null, deferRoams = false, onRoamQueued = () => {} } = {}) {
+  const isHidden = (id) => {
+    try { return !!hidden(id); } catch { return false; }
+  };
   const index = genreIndex(genres);
   const genreOf = (id) => index.get(id) || null;
   const real = new Map(); // id → { rift, from, to, at, dur }
@@ -137,6 +147,7 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
 
   function setWild(key, list) {
     wild.set(key, (list || []).filter((r) => drawableRift(r)));
+    if (deferRoams) for (const r of wild.get(key)) queueRoam(r); // worked out before it's in view, as a rule
     changed();
   }
 
@@ -274,7 +285,8 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
     }
     let actors = [];
     try {
-      actors = strayActors({ ...rift, stage: stageOf(rift) }, { walkable, seed: 0, words });
+      actors = strayActors({ ...rift, stage: stageOf(rift) }, { walkable, seed: 0, words, hooks });
+      actors = roaming(rift, actors);
     } catch (error) {
       console.error(error);
     }
@@ -282,6 +294,81 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
     strays.set(rift.id, { sig, actors });
     while (strays.size > 48) strays.delete(strays.keys().next().value);
     return actors;
+  }
+
+  // A field boss's lead roams inside its bleed (fieldboss.leadRoam), where Phase 3's stood still.
+  // leadRoam's arena check (fieldArena) takes tens of ms, so with deferRoams (the wilds) it's worked
+  // out in an idle slice (roamTask), never in a draw: the lead stands at home until then, and one
+  // drawn standing first walks off from home when its roam is known, never jumping.
+  const roams = new Map(); // roamKey → { roam: Roam | null, positionAt }
+  const roamQueue = new Map(); // roamKey → rift, waiting for an idle slice
+  const roamKey = (rift) => `${rift.id}|${stageOf(rift)}|${rift.x},${rift.y}`;
+  const workOutRoam = (rift) => leadRoam({ ...rift, stage: stageOf(rift) }, { walkable, genres, seed: 0, leads, rules, worldgen, wilds });
+  function queueRoam(rift) {
+    const key = roamKey(rift);
+    if (roams.has(key) || roamQueue.has(key) || !isFieldBoss(rift, { leads, rules })) return;
+    roamQueue.set(key, rift);
+    onRoamQueued();
+  }
+  /** The next field boss's roam to work out, as an idle task (the wilds' queue runs it), or null. */
+  function roamTask() {
+    const next = roamQueue.entries().next();
+    if (next.done) return null;
+    const [key, rift] = next.value;
+    return () => {
+      roamQueue.delete(key);
+      let roam = null;
+      try { roam = workOutRoam(rift); } catch (error) { console.error(error); }
+      roams.set(key, { roam, positionAt: roam && (strays.has(rift.id) ? fromHome(roam) : roam.positionAt) });
+      while (roams.size > 48) roams.delete(roams.keys().next().value);
+      if (strays.has(rift.id)) {
+        strays.delete(rift.id);
+        changed();
+      }
+    };
+  }
+  /** A roam that starts from home the first time it's drawn (t), from the loop's first moment there. */
+  function fromHome(roam) {
+    const home = roam.positionAt(null);
+    let offset = 0;
+    for (let k = 0; k < roam.period; k += 100) {
+      const p = roam.positionAt(k);
+      if (!p.moving && p.x === home.x && p.y === home.y) { offset = k; break; }
+    }
+    let since = null;
+    return (t) => {
+      if (t == null || !Number.isFinite(t)) return home;
+      if (since === null) since = t;
+      return roam.positionAt(t - since + offset);
+    };
+  }
+  function roaming(rift, actors) {
+    if (!isFieldBoss(rift, { leads, rules })) return actors;
+    const key = roamKey(rift);
+    if (!roams.has(key)) {
+      if (deferRoams) {
+        queueRoam(rift);
+        return actors;
+      }
+      const roam = workOutRoam(rift);
+      roams.set(key, { roam, positionAt: roam && roam.positionAt });
+    }
+    const { roam, positionAt } = roams.get(key);
+    if (!roam) return actors;
+    return actors.map((a) => (a.lead ? { ...a, home: roam.home, speed: roam.speed, roams: true, positionAt } : a));
+  }
+
+  let sightCanvas = null;
+  function drawSight(target, rift, visible) {
+    const r = sightRing(rift);
+    const px = Math.round(r.radius * TILE);
+    const cx = rift.x * TILE + 8;
+    const cy = rift.y * TILE + FEET;
+    if (!visible(cx - px - 1, cy - px - 1, 2 * px + 2, 2 * px + 2)) return;
+    if (!sightCanvas) sightCanvas = painter.grid(ringRows({ r: px, key: 'c', width: 1, dither: true }, 0), null, 'base', { tag: 'sight' });
+    target.globalAlpha = 0.35;
+    target.drawImage(sightCanvas, Math.round(cx - sightCanvas.width / 2), Math.round(cy - sightCanvas.height / 2));
+    target.globalAlpha = 1;
   }
 
   const tableFor = (id) => spriteTable(genreOf(id));
@@ -340,8 +427,10 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
       if (stageOf(rift) === 'hairline') continue;
       if (!visible(item.x - 80, item.y - 80, 160, 160)) continue;
       const actors = actorsFor(rift);
+      if (!item.gliding && actors.some((a) => a.roams && !isHidden(a.id))) drawSight(target, rift, visible);
       const offset = item.gliding ? { x: item.x - (rift.x * TILE + 8), y: item.y - (rift.y * TILE + FEET) } : null;
       for (const actor of actors) {
+        if (isHidden(actor.id)) continue;
         const pose = strayPose(actor, t, offset);
         if (!visible(pose.sx, pose.sy, pose.w, pose.h)) continue;
         // The Tale-lead stands in a soft pool of its own story's light (breathing slowly with motion).
@@ -470,6 +559,7 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
       if (stageOf(rift) === 'hairline' || item.gliding) continue;
       if (Math.abs(rift.x - (rect.x0 + rect.x1) / 2) > (rect.x1 - rect.x0) / 2 + 6 || Math.abs(rift.y - (rect.y0 + rect.y1) / 2) > (rect.y1 - rect.y0) / 2 + 6) continue;
       for (const actor of actorsFor(rift)) {
+        if (isHidden(actor.id)) continue;
         const e = strayEntity(actor, rift, t);
         if (inside(e.x, e.y)) out.push(e);
       }
@@ -484,6 +574,7 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
       const { rift } = item;
       if (stageOf(rift) !== 'hairline' && !item.gliding && Math.abs(ax - item.x) < 90 && Math.abs(ay - item.y) < 90) {
         for (const actor of actorsFor(rift)) {
+          if (isHidden(actor.id)) continue;
           const pose = strayPose(actor, t);
           if (ax < pose.sx - 1 || ay < pose.sy - 1 || ax >= pose.sx + pose.w + 1 || ay >= pose.sy + pose.h + 1) continue;
           const rows = actor.sprite.rows;
@@ -508,7 +599,7 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
     if (id.startsWith('stray:')) {
       for (const item of active(t)) {
         if (!id.startsWith(`stray:${item.rift.id}:`)) continue;
-        const actor = actorsFor(item.rift).find((a) => a.id === id);
+        const actor = actorsFor(item.rift).find((a) => a.id === id && !isHidden(a.id));
         if (actor) return strayEntity(actor, item.rift, t);
       }
       return null;
@@ -519,7 +610,7 @@ export function createRiftLayer({ genres, words = null, painter, walkable = () =
 
   return {
     setReal, setWild, dropWild, clearWild, forgetClosed, close, active, bleeding, update, tiles,
-    collect, drawAbove, entities, hit, entityById, actorsFor, find,
+    collect, drawAbove, entities, hit, entityById, actorsFor, find, roamTask,
     isClosed: (id) => closedIds.has(id),
     wildKeys: () => [...wild.keys()],
     hasWild: (key) => wild.has(key),

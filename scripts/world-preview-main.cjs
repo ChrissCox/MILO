@@ -1,9 +1,9 @@
 // Minimal Electron main that shows scripts/world-preview.html on its own.
 // Used by scripts/capture-world.mjs, capture-wilds.mjs and friends; not part of the MILO app.
 //
-// With MILO_PREVIEW_CONTENT=1 the preview gets the content bundle (content/*.json, as the app's
-// main serves it) as window.__content, so the wilds come on without a capture script. This same
-// file is then the page's preload: it asks main for the bundle once and hands it to the page.
+// With MILO_PREVIEW_CONTENT=1 the preview gets the content bundle (read through the app's own
+// manifest, electron/content.cjs, as the app's main serves it) as window.__content, so the wilds
+// come on without a capture script. This same file is then the page's preload: it asks main for the bundle once and hands it to the page.
 // (Capture scripts can instead set window.__content with an init script, as capture-wilds.mjs does.)
 const electron = require('electron');
 
@@ -15,30 +15,20 @@ if (electron.ipcRenderer && !electron.app) {
   // ---------- main ----------
   const { app, BrowserWindow, session, ipcMain } = electron;
   const path = require('node:path');
-  const fs = require('node:fs');
+  // Required here, not at the top: this file is also the sandboxed preload, which can't load it.
+  const { loadContent } = require('../electron/content.cjs');
 
   const PREVIEW = path.join(__dirname, 'world-preview.html');
   const withContent = process.env.MILO_PREVIEW_CONTENT === '1';
 
   if (process.env.MILO_PREVIEW_USER_DATA) app.setPath('userData', process.env.MILO_PREVIEW_USER_DATA);
 
-  function readContent() {
-    const read = (name) => {
-      try {
-        return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'content', `${name}.json`), 'utf8'));
-      } catch {
-        return null;
-      }
-    };
-    return { genres: read('genres'), riftgen: read('riftgen'), fortress: read('fortress'), wilds: read('wilds'), story: read('story') };
-  }
-
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     // Local files only: block every request that isn't file://.
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !details.url.startsWith('file://') && !details.url.startsWith('devtools://') });
     });
-    const content = withContent ? readContent() : null;
+    const content = withContent ? await loadContent() : null;
     ipcMain.on('milo-preview:content', (event) => {
       event.returnValue = content;
     });

@@ -35,6 +35,9 @@
 // picture) and world.elsewhereEntities() (everything in the Elsewhere, in view or not; [] outside).
 // Inside a bleed or an Elsewhere, Milo (and any crew) wear the genre on their clothes only: their
 // faces, hair and boots stay their own (riftfx.outfitGrid).
+// Phase 4 (CONTRACT-PHASE4.md §11) wires in layers (scene-combat.js, follow.js, scene-camp.js,
+// scene-sky.js; world.addLayer for more): each may update, settle, draw on the ground, into the
+// y-sort and above it, answer hits and entity lists, and hide actors. Fights are a mode, not a scene.
 
 import { TILE, MAP, PLACES, PLOT_IDS, TERRAIN, isWalkable, findPath, placeAt, placeById, plotById, buildableArea, hash2, naturalAt, terrainAt as valeTerrainAt } from './map.js';
 import { SPRITES, PALETTE, HELPER_TINTS, rgbaOf, buildAtlas, rowsToImageData, stamp as stampGrid } from './sprites.js';
@@ -44,6 +47,10 @@ import { createWildsScene } from './scene-wilds.js';
 import { createElsewhereScene, walkGoals } from './scene-elsewhere.js';
 import { basePaletteByCode } from './wildsart.js';
 import { outfitGrid } from './riftfx.js';
+import { createCombatLayer, benchCombat, arenaCamera, pointerTarget } from './scene-combat.js';
+import { createFollowLayer } from './follow.js';
+import { createCampLayer } from './scene-camp.js';
+import { createSkyLayer } from './scene-sky.js';
 
 const MAP_W = MAP.width * TILE;
 const MAP_H = MAP.height * TILE;
@@ -564,6 +571,10 @@ export function createWorld(canvas, {
   onEntityClick = () => {},
   onAreaChange = () => {},
   onExplore = () => {},
+  onSceneStep = () => {},
+  onCombatHover = () => {},
+  onCombatCommand = () => {},
+  onContextMenu: onMenu = () => {},
 } = {}) {
   const doc = canvas.ownerDocument;
   const win = doc.defaultView;
@@ -579,6 +590,16 @@ export function createWorld(canvas, {
   const reduced = typeof win.matchMedia === 'function' ? win.matchMedia('(prefers-reduced-motion: reduce)') : null;
   const motionOn = () => {
     if (reduced && reduced.matches) return false;
+    try {
+      return motion() !== false;
+    } catch {
+      return true;
+    }
+  };
+  // Walking is movement, not decoration. When the system asks for reduced motion, Milo and the
+  // crew still walk their paths and the camera keeps to him, while shimmer, weather, fades and
+  // celebrations hold still. Only MILO's own Motion setting stills the walks too.
+  const walksOn = () => {
     try {
       return motion() !== false;
     } catch {
@@ -608,6 +629,7 @@ export function createWorld(canvas, {
   const timeout = (fn, ms) => (typeof win.setTimeout === 'function' ? win.setTimeout(fn, ms) : setTimeout(fn, ms));
   const clearTimer = (id) => (typeof win.clearTimeout === 'function' ? win.clearTimeout(id) : clearTimeout(id));
   let W = null;
+  const leadHooks = (content?.combat?.leads?.hooks || []).map((h) => h && h.name).filter((n) => typeof n === 'string');
   if (content) {
     try {
       W = createWildsScene({
@@ -626,6 +648,8 @@ export function createWorld(canvas, {
         onReady: () => requestDraw(),
         onAreaChange: (info) => onAreaChange(info),
         onExplore: (keys) => onExplore(keys),
+        hidden: (id) => isHiddenId(id),
+        hooks: leadHooks,
       });
     } catch (error) {
       console.error(error);
@@ -803,8 +827,55 @@ export function createWorld(canvas, {
   let paused = false;
   let disposed = false;
   let wasMotion = motionOn();
+  let wasWalks = walksOn();
   let lastTime = now();
   let frozenTime = lastTime;
+
+  // ---------- Phase 4: layers, the party, fights, the camp and the sky (CONTRACT-PHASE4.md §11) ----------
+
+  let mode = 'explore';
+  let sneaking = false;
+  let arenaRect = null;
+  let hideSet = new Set();
+  let lastCombatHover = '';
+  const call = (fn, value) => { try { fn(value); } catch (error) { console.error(error); } }; // a callback that throws never stops the engine
+  const tableOf = (genre) => (W && genre ? W.genreTable(genre) : null);
+  const env = { painter, makeCanvas, tableFor: tableOf, wake: () => ensureLoop(), motionOn, walksOn, anims: () => content?.combat?.anims || null };
+  const combat = painter ? createCombatLayer({
+    ...env, rules: () => content?.combat?.rules || null, motion: () => (motionOn() ? true : walksOn() ? 'reduced' : false),
+    dressAt: (px, py) => (elsewhere ? elsewhere.genreAt(px, py) : W ? W.dressAt(px, py) : null),
+    genreAt: (tile) => (elsewhere ? elsewhere.genreAt(tile.x * TILE + 8, tile.y * TILE + FEET) : null),
+  }) : null;
+  const follow = painter ? createFollowLayer({
+    ...env, walkable: (x, y) => walkableNow(x, y), path: (a, b) => pathNow(a, b), atGoal: (dest, tile) => atGoal(dest, tile), speed: () => MILO_SPEED * (sneaking ? 0.5 : 1),
+    hidden: (id) => isHiddenId(id), miloTile: () => ({ ...milo.tile }), miloDir: () => milo.dir, onStep: (id, tile) => sceneStep(id, tile),
+    dressOf: (m) => (elsewhere ? elsewhere.genreAt(m.x, m.y - 1) : W && !inVale(feetTile(m)) ? W.dressAt(m.x, m.y - 1) : null),
+  }) : null;
+  const camp = painter ? createCampLayer({
+    ...env, seats: MAP.slots.camp4, crewSeated: (id) => crew.get(id)?.kind === 'campfire', hidden: (id) => isHiddenId(id), inVale: () => !elsewhere,
+    drawSprite: (target, name, frame, x, y) => drawSprite(target, name, frame, x, y), ink: PALETTE.o.hex,
+  }) : null;
+  const sky = painter ? createSkyLayer({ makeCanvas, lights: (visible) => skyLights(visible), glow: (r, a) => glowCanvas(r, a) }) : null;
+  const layers = [combat, follow, camp].filter(Boolean);
+  const each = (fn) => layers.forEach((layer) => call(fn, layer));
+  // An actor is hidden by hideActors or by a layer (a fight hides Milo, the followers and props under its objects).
+  const isHiddenId = (id) => hideSet.has(id) || layers.some((layer) => { try { return !!(layer.hidden && layer.hidden(id)); } catch { return false; } });
+  const fighting = () => !!combat && combat.running();
+  const sceneInfo = () => ({ scene: elsewhere ? (elsewhere.cave ? 'cave' : 'elsewhere') : 'world', sceneId: elsewhere ? elsewhere.riftId : null });
+  const sceneStep = (who, tile) => call(onSceneStep, { x: tile.x, y: tile.y, ...sceneInfo(), who });
+  // What shines through the night: the campfire, the vale's lamps, lit lanterns out in the wilds, and
+  // the Hooklight Milo carries once he's beyond the vale.
+  function skyLights(visible) {
+    const out = [];
+    if (!elsewhere) {
+      if (campfire) out.push({ x: campfire.baseX, y: campfire.baseY - 6, r: 34, alpha: 1 });
+      for (const o of glowing) if (visible(o.sx - 12, o.sy - 12, o.sw + 24, o.sh + 24)) out.push({ x: o.baseX, y: o.sy + 4, r: 14, alpha: 0.9 });
+      if (W) W.drawGlow(null, visible, (x, y, r, a) => out.push({ x, y, r: r + 4, alpha: Math.min(1, a * 3) }));
+      if (!inVale(milo.tile) && !isHiddenId('milo')) out.push({ x: milo.x, y: milo.y - 10, r: 22, alpha: 0.9 });
+      if (combat) out.push(...combat.lights());
+    }
+    return out;
+  }
 
   // canvas geometry
   let dpr = 1;
@@ -815,17 +886,43 @@ export function createWorld(canvas, {
   const bctx = buffer.getContext('2d');
   const cam = { x: 0, y: 0 };
 
-  function resize() {
-    const rect = canvas.getBoundingClientRect();
-    const cssW = Math.max(1, rect.width || canvas.clientWidth || canvas.width);
-    const cssH = Math.max(1, rect.height || canvas.clientHeight || canvas.height);
-    dpr = win.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(cssW * dpr));
-    canvas.height = Math.max(1, Math.round(cssH * dpr));
+  // The scale the window asks for, in CSS px per world px (2 to 4), and the canvas's CSS size.
+  function naturalScale(cssW, cssH) {
     let base = fixedScale || Math.max(2, Math.min(4, Math.floor(Math.min(cssW / (20 * TILE), cssH / (13 * TILE)))));
     // 4x only once the view still holds about 26 x 16 tiles, so a bigger window never shows less
     // of the world than the default one does at 3x.
     if (!fixedScale && base === 4 && (cssW < ROOMY_VIEW.w * TILE * 4 || cssH < ROOMY_VIEW.h * TILE * 4)) base = 3;
+    return base;
+  }
+  const canvasCss = () => {
+    const rect = canvas.getBoundingClientRect();
+    return { w: Math.max(1, rect.width || canvas.clientWidth || canvas.width), h: Math.max(1, rect.height || canvas.clientHeight || canvas.height) };
+  };
+  // A fight that doesn't fit in what the HUD leaves zooms out a step (never below 2x) until it ends.
+  let scaleCap = null;
+  function fitArenaScale() {
+    let cap = null;
+    if (arenaRect && !fixedScale) {
+      const { w, h } = canvasCss();
+      const natural = naturalScale(w, h);
+      const freeW = w - insets.left - insets.right;
+      const freeH = h - insets.top - insets.bottom;
+      let fit = natural;
+      while (fit > 2 && (arenaRect.w * TILE * fit > freeW || arenaRect.h * TILE * fit > freeH)) fit -= 1;
+      cap = fit < natural ? fit : null;
+    }
+    if (cap === scaleCap) return;
+    scaleCap = cap;
+    resize();
+  }
+
+  function resize() {
+    const { w: cssW, h: cssH } = canvasCss();
+    dpr = win.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(cssW * dpr));
+    canvas.height = Math.max(1, Math.round(cssH * dpr));
+    let base = naturalScale(cssW, cssH);
+    if (scaleCap && scaleCap < base) base = scaleCap;
     scale = Math.max(1, Math.round(base * dpr));
     viewW = Math.ceil(canvas.width / scale);
     viewH = Math.ceil(canvas.height / scale);
@@ -850,6 +947,7 @@ export function createWorld(canvas, {
       }
     }
     if (!changed) return;
+    fitArenaScale();
     if (!shouldRun()) updateCamera(0, true);
     requestDraw();
   }
@@ -865,6 +963,11 @@ export function createWorld(canvas, {
     let x = focus.x - left - freeW / 2;
     // Tall things stand north of their feet (3/4 view), so look a little above Milo.
     let y = focus.y - CAMERA_LOOK_UP - top - freeH / 2;
+    // A fight: the arena centred in what the overlays leave (scene-combat.arenaCamera).
+    if (arenaRect) {
+      const scene = elsewhere ? { w: elsewhere.width, h: elsewhere.height, right: insets.right * unit, bottom: insets.bottom * unit, viewW, viewH } : null;
+      return arenaCamera(arenaRect, { left, top, freeW, freeH, focus: combat ? combat.focus() : null, scene });
+    }
     if (elsewhere) {
       // Inside a rift the view stays on the scene (the right edge may run under an open panel).
       x = viewW >= elsewhere.width ? (elsewhere.width - viewW) / 2 : Math.max(0, Math.min(elsewhere.width - viewW + insets.right * unit, x));
@@ -1090,7 +1193,7 @@ export function createWorld(canvas, {
         existing.holdUntil = 0;
         existing.waitingSince = 0;
         existing.waiting = false;
-        if (motionOn() && !paused) {
+        if (walksOn() && !paused) {
           // Plots are fenced: crew go in and out through the gate.
           const from = { x: Math.floor(existing.x / TILE), y: Math.floor(existing.y / TILE) };
           const route = crewRoute({ from, to: { x: slot.x, y: slot.y }, leaving, arrived, into: kind === 'design' ? slot : null });
@@ -1185,6 +1288,8 @@ export function createWorld(canvas, {
   function setTile(tile) {
     if (tile.x === milo.tile.x && tile.y === milo.tile.y) return;
     milo.tile = { x: tile.x, y: tile.y };
+    if (follow) follow.step(milo.tile);
+    sceneStep('milo', milo.tile);
     // Inside an Elsewhere his steps are scene tiles: nothing to save, and the world's area stays.
     if (elsewhere) return;
     if (W) W.miloAt(milo.tile);
@@ -1276,8 +1381,10 @@ export function createWorld(canvas, {
     return { path: [{ x: best.from.x, y: best.from.y }, ...best.path], arrives: true };
   }
 
-  function startWalk(dest, { placeId = null, face = null, entity = null, fire = true } = {}) {
-    if (changing) return Promise.resolve(W ? false : undefined);
+  function startWalk(dest, { placeId = null, face = null, entity = null, fire = true, own = false } = {}) {
+    if (changing || mode === 'combat') return Promise.resolve(W ? false : undefined);
+    // A selected unchained follower takes a floor click or walkTo; a chop (own), a place or an entity is Milo's.
+    if (follow && follow.walker() && !entity && !placeId && !own) return follow.walkMember(dest);
     leaveAside();
     if (milo.walk) finishWalk(false);
     stopChop();
@@ -1292,7 +1399,7 @@ export function createWorld(canvas, {
         requestDraw();
         return;
       }
-      if (!motionOn()) {
+      if (!walksOn()) {
         snapWalk();
         requestDraw();
         return;
@@ -1325,11 +1432,12 @@ export function createWorld(canvas, {
     const door = MAP.tentDoor;
     const dest = startAt;
     // A start out in the wilds (previews) is too far to walk from the tent: he's simply there.
-    if (!motionOn() || elsewhere || !inVale(dest)) {
+    if (!walksOn() || elsewhere || !inVale(dest)) {
       milo.x = dest.x * TILE + 8;
       milo.y = dest.y * TILE + FEET;
       setTile(dest);
       milo.dir = 'down';
+      if (follow) follow.reset(dest, 'down');
       updateCamera(0, true);
       requestDraw();
       return Promise.resolve();
@@ -1338,6 +1446,7 @@ export function createWorld(canvas, {
     milo.y = door.y * TILE + FEET;
     milo.tile = { ...door };
     milo.dir = 'down';
+    if (follow) follow.reset(door, 'down');
     updateCamera(0, true);
     return startWalk(dest, { face: 'down' });
   }
@@ -1345,7 +1454,7 @@ export function createWorld(canvas, {
   function updateMilo(dt) {
     const walk = milo.walk;
     if (!walk) return;
-    let budget = (MILO_SPEED * dt) / 1000;
+    let budget = (MILO_SPEED * (sneaking ? 0.5 : 1) * dt) / 1000;
     while (budget > 0 && walk.path.length > 0) {
       const next = walk.path[0];
       const tx = next.x * TILE + 8;
@@ -1425,7 +1534,7 @@ export function createWorld(canvas, {
   // one-tile gate, where he waits while the crew designs), he steps aside off every crew route,
   // facing the way they pass; once they're by, he steps back and faces the way he did before.
   function updateMakingWay() {
-    if (milo.walk || held.size > 0 || elsewhere || milo.chop || changing) return;
+    if (milo.walk || held.size > 0 || elsewhere || milo.chop || changing || mode === 'combat') return;
     const t = now();
     const members = [...crew.values()];
     if (members.some((member) => crewEta(member, milo, t) <= MAKE_WAY_LEAD_MS)) {
@@ -1491,7 +1600,7 @@ export function createWorld(canvas, {
       requestDraw();
       return;
     }
-    if (!motionOn()) {
+    if (!walksOn()) {
       milo.x = step.x * TILE + 8;
       milo.y = step.y * TILE + FEET;
       setTile(step);
@@ -1558,6 +1667,10 @@ export function createWorld(canvas, {
 
   // Hit order: crew, perches, entities (rifts and strays first), then places.
   function hitTest(ax, ay) {
+    for (const layer of layers) {
+      const entity = layer.hit ? layer.hit(ax, ay, sceneTime(), opaqueRows) : null;
+      if (entity) return { kind: 'entity', id: entity.id, entity };
+    }
     if (elsewhere) {
       const entity = elsewhere.hit(ax, ay, sceneTime(), opaqueRows);
       return entity ? { kind: 'entity', id: entity.id, entity } : null;
@@ -1598,6 +1711,12 @@ export function createWorld(canvas, {
     if (changing) return; // the view is fading out of this scene: nothing here to click
     const { ax, ay } = toArt(event);
     const hit = hitTest(ax, ay);
+    if (mode === 'combat') {
+      // A fight takes the pointer alone (never keys): a unit or a tile, with the modifier keys held.
+      const { tile, unitId } = pointerTarget(hit, ax, ay);
+      call(onCombatCommand, { kind: unitId ? 'unit' : 'tile', tile, ...(unitId ? { unitId } : {}), shift: !!event.shiftKey, alt: !!event.altKey });
+      return;
+    }
     if (hit && hit.kind === 'crew') {
       try {
         onCrewClick(hit.id);
@@ -1632,6 +1751,13 @@ export function createWorld(canvas, {
     const { ax, ay, cssX, cssY } = toArt(event);
     const hit = hitTest(ax, ay);
     canvas.style.cursor = hit ? 'pointer' : '';
+    if (mode === 'combat') {
+      const { tile, unitId } = pointerTarget(hit, ax, ay);
+      const key = `${tile.x},${tile.y},${unitId}`;
+      if (key !== lastCombatHover) call(onCombatHover, { tile, unitId });
+      lastCombatHover = key;
+      return;
+    }
     const changed = (hit?.kind || null) !== (hoverTarget?.kind || null) || (hit?.id || null) !== (hoverTarget?.id || null);
     hoverTarget = hit;
     if (hit && hit.kind === 'entity') {
@@ -1658,6 +1784,7 @@ export function createWorld(canvas, {
   }
 
   function onPointerLeave() {
+    if (lastCombatHover) { lastCombatHover = ''; call(onCombatHover, null); }
     if (hoverTarget) {
       hoverTarget = null;
       canvas.style.cursor = '';
@@ -1676,7 +1803,8 @@ export function createWorld(canvas, {
   };
 
   function onKeyDown(event) {
-    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    // In a fight the shell's key stack owns every key: nothing here walks, and nothing is kept.
+    if (mode === 'combat' || event.altKey || event.ctrlKey || event.metaKey) return;
     const dir = KEY_DIRS[event.key];
     if (dir) {
       event.preventDefault();
@@ -1711,6 +1839,16 @@ export function createWorld(canvas, {
         }
       }
     }
+  }
+
+  // One contextmenu listener: the same hit test as a click, to the shell's menu (in a fight, only there).
+  function onContextMenuEvent(event) {
+    if (typeof event.preventDefault === 'function') event.preventDefault();
+    if (changing || disposed) return;
+    const { ax, ay, cssX, cssY } = toArt(event);
+    const hit = hitTest(ax, ay);
+    const entity = hit && hit.entity ? hit.entity : null;
+    call(onMenu, { kind: entity ? entity.kind : hit ? hit.kind : 'ground', id: hit ? hit.id : null, entity, x: cssX, y: cssY, tile: { x: Math.floor(ax / TILE), y: Math.floor(ay / TILE) } });
   }
 
   function onKeyUp(event) {
@@ -1866,7 +2004,9 @@ export function createWorld(canvas, {
     // The vale's own picture (renderMap) has Milo in it only while he is in the vale: inside an
     // Elsewhere his coordinates and rings are the scene's, and out in the wilds he isn't there.
     // renderMap(scale, { milo: false }) leaves him (and the rings his walks draw) out altogether.
-    const miloHere = withMilo && (!valeOnly || (!elsewhere && inVale(milo.tile)));
+    const miloHere = withMilo && (!valeOnly || (!elsewhere && inVale(milo.tile))) && (valeOnly || !isHiddenId('milo'));
+    // Layers draw in the live view only: the vale's own picture (renderMap) stays Phase 3's.
+    const live = !valeOnly;
     const ringsHere = withMilo && (!valeOnly || !elsewhere);
     target.imageSmoothingEnabled = false;
     target.fillStyle = PALETTE.L.hex;
@@ -1948,11 +2088,9 @@ export function createWorld(canvas, {
       const at = hover.entity.approach;
       drawRing(target, at.x * TILE + 8, at.y * TILE + FEET, 'c');
     }
-    if (marker && t !== null && ringsHere) {
-      const age = t - marker.at;
-      if (age < 900) drawRing(target, marker.x * TILE + 8, marker.y * TILE + FEET, 'c', 1 - age / 900);
-      else marker = null;
-    }
+    if (marker && ringsHere) drawMarker(target, t);
+    if (live) each((layer) => layer.ground && layer.ground(target, visible, t, shadowAt(target)));
+    if (live) each((layer) => layer.collect && layer.collect(drawables, target, visible, t, shadowAt(target)));
 
     // y-sorted sprites
     if (nearVale) {
@@ -2044,6 +2182,9 @@ export function createWorld(canvas, {
       wild.drawAbove(target, visible, t);
       drawChips(target, t);
     }
+    const view = { x: cx, y: cy, w: vw, h: vh };
+    if (live) each((layer) => layer.above && !layer.aboveSky && layer.above(target, visible, t, view));
+    if (live && sky) sky.above(target, visible, t, view);
 
     // harbor fog (out over the open sea too, with the wilds, but never over the wall)
     const mist = wild && fogOuterBox ? fogOuterBox : fogBox;
@@ -2064,6 +2205,9 @@ export function createWorld(canvas, {
     if (miloHere && milo.x > mist.x && milo.x < mist.x + mist.w && milo.y > mist.y && milo.y < mist.y + mist.h) {
       drawMilo(target, mi, dress);
     }
+    // The sky: a tint over the scene, the night's lights through it; never over the floats.
+    if (live && sky) sky.tint(target, view, t, visible);
+    if (live) each((layer) => layer.above && layer.aboveSky && layer.above(target, visible, t, view)); // the fight's marks, untinted
     if (wild) drawFloats(target, visible, t);
     target.restore();
   }
@@ -2084,21 +2228,22 @@ export function createWorld(canvas, {
     const visible = (x, y, w, h) => x + w >= cx - 2 && y + h >= cy - 2 && x <= cx + vw + 2 && y <= cy + vh + 2;
     const drawables = [];
     E.collect(drawables, target, visible, t, shadowAt(target));
-    target.drawImage(shadowCanvas(10, 3), Math.round(milo.x - 5), Math.round(milo.y - 1));
+    const miloShown = !isHiddenId('milo');
+    if (miloShown) target.drawImage(shadowCanvas(10, 3), Math.round(milo.x - 5), Math.round(milo.y - 1));
     if (hoverTarget && hoverTarget.kind === 'entity' && hoverTarget.entity.approach) {
       const at = hoverTarget.entity.approach;
       drawRing(target, at.x * TILE + 8, at.y * TILE + FEET, 'c');
     }
-    if (marker && t !== null) {
-      const age = t - marker.at;
-      if (age < 900) drawRing(target, marker.x * TILE + 8, marker.y * TILE + FEET, 'c', 1 - age / 900);
-      else marker = null;
-    }
+    if (marker) drawMarker(target, t);
+    each((layer) => layer.ground && layer.ground(target, visible, t, shadowAt(target)));
+    each((layer) => layer.collect && layer.collect(drawables, target, visible, t, shadowAt(target)));
     const mi = miloDrawInfo(t);
     const dress = miloDress();
-    drawables.push({ y: milo.y + 0.5, x: milo.x, draw: () => drawMilo(target, mi, dress) });
+    if (miloShown) drawables.push({ y: milo.y + 0.5, x: milo.x, draw: () => drawMilo(target, mi, dress) });
     drawables.sort((a, b) => a.y - b.y || a.x - b.x);
     for (const d of drawables) d.draw();
+    const view = { x: cx, y: cy, w: vw, h: vh };
+    each((layer) => layer.above && layer.above(target, visible, t, view));
     drawFloats(target, visible, t);
     target.restore();
   }
@@ -2120,6 +2265,18 @@ export function createWorld(canvas, {
       const py = y - k * 22;
       drawSprite(target, 'smoke', 0, px, py, 0.5 * (1 - k));
     }
+  }
+
+  // Where a click sent Milo: a ring that fades over 900 ms, or, while the world holds still for
+  // reduced motion, a steady ring until he gets there.
+  function drawMarker(target, t) {
+    if (t === null) {
+      if (milo.walk && milo.walk.path.length > 0) drawRing(target, marker.x * TILE + 8, marker.y * TILE + FEET, 'c', 1);
+      return;
+    }
+    const age = t - marker.at;
+    if (age < 900) drawRing(target, marker.x * TILE + 8, marker.y * TILE + FEET, 'c', 1 - age / 900);
+    else marker = null;
   }
 
   function draw(t) {
@@ -2149,8 +2306,14 @@ export function createWorld(canvas, {
   let staticPending = false;
   let lastFrame = 0;
 
+  // Someone is on the move: Milo, or a crew member walking a route.
+  const somebodyWalking = () => !!(milo.walk && milo.walk.path.length > 0) || [...crew.values()].some((member) => member.path.length > 0)
+    || layers.some((layer) => !!(layer.busy && layer.busy()));
+
+  // The loop runs for motion, and, when the world holds still for reduced motion, only while
+  // somebody walks. Then it draws still frames (t null), so nothing but the walkers moves.
   function shouldRun() {
-    return !disposed && !paused && !doc.hidden && motionOn();
+    return !disposed && !paused && !doc.hidden && (motionOn() || (walksOn() && somebodyWalking()));
   }
 
   function tick(time) {
@@ -2166,13 +2329,14 @@ export function createWorld(canvas, {
     lastTime = time;
     updateMilo(dt);
     updateCrew(dt);
+    each((layer) => layer.update && layer.update(dt, time));
     updateMakingWay();
     if (W) {
       updateChop(time);
       updateFade();
     }
     updateCamera(dt);
-    draw(time);
+    draw(motionOn() ? time : null);
   }
 
   function ensureLoop() {
@@ -2231,16 +2395,25 @@ export function createWorld(canvas, {
       }
     }
     marker = null;
+    each((layer) => layer.settle && layer.settle());
     updateCamera(0, true);
   }
 
   const watchdog = win.setInterval(() => {
     const on = motionOn();
-    if (on === wasMotion) return;
+    const walks = walksOn();
+    if (on === wasMotion && walks === wasWalks) return;
     wasMotion = on;
-    if (!on) settleForStillness();
-    if (on) ensureLoop();
-    else requestDraw();
+    wasWalks = walks;
+    if (!walks) settleForStillness();
+    else if (!on) {
+      // Reduced motion: a chop in hand and a fade finish at once, but the walkers (the party too) keep walking.
+      if (milo.chop) finishChop(true);
+      finishFade();
+      marker = null;
+      each((layer) => layer !== follow && layer.settle && layer.settle());
+    }
+    ensureLoop();
   }, 400);
 
   function onVisibility() {
@@ -2272,6 +2445,7 @@ export function createWorld(canvas, {
     finishFade();
     for (const entry of floats) clearTimer(entry.timer);
     floats.length = 0;
+    each((layer) => layer.dispose && layer.dispose());
     if (W) W.dispose();
     disposed = true;
     if (raf) win.cancelAnimationFrame(raf);
@@ -2283,6 +2457,7 @@ export function createWorld(canvas, {
     canvas.removeEventListener('keydown', onKeyDown);
     canvas.removeEventListener('keyup', onKeyUp);
     canvas.removeEventListener('blur', onBlur);
+    canvas.removeEventListener('contextmenu', onContextMenuEvent);
     doc.removeEventListener('visibilitychange', onVisibility);
     win.removeEventListener('resize', resize);
   }
@@ -2304,7 +2479,8 @@ export function createWorld(canvas, {
     const cy = Math.round(cam.y);
     const k = scale / dpr;
     const toScreen = (r, kind, id = null) => ({ kind, id, x: (r.x - cx) * k, y: (r.y - cy) * k, w: r.w * k, h: r.h * k });
-    const rects = [toScreen({ x: Math.round(milo.x - 8), y: Math.round(milo.y) - 19, w: 16, h: 20 }, 'milo')];
+    const rects = isHiddenId('milo') ? [] : [toScreen({ x: Math.round(milo.x - 8), y: Math.round(milo.y) - 19, w: 16, h: 20 }, 'milo')];
+    if (follow) for (const r of follow.rects()) rects.push(toScreen(r, 'party', r.id));
     if (elsewhere) return rects; // inside a rift nothing of the vale is on screen
     if (fireCircle) rects.push(toScreen(fireCircle, 'campfire'));
     for (const member of crew.values()) rects.push(toScreen(crewRect(member), 'crew', member.id));
@@ -2443,6 +2619,8 @@ export function createWorld(canvas, {
       }
       // A jump, not a walk: whatever he wore where he was has nothing to do with where he is now.
       forgetDress();
+      sneaking = false;
+      if (follow) follow.reset(milo.tile, milo.dir);
     } finally {
       changing = false;
     }
@@ -2452,7 +2630,7 @@ export function createWorld(canvas, {
 
   /** Travel to a lantern (its id), home, or a tile: a calm fade out and in, with the chunks there ready first. */
   async function travelTo(target) {
-    if (disposed || !W || elsewhere || changing) return false;
+    if (disposed || !W || elsewhere || changing || mode === 'combat') return false;
     const dest = travelTile(target);
     if (!dest) return false;
     return changeScene(() => {
@@ -2520,7 +2698,7 @@ export function createWorld(canvas, {
   /** Chop a tree: Milo walks beside it if he must, faces it and chops for about 2.5 s. */
   async function chop(treeId) {
     const nope = (kind = null) => ({ ok: false, kind });
-    if (disposed || !W || elsewhere || changing) return nope();
+    if (disposed || !W || elsewhere || changing || mode === 'combat') return nope();
     const id = typeof treeId === 'string' ? treeId : treeId && treeId.id;
     const tree = W.resolve(id, milo.tile);
     if (!tree || tree.kind !== 'tree') return nope();
@@ -2529,7 +2707,7 @@ export function createWorld(canvas, {
     // Beside it but part way through a step: back onto his tile first, so he chops standing on it.
     if (!beside() || stepInProgress()) {
       const approach = beside() ? { ...milo.tile } : W.approachFor(tree.x, tree.y, 'tree', milo.tile);
-      const got = await startWalk(approach, { face: faceFrom(approach, tree) });
+      const got = await startWalk(approach, { face: faceFrom(approach, tree), own: true });
       // Stopped on the way (a trip began, or another walk): no chop, wherever he stopped.
       if (!got || disposed || elsewhere || changing || !beside()) return nope(tree.wood);
     }
@@ -2661,13 +2839,25 @@ export function createWorld(canvas, {
     const [cx, cy] = returnTile ? [Math.floor(returnTile.x / 32), Math.floor(returnTile.y / 32)] : [0, 0];
     return {
       area: 'elsewhere', regionId: null, regionName: elsewhere.name, tier: elsewhere.tier, depth: elsewhere.depth,
-      hush: false, chunk: `${cx},${cy}`, rift: { id: elsewhere.riftId, name: elsewhere.name },
+      hush: false, chunk: `${cx},${cy}`, rift: elsewhere.cave ? null : { id: elsewhere.riftId, name: elsewhere.name },
+      ...(elsewhere.cave ? { cave: true, caveId: elsewhere.riftId } : {}),
     };
   }
 
-  /** Step through a rift into its Elsewhere (a fade; at once with motion off). Going deeper swaps scenes. */
-  async function enterElsewhere(rift) {
-    if (disposed || !W || !W.riftgen || !rift || !rift.spec || changing) return false;
+  /** Step through a rift into its Elsewhere (a fade; at once with motion off); going deeper swaps scenes. { layout, fight }: fight-ready. */
+  function enterElsewhere(rift, { layout = null, fight = null } = {}) {
+    if (disposed || !W || !W.riftgen || !rift || !rift.spec || changing || mode === 'combat') return Promise.resolve(false);
+    return enterScene(rift, { layout, fight });
+  }
+
+  /** Into a cave (a CaveSpec, caves.js) from the wilds: an Elsewhere of stone, kind 'cave', no seam. */
+  function enterCave(cave, { layout = null, fight = null } = {}) {
+    if (disposed || !W || !W.riftgen || !cave || cave.kind !== 'cave' || elsewhere || changing || mode === 'combat') return Promise.resolve(false);
+    const shape = layout || W.riftgen.layout({ seed: cave.seed, stage: cave.stage, depth: cave.depth, affixes: [] });
+    return enterScene({ id: cave.id, kind: 'cave', spec: cave, x: cave.x, y: cave.y }, { layout: shape, fight, kind: 'cave' });
+  }
+
+  async function enterScene(rift, { layout = null, fight = null, kind = null } = {}) {
     return changeScene(() => {
       // Nothing moved him while the view went dark, so this is where he stood when he stepped in.
       const back = !elsewhere
@@ -2675,7 +2865,10 @@ export function createWorld(canvas, {
         : returnTile;
       let scene;
       try {
-        scene = createElsewhereScene({ rift, genres: W.genres, words: W.words, riftgen: W.riftgen, painter, makeCanvas, base: basePaletteByCode(), art: artKit, visited: has(visited, rift.id) || has(visited, rift.spec.id) });
+        scene = createElsewhereScene({
+          rift, genres: W.genres, words: W.words, riftgen: W.riftgen, painter, makeCanvas, base: basePaletteByCode(), art: artKit, visited: has(visited, rift.id) || has(visited, rift.spec.id),
+          layout, fight, kind, hooks: leadHooks, anims: env.anims(), hidden: (id) => isHiddenId(id),
+        });
       } catch (error) {
         console.error(error);
         return false;
@@ -2702,7 +2895,7 @@ export function createWorld(canvas, {
 
   /** Leave the Elsewhere: Milo comes back out by the rift he stepped through. */
   async function leaveElsewhere() {
-    if (disposed || !elsewhere || changing) return false;
+    if (disposed || !elsewhere || changing || mode === 'combat') return false;
     return changeScene(() => {
       if (!elsewhere) return false;
       elsewhere = null;
@@ -2761,6 +2954,7 @@ export function createWorld(canvas, {
     const list = elsewhere ? elsewhere.entities(rect, t) : W.entitiesIn(rect, t, milo.tile);
     const d = (e) => Math.hypot(e.x - milo.tile.x, e.y - milo.tile.y);
     list.sort((a, b) => d(a) - d(b) || (a.id < b.id ? -1 : 1));
+    const first = layerEntities(rect, t);
     // Trees are everywhere: the nearest few are enough for a list.
     const out = [];
     let trees = 0;
@@ -2769,8 +2963,11 @@ export function createWorld(canvas, {
       out.push(e);
       if (out.length >= 30) break;
     }
-    return out;
+    return [...first, ...out];
   }
+
+  // Combatants (and any layer's entities), listed ahead of everything else.
+  const layerEntities = (rect, t) => layers.flatMap((layer) => (layer.entities ? layer.entities(rect, t) : []));
 
   /**
    * Everything in the Elsewhere Milo is inside, in view or not (the way home, the seam, the
@@ -2779,9 +2976,10 @@ export function createWorld(canvas, {
    */
   function elsewhereEntities() {
     if (!elsewhere || disposed) return [];
-    const list = elsewhere.entities({ x0: -1, y0: -1, x1: elsewhere.w, y1: elsewhere.h }, sceneTime());
+    const whole = { x0: -1, y0: -1, x1: elsewhere.w, y1: elsewhere.h };
+    const list = elsewhere.entities(whole, sceneTime());
     const d = (e) => Math.hypot(e.x - milo.tile.x, e.y - milo.tile.y);
-    return list.sort((a, b) => d(a) - d(b) || (a.id < b.id ? -1 : 1));
+    return [...layerEntities(whole, sceneTime()), ...list.sort((a, b) => d(a) - d(b) || (a.id < b.id ? -1 : 1))];
   }
 
   /**
@@ -2801,8 +2999,12 @@ export function createWorld(canvas, {
     return { area: 'vale', regionId: 'hearthvale', regionName: 'Hearthvale', tier: 1, depth: 1, hush: false, chunk: '0,0' };
   }
 
-  /** Draw `frames` frames back to back and time them (previews): { mean, median, p95, max } ms. */
+  /**
+   * Draw `frames` frames back to back and time them (previews): { mean, median, p95, max } ms.
+   * benchmark({ frames = 200, actors = 16, flush }) times a combat frame instead (§11.3, §15; scene-combat.benchCombat).
+   */
   function benchmark(frames = 60, { step = FRAME_MS, flush = false } = {}) {
+    if (frames && typeof frames === 'object') return combatBenchmark(frames);
     const times = [];
     let t = now();
     for (let i = 0; i < frames; i += 1) {
@@ -2817,6 +3019,90 @@ export function createWorld(canvas, {
     return { frames, mean, median: sorted[Math.floor(sorted.length / 2)], p95: sorted[Math.floor(sorted.length * 0.95)], max: sorted[sorted.length - 1] };
   }
 
+  function combatBenchmark({ frames = 200, actors = 16, flush = false } = {}) {
+    const centre = arenaRect ? { x: arenaRect.x + (arenaRect.w >> 1), y: arenaRect.y + (arenaRect.h >> 1) } : milo.tile;
+    // With flush, a one-pixel readback: the drawing done, not just queued.
+    const drawFrame = (t) => { draw(t); if (flush && typeof ctx.getImageData === 'function') ctx.getImageData(0, 0, 1, 1); };
+    const result = combat ? benchCombat(combat, { centre, frames, actors, now, step: FRAME_MS, drawFrame }) : { frames: 0, actors: 0, median: 0, p90: 0, mean: 0, max: 0 };
+    requestDraw();
+    return result;
+  }
+
+  // ---------- Phase 4 calls (§11.3) ----------
+
+  function setMode(next) {
+    if (disposed || changing || (next !== 'explore' && next !== 'combat')) return false;
+    if (next === mode) return true;
+    [mode, lastCombatHover] = [next, '']; // no hover carries over from a fight that's over
+    if (mode === 'combat') {
+      stopEverything();
+      if (follow) follow.halt();
+      marker = null;
+      onPointerLeave();
+    }
+    requestDraw();
+    return true;
+  }
+
+  function frameArena(rect) {
+    arenaRect = rect && [rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) && rect.w > 0 && rect.h > 0 ? { x: rect.x, y: rect.y, w: rect.w, h: rect.h } : null;
+    fitArenaScale();
+    if (!shouldRun()) updateCamera(0, true);
+    requestDraw();
+  }
+
+  function startCombat(view) {
+    if (disposed || !combat || changing || !view || !view.arena || !setMode('combat')) return Promise.resolve(false);
+    const started = combat.start(view);
+    if (combat.running()) frameArena(view.arena.rect);
+    else setMode('explore');
+    ensureLoop();
+    return started;
+  }
+
+  function syncCombat(view) {
+    if (disposed || !combat || !view || !view.arena || (mode !== 'combat' && !setMode('combat'))) return;
+    if (combat.sync(view)) frameArena(view.arena.rect);
+    requestDraw();
+  }
+
+  function endCombat({ place = null } = {}) {
+    if (!combat || disposed || (mode !== 'combat' && !combat.running())) return Promise.resolve(); // no fight: nothing moves
+    combat.end();
+    const tile = place && place.milo;
+    if (tile && Number.isInteger(tile.x) && Number.isInteger(tile.y)) {
+      ({ x: milo.x, y: milo.y } = tileFeet(tile));
+      milo.tile = { x: tile.x, y: tile.y };
+      // Inside an Elsewhere nothing is saved; in the wilds (a field boss) he moved, once.
+      if (W && !elsewhere) {
+        W.miloAt(milo.tile);
+        call(onMiloMove, { x: tile.x, y: tile.y });
+      }
+    }
+    if (follow) follow.placeAt(place || {});
+    arenaRect = null;
+    [mode, lastCombatHover] = ['explore', ''];
+    fitArenaScale(); // the zoom a fight asked for goes back to the window's own
+    updateCamera(0, true);
+    requestDraw();
+    return Promise.resolve();
+  }
+
+  /** CSS px of a tile's feet (for the HUD's popovers), or null. */
+  function screenOfTile(tile) {
+    if (!tile || !Number.isFinite(tile.x) || !Number.isFinite(tile.y)) return null;
+    const k = scale / dpr;
+    return { x: (tile.x * TILE + 8 - Math.round(cam.x)) * k, y: (tile.y * TILE + FEET - Math.round(cam.y)) * k };
+  }
+
+  /** Add a layer (the protocol above) → a function that takes it away again. */
+  function addLayer(layer) {
+    if (!layer || typeof layer !== 'object' || layers.includes(layer)) return () => {};
+    layers.push(layer);
+    requestDraw();
+    return () => { if (layers.includes(layer)) layers.splice(layers.indexOf(layer), 1); requestDraw(); };
+  }
+
   // ---------- wire up ----------
 
   if (!canvas.hasAttribute('tabindex')) canvas.tabIndex = 0;
@@ -2826,6 +3112,7 @@ export function createWorld(canvas, {
   canvas.addEventListener('keydown', onKeyDown);
   canvas.addEventListener('keyup', onKeyUp);
   canvas.addEventListener('blur', onBlur);
+  canvas.addEventListener('contextmenu', onContextMenuEvent);
   doc.addEventListener('visibilitychange', onVisibility);
   win.addEventListener('resize', resize);
   setPlots({}); // every plot starts empty until the shell says otherwise
@@ -2864,7 +3151,8 @@ export function createWorld(canvas, {
     floatText,
     enterElsewhere,
     leaveElsewhere,
-    elsewhere: () => (elsewhere ? { riftId: elsewhere.riftId, depth: elsewhere.depth, name: elsewhere.name } : null),
+    elsewhere: () => (!elsewhere ? null : elsewhere.cave ? { riftId: null, caveId: elsewhere.riftId, depth: elsewhere.depth, name: elsewhere.name }
+      : { riftId: elsewhere.riftId, depth: elsewhere.depth, name: elsewhere.name }),
     nearbyEntities,
     elsewhereEntities,
     area,
@@ -2887,5 +3175,28 @@ export function createWorld(canvas, {
     },
     benchmark,
     stats: () => (W ? { ...W.stats(), chopAge: milo.chop ? now() - milo.chop.at : null, fade: fadeAlpha(now()), changing } : null),
+    // Phase 4 (§11.3): each a calm no-op without content
+    setParty: (members) => { if (follow) { follow.setParty(members); requestDraw(); } },
+    setFormation: (formation) => { if (follow) follow.setFormation(formation); },
+    partyTiles: () => [{ id: 'milo', x: milo.tile.x, y: milo.tile.y }, ...(follow ? follow.tiles() : [])],
+    chain: (memberId, on) => (follow ? follow.chain(memberId, on !== false) : false),
+    selectMember: (memberId) => { if (follow) follow.select(memberId); },
+    setSneak: (on) => { sneaking = !!on; },
+    setMode,
+    mode: () => mode,
+    frameArena,
+    hideActors: (ids) => { hideSet = new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string')); requestDraw(); },
+    startCombat,
+    syncCombat,
+    playEvents: (events, options) => { const played = combat && fighting() ? combat.play(events, options) : Promise.resolve(); ensureLoop(); return played; },
+    showOverlay: (overlay) => { if (combat) { combat.overlay(overlay); if (!shouldRun()) updateCamera(0, true); requestDraw(); } },
+    endCombat,
+    setSky: (value) => { if (sky) { sky.setSky(value); requestDraw(); } },
+    setLandmarks: (list) => { if (W) W.setLandmarks(list); },
+    setCamp: (view) => { if (camp) { camp.setCamp(view); requestDraw(); } },
+    enterCave,
+    screenOfTile,
+    playMoment: (kind, at) => (camp ? camp.moment(kind, at) : Promise.resolve()),
+    addLayer,
   };
 }

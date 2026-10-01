@@ -1,0 +1,252 @@
+{
+  "version": 1,
+  "about": "Chris’s 24 skills, in LORE.md §12’s order, on the classic curve (level 99 needs 13,034,431 XP). Names and mantles are LORE §21’s. Each guide lists a skill’s unlocks with the phase that brings them, and phase4 is the one line saying where its XP comes from today (the sources are content/xp.json’s). Milo’s own six arts stay in src/skills.js.",
+  "curve": { "kind": "classic", "max": 99, "at99": 13034431 },
+  "families": {
+    "life": "Life skills rise from real work only.",
+    "gathering": "Gathering skills rise from what’s gathered in the vale and the wilds.",
+    "making": "Making and roaming skills rise from what you make and where the company goes."
+  },
+  "skills": [
+    {
+      "id": "artifice", "name": "Artifice", "family": "life",
+      "lore": "The Maker’s craft: building things that work.",
+      "risesFrom": "Code tasks, building levels proven and commissions.",
+      "mantle": "Mantle of the Maker",
+      "unlocks": [
+        { "level": 10, "text": "A forge on the ravine", "from": "Phase 9" },
+        { "level": 30, "text": "The Artificer’s Apron, with checks on the map", "from": "Phase 9" },
+        { "level": 60, "text": "Inscribe", "from": "Phase 7" },
+        { "level": 90, "text": "The Spirewright title", "from": "Phase 9" }
+      ],
+      "phase4": "Rises from each first design: 1,000 a building."
+    },
+    {
+      "id": "scribing", "name": "Scribing", "family": "life",
+      "lore": "Writing that says what it means.",
+      "risesFrom": "Writing tasks, notes and docs.",
+      "mantle": "Mantle of the Quill",
+      "unlocks": [
+        { "level": 5, "text": "A Pocket Note shortcut", "from": "Phase 7" },
+        { "level": 40, "text": "Ansel’s quill", "from": "Phase 5" },
+        { "level": 70, "text": "Books you write go in the Stacks", "from": "Phase 9" }
+      ],
+      "phase4": "Rises from the quests you finish."
+    },
+    {
+      "id": "illumination", "name": "Illumination", "family": "life",
+      "lore": "Colour, art, the making of beautiful things.",
+      "risesFrom": "Art tasks, clips made and stream sessions.",
+      "mantle": "Mantle of Colours",
+      "unlocks": [
+        { "level": 10, "text": "Pigment gathering", "from": "Phase 9" },
+        { "level": 50, "text": "Adelind’s easel for your cabin", "from": "Phase 9" }
+      ],
+      "phase4": "Rises from the quests you finish."
+    },
+    {
+      "id": "scholarship", "name": "Scholarship", "family": "life",
+      "lore": "Study, reading, the patient kind of learning.",
+      "risesFrom": "Coursework, reading and research.",
+      "mantle": "Mantle of the College",
+      "unlocks": [
+        { "level": 20, "text": "A library cat", "from": "Phase 9" },
+        { "level": 50, "text": "The Observatory, open to you", "from": "Phase 10" },
+        { "level": 80, "text": "The Provost’s chair", "from": "Phase 9" }
+      ],
+      "phase4": "Rises from the quests you finish."
+    },
+    {
+      "id": "stewardship", "name": "Stewardship", "family": "life",
+      "lore": "Keeping a life running.",
+      "risesFrom": "Errands, bills and admin.",
+      "mantle": "Mantle of the Hearth-ledger",
+      "unlocks": [
+        { "level": 20, "text": "Nan’s pantry", "from": "Phase 5" },
+        { "level": 60, "text": "The ledger that balances itself", "from": "Later" }
+      ],
+      "phase4": "Rises from the quests you finish."
+    },
+    {
+      "id": "command", "name": "Command", "family": "life",
+      "lore": "Leading a crew well.",
+      "risesFrom": "Commissions finished and needs-you answered.",
+      "mantle": "Mantle of the Lantern Captain",
+      "unlocks": [
+        { "level": 10, "text": "Crew titles", "from": "Phase 6" },
+        { "level": 40, "text": "Two commissions at once", "from": "Phase 6" },
+        { "level": 75, "text": "The Lantern Captain’s coat", "from": "Phase 6" }
+      ],
+      "phase4": "Rises from crew sessions watched to the end, and from needs-you answered within 15 minutes."
+    },
+    {
+      "id": "focus", "name": "Focus", "family": "life",
+      "lore": "The stillness of real work.",
+      "risesFrom": "Focus sessions finished.",
+      "mantle": "Mantle of Stillness",
+      "unlocks": [
+        { "level": 10, "text": "Gather while you focus", "from": "Phase 5" },
+        { "level": 50, "text": "Double idle actions", "from": "Phase 5" },
+        { "level": 99, "text": "Milo lights the Lighthouse for you, once", "from": "Phase 10" }
+      ],
+      "phase4": "Rises from every focus session you finish: 1,000 a session."
+    },
+    {
+      "id": "hearthkeeping", "name": "Hearthkeeping", "family": "life",
+      "lore": "Resting well, stopping on time.",
+      "risesFrom": "Honoured rests, evening bells and Stilldays.",
+      "mantle": "Mantle of Rest",
+      "unlocks": [
+        { "level": 15, "text": "Warm Tea", "from": "Phase 7" },
+        { "level": 40, "text": "The Quiet Hood", "from": "Phase 8" },
+        { "level": 70, "text": "Sister Mara’s blessing: a tenth more Embers the day after a Stillday", "from": "Later" }
+      ],
+      "phase4": "Rises from every honoured rest: 400 a rest."
+    },
+    {
+      "id": "tidereading", "name": "Tidereading", "family": "life",
+      "lore": "Knowing when things are due, and being there.",
+      "risesFrom": "Deadlines met and early finishes.",
+      "mantle": "Mantle of the Tides",
+      "unlocks": [
+        { "level": 20, "text": "Tidecount", "from": "Phase 8" },
+        { "level": 50, "text": "The Harbormaster’s Spyglass, with a 7-day view", "from": "Phase 8" }
+      ],
+      "phase4": "Comes with Mistmere and the Tide."
+    },
+    {
+      "id": "woodcutting", "name": "Woodcutting", "family": "gathering",
+      "lore": "Felling trees for logs, tier by tier.",
+      "risesFrom": "Logs chopped in the wilds and the vale.",
+      "mantle": "Mantle of the Grove",
+      "resources": ["birch", "ash", "whisperpine", "painted maple", "glassbark", "cloudcedar", "hushwood", "elderlight"],
+      "unlocks": [],
+      "phase4": "Rises from every log you chop: 25 a log."
+    },
+    {
+      "id": "fishing", "name": "Fishing", "family": "gathering",
+      "lore": "A line in the vale’s waters, and further out.",
+      "risesFrom": "Fishing while you focus.",
+      "mantle": "Mantle of the Line",
+      "resources": ["minnow", "brook trout", "harbour mackerel", "glass eel", "moon carp", "tide salmon", "starfin", "hushray"],
+      "unlocks": [],
+      "phase4": "Comes with the Notice Board."
+    },
+    {
+      "id": "foraging", "name": "Foraging", "family": "gathering",
+      "lore": "Herbs, berries and dyes from the hedgerows.",
+      "risesFrom": "Foraging while you focus.",
+      "mantle": "Mantle of the Hedgerow",
+      "resources": ["hearthberry", "mossmint", "whispercap", "madder and woad", "fen lily", "snowmint", "sunthistle", "lanternbloom"],
+      "unlocks": [],
+      "phase4": "Comes with the Notice Board."
+    },
+    {
+      "id": "mining", "name": "Mining", "family": "gathering",
+      "lore": "Ore and stone from the vale and the hills.",
+      "risesFrom": "Mining while you focus.",
+      "mantle": "Mantle of the Deep",
+      "resources": ["copperstone", "ironroot", "cinderite", "silverstone", "tidesteel", "starsilver", "hushglass", "emberheart"],
+      "unlocks": [],
+      "phase4": "Comes with the Notice Board."
+    },
+    {
+      "id": "gardening", "name": "Gardening", "family": "gathering",
+      "lore": "Orchard fruit, flowers, the Blossomfield and thousand-year saplings.",
+      "risesFrom": "Tending the orchard and the Blossomfield.",
+      "mantle": "Mantle of the Orchard",
+      "resources": ["orchard fruit", "flowers", "Blossomfield blooms", "thousand-year saplings"],
+      "unlocks": [],
+      "phase4": "Rises from the quests you finish."
+    },
+    {
+      "id": "cooking", "name": "Cooking", "family": "making",
+      "lore": "Campfire meals that give the company a boon until the next Campfire.",
+      "risesFrom": "Cooking at the campfire.",
+      "mantle": "Mantle of the Hearth-pot",
+      "unlocks": [],
+      "phase4": "Rises from the quests you finish."
+    },
+    {
+      "id": "smithing", "name": "Smithing", "family": "making",
+      "lore": "Tools and gear from ore; Brannoch teaches past 70.",
+      "risesFrom": "Work at the forge.",
+      "mantle": "Mantle of the Anvil",
+      "unlocks": [],
+      "phase4": "Comes with Mistmere and the Tide."
+    },
+    {
+      "id": "crafting", "name": "Crafting", "family": "making",
+      "lore": "Cloth, leather, glass, jewellery and lanterns.",
+      "risesFrom": "Crafting at camp.",
+      "mantle": "Mantle of the Loom",
+      "unlocks": [],
+      "phase4": "Comes with Mistmere and the Tide."
+    },
+    {
+      "id": "alchemy", "name": "Alchemy", "family": "making",
+      "lore": "Potions from herbs, like a brew of clear morning or a hearthberry cordial.",
+      "risesFrom": "Brewing tonics.",
+      "mantle": "Mantle of the Alembic",
+      "unlocks": [],
+      "phase4": "Comes with Mistmere and the Tide."
+    },
+    {
+      "id": "construction", "name": "Construction", "family": "making",
+      "lore": "Building cosmetics, decor, bridges, statues and your cabin.",
+      "risesFrom": "Building at camp.",
+      "mantle": "Mantle of the Beam",
+      "unlocks": [],
+      "phase4": "Rises from the quests you finish."
+    },
+    {
+      "id": "cartography", "name": "Cartography", "family": "making",
+      "lore": "Clearing fog, mapping regions, finding secret paths.",
+      "risesFrom": "Charting new ground in the wilds.",
+      "mantle": "Mantle of the Moth",
+      "unlocks": [],
+      "phase4": "Rises from every new chunk of the wilds you chart: 40 a chunk."
+    },
+    {
+      "id": "wayfaring", "name": "Wayfaring", "family": "making",
+      "lore": "Shortcuts and fast travel.",
+      "risesFrom": "Lighting lanterns and travelling between them.",
+      "mantle": "Mantle of the Road",
+      "unlocks": [],
+      "phase4": "Rises from each lantern you light for the first time, and from lantern travel, up to 10 trips a day."
+    },
+    {
+      "id": "warding", "name": "Warding", "family": "making",
+      "lore": "Turn-based tactical fights with the Company. It opens options, never power.",
+      "risesFrom": "Every fight, bow and stitch, as much as the Road gains.",
+      "mantle": "Mantle of the Ward",
+      "unlocks": [
+        { "level": 5, "text": "The wedge formation", "from": "Phase 4" },
+        { "level": 10, "text": "Ready: hold an action for a trigger", "from": "Phase 4" },
+        { "level": 15, "text": "Three playbook rules for each companion", "from": "Phase 4" },
+        { "level": 30, "text": "Set the ambush while the party’s unseen", "from": "Phase 4" },
+        { "level": 50, "text": "Six playbook rules for each companion", "from": "Phase 4" }
+      ],
+      "phase4": "Rises from every fight, bow and stitch, as much as the Road gains."
+    },
+    {
+      "id": "seamcraft", "name": "Seamcraft", "family": "making",
+      "lore": "Stitching rifts, weaving genre essences into fusion gear and building skins, bottling bright rifts.",
+      "risesFrom": "Stitching rifts.",
+      "mantle": "Mantle of Many Tales",
+      "unlocks": [
+        { "level": 20, "text": "Redress", "from": "Phase 6" },
+        { "level": 60, "text": "Bottle a Rift", "from": "Later" }
+      ],
+      "phase4": "Rises from every rift you stitch: 300 and 30 a depth for a wild one, 500 for a real one."
+    },
+    {
+      "id": "spellcraft", "name": "Spellcraft", "family": "making",
+      "lore": "Casting, learning spells and collecting Small Spells.",
+      "risesFrom": "Knacks and spells cast in a fight.",
+      "mantle": "Mantle of Small Things",
+      "unlocks": [],
+      "phase4": "Rises from knacks and spells cast in a fight: 5 a knack, and 40 for each circle of a spell."
+    }
+  ]
+}

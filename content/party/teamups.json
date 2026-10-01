@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "about": "Team-ups: a pair move for every named fusion, unlocked the first time it’s stitched. Data only until Phase 6 (COMBAT.md §2.8).",
+  "teamups": [
+    {
+      "id": "synthwave-blackout",
+      "name": "Synthwave Blackout",
+      "fusion": "Neon Nocturne",
+      "members": ["juno", "lumi"],
+      "from": "Phase 6",
+      "text": "A Dark 3×3 for 2 rounds; foes inside turn Drowsy 1 on a Hit or better."
+    },
+    {
+      "id": "overclock",
+      "name": "Overclock",
+      "fusion": "Chrome and Diesel",
+      "members": ["rivet", "juno"],
+      "from": "Phase 6",
+      "text": "An ally is Quickened this round and gains 40 heat."
+    },
+    {
+      "id": "tech-noir",
+      "name": "Tech Noir",
+      "fusion": "Tech Noir",
+      "members": ["mae", "juno"],
+      "from": "Phase 6",
+      "text": "Every hidden intent and Unseen foe revealed; one foe Exposed 2."
+    },
+    {
+      "id": "moonlit-duel",
+      "name": "Moonlit Duel",
+      "fusion": "Midnight Showdown",
+      "members": ["dusty", "lumi"],
+      "from": "Phase 6",
+      "text": "Noon fires twice this round, in the dark."
+    },
+    {
+      "id": "starless-moor",
+      "name": "Starless Moor",
+      "fusion": "Starless Moor",
+      "members": ["pip", "vesperine"],
+      "from": "Phase 9",
+      "text": "A foe is sent sideways out of the fight for a round on a Hit or better, never a Tale-lead."
+    },
+    {
+      "id": "the-company-again",
+      "name": "The Company Again",
+      "fusion": null,
+      "members": ["milo", "tova", "nell"],
+      "from": "Phase 10",
+      "text": "A Glimmer of Tamsin, Brannoch and Pell: everyone is patched for the 2-action line and every reaction returns."
+    },
+    {
+      "id": "crew-colossus",
+      "name": "Crew Colossus",
+      "fusion": null,
+      "members": ["milo", "claude", "codex"],
+      "from": "Phase 8",
+      "text": "The Titan finale, with Hana calling the shots."
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "about": "The sky over the Hushlands (CONTRACT-PHASE4.md §7.6, §9.11). The sun table is local clock time for each month, daylight saving included. Dawn runs twilight minutes either side of sunrise, and dusk the same round sunset. Tints are [r, g, b, alpha] laid over the world, blended through dawn and dusk. Weather is a seeded daily roll against the season’s weights; particles name the palette key each kind draws with and how thickly. src/sky.js reads it; src/world/scene-sky.js draws it, and never repaints a chunk to do so.",
+  "sun": {
+    "1": { "rise": "07:40", "set": "17:10" },
+    "2": { "rise": "07:15", "set": "17:50" },
+    "3": { "rise": "07:30", "set": "19:25" },
+    "4": { "rise": "06:50", "set": "19:55" },
+    "5": { "rise": "06:10", "set": "20:25" },
+    "6": { "rise": "05:50", "set": "20:50" },
+    "7": { "rise": "06:05", "set": "20:50" },
+    "8": { "rise": "06:35", "set": "20:20" },
+    "9": { "rise": "07:05", "set": "19:30" },
+    "10": { "rise": "07:35", "set": "18:40" },
+    "11": { "rise": "07:10", "set": "17:05" },
+    "12": { "rise": "07:35", "set": "16:55" }
+  },
+  "twilight": 40,
+  "tints": {
+    "dawn": [255, 214, 170, 0.12],
+    "dusk": [255, 170, 120, 0.16],
+    "night": [40, 50, 110, 0.38]
+  },
+  "seasons": {
+    "spring": [3, 4, 5],
+    "summer": [6, 7, 8],
+    "autumn": [9, 10, 11],
+    "winter": [12, 1, 2]
+  },
+  "weather": {
+    "spring": { "clear": 5, "rain": 3, "mist": 1, "wind": 1 },
+    "summer": { "clear": 7, "rain": 2, "wind": 1 },
+    "autumn": { "clear": 4, "rain": 3, "mist": 1, "wind": 1, "leaves": 2 },
+    "winter": { "clear": 4, "snow": 3, "mist": 2, "wind": 1 }
+  },
+  "particles": {
+    "rain": { "key": "w", "density": 0.004 },
+    "snow": { "key": "c", "density": 0.003 },
+    "mist": { "key": "f", "density": 0.002 },
+    "wind": { "key": "C", "density": 0.0015 },
+    "leaves": { "key": "U", "density": 0.0015 }
+  }
+}

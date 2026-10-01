@@ -2,12 +2,15 @@
 // lantern or a point of interest on the ground it stands on (grass, the Hush's sage, a bleed, or
 // the water), the Hearth's look. Pure ESM: each scene is an RGBA buffer ({ width, height, data })
 // built from the world's own sprites and palettes, so it runs in Node for tests and the shell only
-// puts it on a canvas at a whole-pixel scale.
+// puts it on a canvas at a whole-pixel scale. Phase 4 (K2) adds the company's portraits.
 import { SPRITES, baseTable } from '../world/sprites.js';
-import { tearArt, spriteTable, strayPixels, leadSprite, genreIndex, tearFrameAt, tileDressAt } from '../world/riftfx.js';
+import { tearArt, spriteTable, strayPixels, leadSprite, genreIndex, tearFrameAt, tileDressAt, outfitGrid } from '../world/riftfx.js';
 import { tableFromPalette } from '../world/scene-art.js';
 import { hushPalette } from '../world/wilds.js';
 import { hashInts } from '../world/rng.js';
+import { clipFrames } from '../world/sprites-party.js';
+import { composeStray } from '../world/straygen.js';
+import { propFrame } from '../world/props4.js';
 
 const BASE = baseTable();
 
@@ -429,4 +432,92 @@ export function frontierOverlay(img, { x0, y0, s, ward = 0, nextWard = null, rif
 export function fitScale(img, room, most = 4) {
   if (!img) return 1;
   return Math.max(1, Math.min(most, Math.floor(Math.min(room.w / img.width, room.h / img.height))));
+}
+
+// ---------------------------------------------------------------------------
+// Portraits (CONTRACT-PHASE4.md §12.4, K2): the company's faces for the combat HUD, the muster,
+// the character sheet and the dialogue box, from the same frames the fight draws.
+
+const SCALE_MOST = 8;
+
+/**
+ * Palette-key rows as an RGBA picture at a whole `scale` (1 to 8). `layers` rows mark with '1' the
+ * pixels drawn from `table2` (a person's clothes in a genre, a fusion stray's second genre); the
+ * rest use `table`. `mirror` flips it left to right. '.' is clear.
+ */
+export function rowsScene(rows, { layers = null, table = BASE, table2 = null, scale = 1, mirror = false } = {}) {
+  if (!Array.isArray(rows) || !rows.length || typeof rows[0] !== 'string' || !rows[0].length) return null;
+  const s = Math.max(1, Math.min(SCALE_MOST, Math.floor(Number(scale) || 1)));
+  const w = rows[0].length;
+  const h = rows.length;
+  const img = makeImage(w * s, h * s);
+  for (let y = 0; y < h; y += 1) {
+    const row = rows[y];
+    for (let x = 0; x < w; x += 1) {
+      const key = row[x];
+      if (!key || key === '.') continue;
+      const second = table2 && layers?.[y]?.[x] === '1';
+      const rgba = (second ? table2[key] : null) || table[key] || BASE[key];
+      if (!rgba) continue;
+      const px = mirror ? w - 1 - x : x;
+      for (let j = 0; j < s; j += 1) for (let i = 0; i < s; i += 1) put(img, px * s + i, y * s + j, rgba);
+    }
+  }
+  return img;
+}
+
+// Trims clear margins from rows (and their layers alike), leaving `pad` clear pixels round the ink.
+function trimmed(rows, layers, pad = 1) {
+  const box = inkBounds(rows);
+  const cut = (list) => {
+    if (!list) return null;
+    const blank = '.'.repeat(box.w + 2 * pad);
+    const inner = list.slice(box.y, box.y + box.h).map((row) => `${'.'.repeat(pad)}${row.slice(box.x, box.x + box.w)}${'.'.repeat(pad)}`);
+    return [...Array(pad).fill(blank), ...inner, ...Array(pad).fill(blank)];
+  };
+  return { rows: cut(rows), layers: layers ? cut(layers).map((row) => row.replace(/[^1]/g, '0')) : null };
+}
+
+/**
+ * A combatant's or companion's portrait: the figure a Look draws, standing, trimmed to its ink with
+ * a clear pixel round it, at 1× (the shell scales it with fitScale). A rig ('coat', 'robe', 'jev',
+ * 'toll') stands in its front 'ready' frame, dressed in `genre`'s colours when one is given (Milo,
+ * the Scribe and the Artificer; a likeness is already its own clay or slate); a stray is its rest
+ * pose in its genres' colours; a device its PROPS4 frame; a sprite look its SPRITES frame. `genre`
+ * and the stray's genres are ids looked up in `genres` (the content's genres), or entries. null for
+ * a look it can't draw.
+ */
+export function portraitScene(look, { genre = null, genres = null } = {}) {
+  if (!look || typeof look !== 'object') return null;
+  if (look.kind === 'rig') {
+    const frame = clipFrames(look, 'ready', 'down')[0];
+    if (!frame?.rows?.length) return null;
+    const g = genre ? genreIndex(genres).get(genre) || (typeof genre === 'object' ? genre : null) : null;
+    const dressed = g && frame.family ? outfitGrid(frame.family, frame.rows, { split: frame.split, wear: frame.wear }) : null;
+    const cut = trimmed(dressed ? dressed.rows : frame.rows, dressed ? dressed.layers : null);
+    return rowsScene(cut.rows, { layers: cut.layers, table2: dressed ? spriteTable(g) : null, mirror: frame.mirror === true });
+  }
+  if (look.kind === 'stray') {
+    if (typeof look.archetype !== 'string') return null;
+    let sprite;
+    try {
+      sprite = composeStray({ archetype: look.archetype, bodyKey: look.bodyKey || 'r', parts: Array.isArray(look.parts) ? look.parts : [], eyeKey: look.eyeKey || null });
+    } catch {
+      return null;
+    }
+    if (!sprite?.rows?.length) return null;
+    const [first, second] = Array.isArray(look.genres) ? look.genres : [];
+    const cut = trimmed(sprite.rows, sprite.layers);
+    const pixels = strayPixels({ rows: cut.rows, layers: cut.layers }, first || genre, second || null, { genres });
+    return { width: pixels.width, height: pixels.height, data: new Uint8ClampedArray(pixels.data) };
+  }
+  if (look.kind === 'device') {
+    const rows = typeof look.template === 'string' ? propFrame(`device.${look.template}`) : null;
+    return rows?.length ? rowsScene(trimmed(rows, null).rows) : null;
+  }
+  if (look.kind === 'sprite') {
+    const rows = typeof look.name === 'string' && Object.hasOwn(SPRITES, look.name) ? SPRITES[look.name]?.[0] : null;
+    return rows?.length ? rowsScene(trimmed(rows, null).rows) : null;
+  }
+  return null;
 }

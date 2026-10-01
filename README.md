@@ -53,6 +53,19 @@ Hearthvale stays exactly as it was: a handmade sanctuary no rift can enter. Arou
 - **The Hearth.** Its panel (in **Places**) shows the camp's tier, what it defends, and what **the Stockade** needs, counted from real things: crew sessions MILO watched finish, buildings designed, days with MILO, and the birch and ash you've gathered. **Raise the Stockade** puts a palisade round the vale, with a gatehouse at each gate and banners by the north gate. Then the **War Table** by the north gate lists every rift by how pressing it is, with a map of the frontier, and holds the defences: the **Gate Bell** (one quiet desktop note when a rift reaches the walls; its own switch decides it, so it rings even with desktop alerts off), the first **ward-post** (one of three rules you choose, and can take down again), and the evening bell (also at camp; moving it lets a Nocturne it no longer covers close quietly, with no seal).
 - **The Prologue.** "The Lantern Wakes" walks you through all of this in seven steps, from the light on the Lantern Hook, through a letter by paper bird and a crack past the north gate, to raising the Stockade. A small card under the crew strip shows the step you're on; tuck it away with its **–** button.
 
+### The Kit and the Company (Phase 4)
+
+Real work is the fuel, and everything here is calm: nothing punishes.
+
+- **Embers.** Earned from real signals (a finished focus session, a crew session done, a question answered, a building designed); each pays once. Stepping through a rift costs a few, a cave 3, a field boss's **Challenge** 5. The wallet sits in the title bar and the **Chronicle** lists every Ember with its source.
+- **Kindle.** The 50/15 focus timer and its banked rest, with a quiet bell. Fights pause at the next action when a session starts or a rest ends.
+- **The Adventure HUD.** Minimap, orbs and tabs, a **Log** that doubles as the command bar, and right-click menus on everything. **Quiet mode** brings back the plain world. **Skills**, **Quests**, **Satchel**, **Company**, **Grimoire**, **Crew** and **Chronicle** are panels on the right.
+- **Fights.** No dice: you plan the turn (three actions and a reaction each), then press **Run**, and the odds shown are the odds used. Companions draft from their own notebooks, which learn only from the drafts you accept or change. Play it **Guided**, by **Command**, **Let them choose**, or **Let them handle it**; strays are settled, not slain. A fight saves after every action and a relaunch lands on the same tick.
+- **The Company.** Open **Company** to **Set out**: pick who comes (the crew, Jev, the Tollkeeper and regulars from wild stitches), set the formation and how you play. The chosen follow Milo through the wilds; the rest sit by the camp fire, asleep at night.
+- **The wilds.** Caves, field bosses (only by **Challenge**), suggested levels on rift panels, **Sneak** inside an Elsewhere, and day and night from the real clock.
+- **The Board (Phase 5).** The HUD's **Quests** tab: add a quest in one line, and it's sorted into a main or side quest (tap to change) and tagged with the skill it trains. Start it, tick off steps, add notes, finish it. Finishing pays Embers and XP once, and never again if you reopen it.
+- **The first Riddle Note trail.** Tamsin's first note turns up in a wild chest once the Prologue's crack is mended. Each riddle sends you to try something (Kindle, a rest, the Chronicle, the north gate) and the last to the Last Bridge, where the Tollkeeper asks his three riddles and joins.
+
 ## Privacy
 
 - MILO reads `~/.claude` and `~/.codex` on this PC, **read-only**. It never writes to, moves, or deletes anything in those folders.

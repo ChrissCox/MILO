@@ -1,0 +1,1191 @@
+{
+  "version": 1,
+  "about": "Foes with no rift behind them (COMBAT.md §8.5, LORE.md §10): the canon foes of delves and caves and their bows, the wild creatures each region’s caves fill with, the Mimic, the moves strays and creatures use, and the Great Ones, which are data only in Phase 4. Every foe settles rather than falls, and a bow pays like talking it down.",
+  "canon": [
+    {
+      "id": "hollow-sentries",
+      "name": "Hollow Sentries",
+      "one": "Hollow Sentry",
+      "archetype": "construct",
+      "temperament": "polite",
+      "where": [
+        "delves",
+        "caves under old ruins"
+      ],
+      "look": {
+        "bodyKey": "s",
+        "parts": [
+          "rivets"
+        ],
+        "eyeKey": null
+      },
+      "bow": {
+        "kind": "talk-down",
+        "count": 3,
+        "text": "Reminded what they guard, they lay down arms."
+      },
+      "examine": [
+        "Empty armour that still stands its watch.",
+        "Nobody told them the thing they guard was finished long ago.",
+        "Remind them, gently, three times, and they rest."
+      ]
+    },
+    {
+      "id": "unwritten",
+      "name": "Unwritten",
+      "one": "Unwritten",
+      "archetype": "ghost",
+      "temperament": "shy",
+      "where": [
+        "the Archive Peaks",
+        "the Blank Stacks"
+      ],
+      "look": {
+        "bodyKey": "c",
+        "parts": [
+          "notepad"
+        ],
+        "eyeKey": null
+      },
+      "bow": {
+        "kind": "read",
+        "count": 1,
+        "text": "Read to, they settle down to listen."
+      },
+      "examine": [
+        "Pale shapes of stories nobody got round to writing.",
+        "They drift toward any voice reading aloud.",
+        "A page read to them is all they ever wanted."
+      ]
+    },
+    {
+      "id": "tollmen",
+      "name": "Tollmen",
+      "one": "Tollman",
+      "archetype": "walker",
+      "temperament": "proud",
+      "where": [
+        "bridges",
+        "the Last Bridge"
+      ],
+      "look": {
+        "bodyKey": "n",
+        "parts": [
+          "starBadge"
+        ],
+        "eyeKey": null
+      },
+      "bow": {
+        "kind": "riddle",
+        "count": 1,
+        "text": "A riddle answered, and they wave you across."
+      },
+      "examine": [
+        "Stiff little gatekeepers with a riddle each.",
+        "They’d much rather you answered than argued.",
+        "Guess right and the toll is paid in full."
+      ]
+    },
+    {
+      "id": "cinder-golems",
+      "name": "cinder golems",
+      "one": "cinder golem",
+      "archetype": "construct",
+      "temperament": "sleepy",
+      "where": [
+        "Cinderforge",
+        "the Cold Forges"
+      ],
+      "look": {
+        "bodyKey": "S",
+        "parts": [
+          "smokestack"
+        ],
+        "eyeKey": null
+      },
+      "bow": {
+        "kind": "forge",
+        "count": 1,
+        "text": "Their forge stoked, they sit down, warm."
+      },
+      "examine": [
+        "Slag and ember, lumbering about a cold forge.",
+        "They’re only cross because the fire went out.",
+        "Stoke the forge and light it, and they sit down to warm up."
+      ]
+    },
+    {
+      "id": "hush-hounds",
+      "name": "Hush hounds",
+      "one": "Hush hound",
+      "archetype": "crawler",
+      "temperament": "curious",
+      "where": [
+        "the Greyreach",
+        "grey caves"
+      ],
+      "look": {
+        "bodyKey": "k",
+        "parts": [
+          "batEars"
+        ],
+        "eyeKey": null
+      },
+      "bow": {
+        "kind": "walk",
+        "count": 2,
+        "text": "Walked beside two turns running, they heel."
+      },
+      "examine": [
+        "Grey hounds that pad along without a sound.",
+        "They follow anyone who’ll walk beside them.",
+        "Walk with one for two turns and it forgets to snap."
+      ]
+    },
+    {
+      "id": "drowned-bell-ringers",
+      "name": "drowned bell-ringers",
+      "one": "drowned bell-ringer",
+      "archetype": "ghost",
+      "temperament": "lost",
+      "where": [
+        "the Mistmere reef",
+        "the Drowned Bell"
+      ],
+      "look": {
+        "bodyKey": "b",
+        "parts": [
+          "candle"
+        ],
+        "eyeKey": null
+      },
+      "bow": {
+        "kind": "bell",
+        "count": 3,
+        "text": "The meeting adjourned: three talks, or the bell rung at the lectern."
+      },
+      "examine": [
+        "Damp ghosts still ringing for a meeting that never ended.",
+        "They keep the minutes, faithfully, underwater.",
+        "Adjourn them kindly and they drift off to rest."
+      ]
+    }
+  ],
+  "creatures": [
+    {
+      "id": "cinder-beetles",
+      "name": "cinder beetles",
+      "one": "cinder beetle",
+      "archetype": "crawler",
+      "temperament": "curious",
+      "look": {
+        "bodyKey": "R",
+        "parts": [
+          "armorPlate"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Glowing beetles that nest in warm ash.",
+        "They click their wing-cases when something new comes by.",
+        "Their shells stay warm for hours."
+      ]
+    },
+    {
+      "id": "glass-eels",
+      "name": "glass eels",
+      "one": "glass eel",
+      "archetype": "floater",
+      "temperament": "shy",
+      "look": {
+        "bodyKey": "e",
+        "parts": [
+          "cableTail"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Eels so clear you see the reeds through them.",
+        "They keep their distance and spit from afar.",
+        "In the Fen they’re a sign of clean water."
+      ]
+    },
+    {
+      "id": "fen-herons",
+      "name": "fen herons",
+      "one": "fen heron",
+      "archetype": "flier",
+      "temperament": "proud",
+      "look": {
+        "bodyKey": "c",
+        "parts": [
+          "ravenFeather"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Tall grey herons that own every shallow they stand in.",
+        "They pick the grandest-looking visitor and stare at them.",
+        "Patience is their whole personality."
+      ]
+    },
+    {
+      "id": "inkwyrms",
+      "name": "inkwyrms",
+      "one": "inkwyrm",
+      "archetype": "crawler",
+      "temperament": "grumpy",
+      "look": {
+        "bodyKey": "k",
+        "parts": [
+          "tentacles"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Little wyrms of spilt ink, curling through the Peaks’ caves.",
+        "They snap at whoever’s nearest and blot the floor.",
+        "Scholars keep them out of the good books."
+      ]
+    },
+    {
+      "id": "kite-crabs",
+      "name": "kite-crabs",
+      "one": "kite-crab",
+      "archetype": "crawler",
+      "temperament": "nosy",
+      "look": {
+        "bodyKey": "R",
+        "parts": [
+          "horn"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Crabs with sail-like shells that catch the harbour wind.",
+        "They sidle straight for whoever carries the light.",
+        "Mistmere’s children race them on the quay."
+      ]
+    },
+    {
+      "id": "fog-seals",
+      "name": "fog seals",
+      "one": "fog seal",
+      "archetype": "walker",
+      "temperament": "sleepy",
+      "look": {
+        "bodyKey": "s",
+        "parts": [
+          "sleepyEyes"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Soft grey seals that doze in the sea caves.",
+        "Wake one and it grumbles, then yawns.",
+        "They smell faintly of rain."
+      ]
+    },
+    {
+      "id": "murmurs",
+      "name": "Murmurs",
+      "one": "Murmur",
+      "archetype": "floater",
+      "temperament": "lost",
+      "rank": "lackey",
+      "look": {
+        "bodyKey": "v",
+        "parts": [
+          "starHalo"
+        ],
+        "eyeKey": null
+      },
+      "special": "A swarm of small voices; each one is a lackey.",
+      "abilities": [],
+      "examine": [
+        "A drift of little whispering lights from the Whisperwood.",
+        "Each one alone is hardly anything.",
+        "Together they sound like a crowd trying to remember a song."
+      ]
+    },
+    {
+      "id": "fetchfoxes",
+      "name": "fetchfoxes",
+      "one": "fetchfox",
+      "archetype": "crawler",
+      "temperament": "shy",
+      "look": {
+        "bodyKey": "R",
+        "parts": [
+          "bandana"
+        ],
+        "eyeKey": null
+      },
+      "special": "Pinches a hearthberry cordial from the party’s bag and runs home with it. The cordial turns up again in the room’s loot.",
+      "abilities": [
+        "fetchfox-pinch"
+      ],
+      "examine": [
+        "A small red fox with a thief’s grin.",
+        "It wants whatever you’re carrying, just to have it.",
+        "It hoards buttons, bottle caps and other people’s snacks."
+      ]
+    },
+    {
+      "id": "dicing-frogs",
+      "name": "dicing frogs",
+      "one": "dicing frog",
+      "archetype": "crawler",
+      "temperament": "curious",
+      "look": {
+        "bodyKey": "l",
+        "parts": [
+          "starBadge"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Speckled frogs whose spots read like the pips on dice.",
+        "They hop over to see what you rolled.",
+        "Downs folk swear they never land the same way twice."
+      ]
+    },
+    {
+      "id": "sky-rays",
+      "name": "sky-rays",
+      "one": "sky-ray",
+      "archetype": "flier",
+      "temperament": "nosy",
+      "look": {
+        "bodyKey": "E",
+        "parts": [
+          "jetFlame"
+        ],
+        "eyeKey": null
+      },
+      "special": null,
+      "abilities": [],
+      "examine": [
+        "Broad rays that glide on the updraughts round the Isles.",
+        "They circle whoever carries a light.",
+        "Their shadows are the only way to spot them coming."
+      ]
+    }
+  ],
+  "caves": {
+    "cinderforge": [
+      "cinder-beetles",
+      "cinder-golems"
+    ],
+    "glass-fen": [
+      "glass-eels",
+      "fen-herons"
+    ],
+    "archive-peaks": [
+      "inkwyrms",
+      "unwritten"
+    ],
+    "mistmere": [
+      "kite-crabs",
+      "fog-seals"
+    ],
+    "whisperwood": [
+      "murmurs",
+      "fetchfoxes"
+    ],
+    "dicing-downs": [
+      "dicing-frogs"
+    ],
+    "skyward-isles": [
+      "sky-rays"
+    ],
+    "greyreach": [
+      "hush-hounds"
+    ]
+  },
+  "borrow": {
+    "hearthvale": "mistmere",
+    "painted-hills": "mistmere",
+    "ivory-college": "glass-fen",
+    "far-shore": "cinderforge"
+  },
+  "mimic": {
+    "id": "mimic",
+    "name": "Mimics",
+    "one": "Mimic",
+    "archetype": "construct",
+    "temperament": "curious",
+    "bite": 1,
+    "look": {
+      "sprite": "chest.mimic"
+    },
+    "abilities": [
+      "mimic-bite"
+    ],
+    "bow": {
+      "kind": "open",
+      "count": 1,
+      "text": "Opened, it settles back into being a chest."
+    },
+    "examine": [
+      "A chest with a suspiciously good smile.",
+      "Its bite tickles more than it hurts.",
+      "Open it properly and it goes back to being furniture."
+    ]
+  },
+  "abilities": [
+    {
+      "id": "pounce",
+      "name": "Pounce",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": false,
+      "consumes": null,
+      "meets": null,
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": false,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": null,
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 7,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "act",
+          "action": "stride"
+        },
+        {
+          "do": "act",
+          "action": "strike"
+        },
+        {
+          "do": "condition",
+          "id": "tumbled",
+          "min": "hit"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Pounce on",
+      "text": "Strides in and strikes in one leap; a Hit or better also tumbles the target.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "spooky-touch",
+      "name": "Spooky touch",
+      "kind": "move",
+      "circle": 0,
+      "attack": true,
+      "big": false,
+      "consumes": null,
+      "meets": "guard",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        1
+      ],
+      "uses": null,
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 1,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "kind": "caster"
+        },
+        {
+          "do": "condition",
+          "id": "spooked",
+          "n": 1,
+          "min": "hit"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Touch",
+      "text": "A cold touch in its own kind; a Hit or better also leaves the target Spooked 1.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "glitch-slash",
+      "name": "Glitch slash",
+      "kind": "move",
+      "circle": 0,
+      "attack": true,
+      "big": true,
+      "consumes": null,
+      "meets": "guard",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 1,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "frac": [
+            3,
+            2
+          ],
+          "kind": "caster"
+        },
+        {
+          "do": "condition",
+          "id": "dazzled",
+          "n": 1,
+          "min": "hit"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Slash",
+      "text": "A flickering double-cut: half as much again as a hit, and Dazzled 1 on a Hit or better.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "nightwing-swirl",
+      "name": "Nightwing swirl",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": true,
+      "consumes": null,
+      "meets": "mind",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": false,
+        "area": {
+          "shape": "burst",
+          "size": 1,
+          "at": "self"
+        },
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "frac": [
+            1,
+            2
+          ],
+          "kind": "caster"
+        },
+        {
+          "do": "condition",
+          "id": "drowsy",
+          "n": 1,
+          "min": "hit"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Swirl",
+      "text": "A swirl of soft night wings all round it: half a hit, and Drowsy 1 on a Hit or better.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "candle-puff",
+      "name": "Candle puff",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": true,
+      "consumes": null,
+      "meets": "mind",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "tile",
+        "range": 6,
+        "sight": true,
+        "area": {
+          "shape": "burst",
+          "size": 1,
+          "at": "target"
+        },
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "frac": [
+            1,
+            2
+          ],
+          "kind": "caster"
+        },
+        {
+          "do": "condition",
+          "id": "spooked",
+          "n": 1,
+          "min": "hit"
+        },
+        {
+          "do": "surface",
+          "id": "candle-wax",
+          "rounds": 3
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Puff wax at",
+      "text": "Blows a gust of guttering wax over a small patch: half a hit, Spooked 1 on a Hit or better, and wax on the floor.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "steam-burst",
+      "name": "Steam burst",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": true,
+      "consumes": null,
+      "meets": "body",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": false,
+        "area": {
+          "shape": "burst",
+          "size": 1,
+          "at": "self"
+        },
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "kind": "caster"
+        },
+        {
+          "do": "surface",
+          "id": "smog",
+          "rounds": 2
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Vent",
+      "text": "Vents a scald of steam all round it: a full hit, and smog for 2 rounds.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "star-specks",
+      "name": "Star specks",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": true,
+      "consumes": null,
+      "meets": "body",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "tile",
+        "range": 6,
+        "sight": true,
+        "area": {
+          "shape": "burst",
+          "size": 1,
+          "at": "target"
+        },
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "kind": "caster"
+        },
+        {
+          "do": "surface",
+          "id": "gravity-well",
+          "rounds": 2
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Scatter specks at",
+      "text": "Scatters heavy specks of far-off stars on a small patch: a full hit, and a gravity well for 2 rounds.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "red-herring",
+      "name": "False lead",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": true,
+      "consumes": null,
+      "meets": "mind",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 6,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "frac": [
+            1,
+            2
+          ],
+          "kind": "caster"
+        },
+        {
+          "do": "condition",
+          "id": "exposed",
+          "min": "hit"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Mislead",
+      "text": "Points the blame at one hero: half a hit, and Exposed on a Hit or better.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "cork-gun-pop",
+      "name": "Cork-gun pop",
+      "kind": "move",
+      "circle": 0,
+      "attack": true,
+      "big": true,
+      "consumes": null,
+      "meets": "guard",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 8,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "frac": [
+            3,
+            2
+          ],
+          "kind": "caster"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Pop at",
+      "text": "A fast pop from the hip, up to 8 tiles: half as much again as a hit.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "stomp-ring",
+      "name": "Stomp ring",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": true,
+      "consumes": null,
+      "meets": "body",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        3
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": false,
+        "area": {
+          "shape": "burst",
+          "size": 1,
+          "at": "self"
+        },
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "stray",
+          "frac": [
+            3,
+            2
+          ],
+          "kind": "caster"
+        },
+        {
+          "do": "condition",
+          "id": "tumbled",
+          "min": "hit"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Stomp",
+      "text": "A ground-shaking stomp all round it: half as much again as a hit, and tumbled on a Hit or better.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "mimic-bite",
+      "name": "Bite",
+      "kind": "move",
+      "circle": 0,
+      "attack": true,
+      "big": false,
+      "consumes": null,
+      "meets": "guard",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        1
+      ],
+      "uses": null,
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 1,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "fixed",
+          "amount": 1,
+          "kind": "plain"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Nip",
+      "text": "A nip that tickles more than it hurts: 1 damage.",
+      "stub": false,
+      "from": null
+    },
+    {
+      "id": "fetchfox-pinch",
+      "name": "Pinch",
+      "kind": "move",
+      "circle": 0,
+      "attack": false,
+      "big": false,
+      "consumes": null,
+      "meets": null,
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": false,
+      "spoken": false,
+      "costs": [
+        1
+      ],
+      "uses": {
+        "per": "fight",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 1,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "take",
+          "item": "cordial",
+          "settle": true
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "words": "Pinch from",
+      "text": "Snatches a hearthberry cordial from the party’s bag and scampers home with it.",
+      "stub": false,
+      "from": null
+    }
+  ],
+  "greatOnes": [
+    {
+      "id": "tollkeeper",
+      "name": "The Tollkeeper",
+      "kind": "talk",
+      "from": "Phase 4",
+      "bow": "Out-riddled at the Last Bridge, he joins the Company."
+    },
+    {
+      "id": "drowned-bell",
+      "name": "The Drowned Bell",
+      "kind": "bow",
+      "from": "Phase 8",
+      "bow": "Calmed by Pell’s lullaby, played at the reef’s bells."
+    },
+    {
+      "id": "blank-sovereign",
+      "name": "The Blank Sovereign",
+      "kind": "bow",
+      "from": "Phase 9",
+      "bow": "Read a story."
+    },
+    {
+      "id": "cinder-wyrm",
+      "name": "The Cinder Wyrm",
+      "kind": "bow",
+      "from": "Phase 9",
+      "bow": "Warmed."
+    },
+    {
+      "id": "mirror-heron",
+      "name": "The Mirror Heron",
+      "kind": "bow",
+      "from": "Phase 9",
+      "bow": "Its reflections broken one pool at a time, a Seek at each."
+    },
+    {
+      "id": "grey-stag",
+      "name": "The Grey Stag",
+      "kind": "bow",
+      "from": "Phase 10",
+      "bow": "Walked beside: every lantern in its clearing kept lit for three rounds while nobody strikes it."
+    },
+    {
+      "id": "someday-king",
+      "name": "The Someday King",
+      "kind": "bow",
+      "from": "Phase 10",
+      "bow": "Its letters finished or freed while the masked guests bow out."
+    },
+    {
+      "id": "cloud-leviathan",
+      "name": "The Cloud Leviathan",
+      "kind": "no-fight",
+      "from": "Phase 10",
+      "bow": "A rescue on the map: the kite-lines cut and the great thing calmed."
+    }
+  ]
+}

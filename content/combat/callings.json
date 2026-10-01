@@ -1,0 +1,1045 @@
+{
+  "version": 1,
+  "about": "The nine callings level by level, the charge tables, the paths, and every calling feature, path feature, weapon art, boon, item and gift, written in the effect language (COMBAT.md §5.4 and §6, CONTRACT-PHASE4.md §9.3 and §9.4).",
+  "charges": {
+    "full": [2, 3, 4, 5, 7, 8, 10, 11, 13, 14, 15, 16], "three-quarter": [2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    "half": [0, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7], "pact": [1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3]
+  },
+  "circles": {
+    "full": { "1": 1, "3": 2, "5": 3, "7": 4, "9": 5 }, "pact": { "1": 1, "3": 2, "5": 3, "7": 4, "9": 5 },
+    "three-quarter": { "1": 1, "3": 2, "6": 3, "9": 4 }, "half": { "2": 1, "5": 2, "9": 3 }
+  },
+  "callings": [
+    {
+      "id": "lanternkeeper", "name": "Lanternkeeper", "role": "Leader, light and support", "build": "middle", "key": "heed",
+      "resolve": { "body": 0, "mind": 1 }, "armour": "light", "plateFrom": null, "shield": false, "charges": "three-quarter", "weapon": "light",
+      "maxLevel": 5,
+      "levels": {
+        "1": ["hooklight", "raise-lantern", "stand-in-my-light", "mote", "flare"], "2": ["scarf"], "3": ["path"], "4": ["boon"],
+        "5": ["the-lantern-calls"], "6": [], "7": [], "8": ["boon"], "9": [], "10": ["second-wick"], "11": [], "12": ["boon"]
+      },
+      "spells": ["little-light", "salve", "kind-word", "take-heart", "step-through-the-seam", "clear-morning"]
+    },
+    {
+      "id": "warden", "name": "Warden", "role": "Front line", "build": "sturdy", "key": "might", "resolve": { "body": 1, "mind": 0 }, "armour": "mail",
+      "plateFrom": 5, "shield": true, "charges": null, "weapon": "standard", "maxLevel": 5,
+      "levels": {
+        "1": ["draw-the-blow", "hold-here", "second-breath"], "2": ["surge"], "3": ["path"], "4": ["boon"], "5": ["steady-second"], "6": [], "7": [],
+        "8": ["boon"], "9": [], "10": ["unbroken"], "11": ["steady-third"], "12": ["boon"]
+      },
+      "spells": []
+    },
+    {
+      "id": "mender", "name": "Mender", "role": "Patching and cleansing", "build": "light", "key": "heed", "resolve": { "body": 0, "mind": 1 },
+      "armour": "mail", "plateFrom": null, "shield": true, "charges": "full", "weapon": "light", "maxLevel": 5,
+      "levels": {
+        "1": ["soothe", "reach-out"], "2": ["still-water"], "3": ["path"], "4": ["boon"], "5": [], "6": [], "7": [], "8": ["boon"], "9": [],
+        "10": ["tide-turns"], "11": [], "12": ["boon"]
+      },
+      "spells": ["steady-hand", "salve", "kind-word", "sudden-shelter", "clear-morning", "quiet", "tidesong", "send-home"]
+    },
+    {
+      "id": "scrivener", "name": "Scrivener", "role": "Prepared magic and areas", "build": "light", "key": "wit", "resolve": { "body": 0, "mind": 1 },
+      "armour": "none", "plateFrom": null, "shield": false, "charges": "full", "weapon": "light", "maxLevel": 12,
+      "levels": {
+        "1": ["pages", "proofread"], "2": ["turn-back-a-page"], "3": ["path"], "4": ["boon"], "5": [], "6": [], "7": ["turn-back-a-page"],
+        "8": ["boon"], "9": [], "10": ["two-sustained"], "11": [], "12": ["boon"]
+      },
+      "spells": [
+        "full-stop",
+        "ink-blot",
+        "little-light",
+        "salve",
+        "kind-word",
+        "inkdarts",
+        "sudden-shelter",
+        "lullaby",
+        "tangleweed",
+        "hold-still",
+        "step-through-the-seam",
+        "quiet",
+        "fogcloak",
+        "clear-morning",
+        "cross-it-out",
+        "neon-line",
+        "rewrite-the-room"
+      ]
+    },
+    {
+      "id": "tinker", "name": "Tinker", "role": "Devices, cover and repairs", "build": "sturdy", "key": "wit", "resolve": { "body": 1, "mind": 0 },
+      "armour": "mail", "plateFrom": null, "shield": true, "charges": "half", "weapon": "standard", "maxLevel": 12,
+      "levels": {
+        "1": ["bench-drone", "drone-order", "pop-up-cover", "quick-fix"], "2": ["tune-ups"], "3": ["path"], "4": ["boon"], "5": [], "6": [],
+        "7": ["pop-up-cover"], "8": ["boon"], "9": [], "10": ["two-drones"], "11": [], "12": ["boon"]
+      },
+      "spells": ["little-light", "sudden-shelter", "tangleweed", "step-through-the-seam", "fogcloak", "hold-still", "brisk"]
+    },
+    {
+      "id": "skirmisher", "name": "Skirmisher", "role": "Mobility and big single hits", "build": "middle", "key": "grace",
+      "resolve": { "body": 1, "mind": 0 }, "armour": "light", "plateFrom": null, "shield": false, "charges": null, "weapon": "light", "maxLevel": 12,
+      "levels": {
+        "1": ["unseen-strike"], "2": ["slip"], "3": ["path"], "4": ["boon"], "5": ["tuck-and-roll"], "6": [], "7": ["quick-feet"], "8": ["boon"],
+        "9": [], "10": ["swipe-strike"], "11": [], "12": ["boon"]
+      },
+      "spells": []
+    },
+    {
+      "id": "longshot", "name": "Longshot", "role": "Range, height and overwatch", "build": "middle", "key": "grace",
+      "resolve": { "body": 1, "mind": 0 }, "armour": "mail", "plateFrom": null, "shield": false, "charges": "half", "weapon": "ranged", "maxLevel": 5,
+      "levels": {
+        "1": ["ready-a-shot", "bead"], "2": ["read-the-ground"], "3": ["path"], "4": ["boon"], "5": ["steady-second"], "6": [], "7": ["volley"],
+        "8": ["boon"], "9": [], "10": ["steady-aim"], "11": [], "12": ["boon"]
+      },
+      "spells": ["little-light", "tangleweed", "hold-still", "fogcloak"]
+    },
+    {
+      "id": "chorister", "name": "Chorister", "role": "Heartening, charm and sleep", "build": "middle", "key": "charm",
+      "resolve": { "body": 0, "mind": 1 }, "armour": "light", "plateFrom": null, "shield": false, "charges": "full", "weapon": "light", "maxLevel": 5,
+      "levels": {
+        "1": ["heartening-verse", "hum-off-key", "lullaby"], "2": ["hum-along"], "3": ["path"], "4": ["boon"], "5": [], "6": [], "7": [],
+        "8": ["boon"], "9": [], "10": ["last-verse"], "11": [], "12": ["boon"]
+      },
+      "spells": ["kind-word", "take-heart", "quiet", "hold-still", "clear-morning", "the-long-song"]
+    },
+    {
+      "id": "weaver", "name": "Weaver", "role": "Genre magic", "build": "light", "key": "charm", "resolve": { "body": 0, "mind": 1 },
+      "armour": "light", "plateFrom": null, "shield": false, "charges": "pact", "weapon": "standard", "maxLevel": 5,
+      "levels": {
+        "1": ["loose-thread", "burn-an-essence"], "2": ["borrow-a-rule"], "3": ["path"], "4": ["boon"], "5": [], "6": [], "7": ["borrow-a-rule"],
+        "8": ["boon"], "9": [], "10": [], "11": [], "12": ["boon"]
+      },
+      "spells": ["ink-blot", "tangleweed", "fogcloak", "step-through-the-seam", "hold-still", "neon-line", "candle-wall"]
+    }
+  ],
+  "paths": [
+    {
+      "id": "hearth", "name": "Hearth", "companion": "milo", "calling": "lanternkeeper", "heat": 0, "levels": { "3": ["hearth-path"] },
+      "text": "Allies in Milo’s light resist all damage, and his Salve never lands below a Hit."
+    },
+    {
+      "id": "wick", "name": "Wick", "companion": "milo", "calling": "lanternkeeper", "heat": 0, "levels": { "3": ["wick-path"], "6": ["hearthburst"] },
+      "text": "Mote burns 2 hotter, and Hearthburst joins his list."
+    },
+    {
+      "id": "wayward", "name": "Wayward", "companion": "milo", "calling": "lanternkeeper", "heat": 0,
+      "levels": { "3": ["wayward-path", "wayward-step"] }, "text": "One more tile on every Stride, and once a Breather a mote of light he steps into."
+    },
+    {
+      "id": "three-pens", "name": "Three Pens", "companion": "claude", "calling": "scrivener", "heat": 0,
+      "levels": { "3": ["three-pens"], "6": ["three-pens-second-draft"], "11": ["three-pens-fair-copy"] },
+      "text": "All three pens at once: small patches for everyone, and first moves that land."
+    },
+    {
+      "id": "footnote", "name": "Footnote", "companion": "claude", "calling": "scrivener", "heat": 0,
+      "levels": { "3": ["footnote"], "6": ["footnote-small-print"], "11": ["footnote-appendix"] },
+      "text": "The small print that matters: foes read, exposed and a little less sure of themselves."
+    },
+    {
+      "id": "bench", "name": "Bench", "companion": "codex", "calling": "tinker", "heat": 0,
+      "levels": { "3": ["bench"], "6": ["bench-tool-belt"], "11": ["bench-workshop"] }, "text": "More devices, set down before anyone asks."
+    },
+    {
+      "id": "slate", "name": "Slate", "companion": "codex", "calling": "tinker", "heat": 0,
+      "levels": { "3": ["slate"], "6": ["slate-clean-build"], "11": ["slate-clean-slate"] },
+      "text": "Tidy repairs: small patches, steady hands beside them, and one clean slate a Campfire."
+    },
+    {
+      "id": "gavel", "name": "Gavel", "companion": "jev", "calling": "skirmisher", "heat": 10,
+      "levels": { "3": ["gavel"], "6": ["gavel-ruling"], "11": ["gavel-last-word"] },
+      "text": "Jev runs 10 hotter and decides fast: sure first moves, and rulings that stop a foe short."
+    },
+    {
+      "id": "courier", "name": "Courier", "companion": "jev", "calling": "skirmisher", "heat": -10,
+      "levels": { "3": ["courier"], "6": ["courier-express"], "11": ["courier-return-post"] },
+      "text": "Jev runs 10 cooler and carries things: a cordial to whoever needs it, and friends to where they should be."
+    },
+    {
+      "id": "bridge", "name": "Bridge", "companion": "tollkeeper", "calling": "warden", "heat": -5,
+      "levels": { "3": ["bridge"], "6": ["bridge-hold-fast"], "11": ["bridge-all-cross"] },
+      "text": "He keeps the crossing: allies beside him are harder to hit, and he stays a little steadier."
+    },
+    {
+      "id": "troll-kin", "name": "Troll-kin", "companion": "tollkeeper", "calling": "warden", "heat": 5,
+      "levels": { "3": ["troll-kin"], "6": ["troll-kin-stone"], "11": ["troll-kin-old-stories"] },
+      "text": "Old fairy-tale troll: stone-skinned, slow to hurt and a little warmer in a scrap."
+    },
+    {
+      "id": "shift", "name": "Shift", "companion": "rivet", "calling": "warden", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 5"
+    },
+    {
+      "id": "riveted", "name": "Riveted", "companion": "rivet", "calling": "warden", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 5"
+    },
+    {
+      "id": "unfolding", "name": "Unfolding", "companion": "pip", "calling": "weaver", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 5"
+    },
+    {
+      "id": "starry", "name": "Starry", "companion": "pip", "calling": "weaver", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 5"
+    },
+    {
+      "id": "high-noon", "name": "High Noon", "companion": "dusty", "calling": "longshot", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 5"
+    },
+    {
+      "id": "deputy", "name": "Deputy", "companion": "dusty", "calling": "longshot", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 5"
+    },
+    {
+      "id": "netrunner", "name": "Netrunner", "companion": "juno", "calling": "weaver", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 6"
+    },
+    {
+      "id": "fixit", "name": "Fixit", "companion": "juno", "calling": "weaver", "heat": 0, "levels": {}, "text": "Written when they join the Company.",
+      "from": "Phase 6"
+    },
+    {
+      "id": "case-file", "name": "Case File", "companion": "mae", "calling": "skirmisher", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 6"
+    },
+    {
+      "id": "shadow", "name": "Shadow", "companion": "mae", "calling": "skirmisher", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 6"
+    },
+    {
+      "id": "afterhours", "name": "Afterhours", "companion": "lumi", "calling": "chorister", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 6"
+    },
+    {
+      "id": "serenade", "name": "Serenade", "companion": "lumi", "calling": "chorister", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 6"
+    },
+    {
+      "id": "stonewright", "name": "Stonewright", "companion": "tova", "calling": "tinker", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 6"
+    },
+    {
+      "id": "forgehand", "name": "Forgehand", "companion": "tova", "calling": "tinker", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 6"
+    },
+    {
+      "id": "listening", "name": "Listening", "companion": "whisper", "calling": "longshot", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 7"
+    },
+    {
+      "id": "leafwrit", "name": "Leafwrit", "companion": "whisper", "calling": "longshot", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 7"
+    },
+    {
+      "id": "tide", "name": "Tide", "companion": "nell", "calling": "mender", "heat": 0, "levels": {}, "text": "Written when they join the Company.",
+      "from": "Phase 8"
+    },
+    {
+      "id": "quiet-order", "name": "Quiet Order", "companion": "nell", "calling": "mender", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 8"
+    },
+    {
+      "id": "candle", "name": "Candle", "companion": "vesperine", "calling": "mender", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 9"
+    },
+    {
+      "id": "chaperone", "name": "Chaperone", "companion": "vesperine", "calling": "mender", "heat": 0, "levels": {},
+      "text": "Written when they join the Company.", "from": "Phase 9"
+    }
+  ],
+  "abilities": [
+    {
+      "id": "hooklight", "name": "The Hooklight", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["hooklight"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "The Hooklight",
+      "text": "Milo’s hand lantern lights 3 tiles, 5 while raised, and it’s raised when a fight starts. Allies inside cool faster.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "raise-lantern", "name": "Raise the lantern", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null,
+      "requires": ["lantern-down"], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "rule", "id": "raise-lantern" }], "crit": [], "upcast": false, "words": "Raise the lantern",
+      "text": "One action: raise the Hooklight again after it drops.", "stub": false, "from": null
+    },
+    {
+      "id": "stand-in-my-light", "name": "Stand in my light", "kind": "reaction", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [],
+      "uses": { "per": "campfire", "n": { "byLevel": { "1": 2, "5": 3, "9": 4 } } }, "sustained": null, "requires": [],
+      "reaction": { "when": "hit-on-ally", "range": 4 }, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally", "range": 4, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "rule", "id": "stand-in-my-light" }], "crit": [], "upcast": false, "words": "Stand in my light",
+      "text": "Reaction, twice a Campfire (three from level 5, four from 9): a hit on an ally within 4 deals the 1-action line less.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "scarf", "name": "Scarf", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": false,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null, "requires": [], "reaction": null,
+      "passive": null,
+      "choices": {
+        "ally": {
+          "words": "Pull in", "target": { "who": "ally", "range": 3, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "move", "who": "target", "how": "pull", "tiles": 2, "noSwipes": true }]
+        },
+        "foe": {
+          "words": "Pull in", "target": { "who": "foe", "range": 3, "sight": true, "area": null, "hits": "foes", "count": 1, "need": ["small"] },
+          "effects": [{ "do": "move", "who": "target", "how": "pull", "tiles": 2, "noSwipes": true }]
+        }
+      },
+      "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Scarf",
+      "text": "One action: Tamsin’s too-long scarf pulls an ally, or a small foe, 2 tiles toward Milo from up to 3 away, drawing no Parting swipes.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "the-lantern-calls", "name": "The lantern calls", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [3], "uses": { "per": "campfire", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": {
+        "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 6, "at": "self" }, "hits": "allies-and-self", "count": 1,
+        "need": []
+      },
+      "effects": [{ "do": "rule", "id": "lantern-calls" }], "crit": [], "upcast": false, "words": "The lantern calls",
+      "text": "Three actions, once a Campfire: every Offline ally within 6 who can still come back does, as if Rebooted.", "stub": false, "from": null
+    },
+    {
+      "id": "second-wick", "name": "Second wick", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": { "per": "campfire", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": { "mods": [], "aura": null, "rules": [], "summons": [] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Second wick",
+      "text": "Once a Campfire, when Milo would go offline he stays at 1 Integrity and every ally in his light is patched.", "stub": true,
+      "from": "Phase 5"
+    },
+    {
+      "id": "draw-the-blow", "name": "Draw the blow", "kind": "reaction", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": { "when": "strike-at-ally", "range": 2 }, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally", "range": 2, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "rule", "id": "draw-the-blow" }], "crit": [], "upcast": false, "words": "Draw the blow",
+      "text": "Reaction: when a foe aims a Strike at an ally within 2, the Warden steps in beside them and takes it instead.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "hold-here", "name": "Hold here", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": "mind",
+      "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 2, "at": "self" }, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "mark", "id": "drawn", "spend": "attack", "until": "end-of-next-round", "min": "hit" }], "crit": [], "upcast": false,
+      "words": "Hold here",
+      "text": "One action, once a Breather: foes within 2 spend their next attack on the Warden, on a Hit or better against mind Resolve.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "second-breath", "name": "Second breath", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "patch", "line": "two" }], "crit": [], "upcast": false, "words": "Second breath",
+      "text": "One action, once a Breather: the Warden patches themself for the 2-action line.", "stub": false, "from": null
+    },
+    {
+      "id": "surge", "name": "Surge", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": true,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [0], "uses": { "per": "breather", "n": 1 }, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "condition", "id": "quickened", "n": 2 }], "crit": [], "upcast": false, "words": "Surge",
+      "text": "No action, once a Breather: the Warden is Quickened through their next turn, with a fourth action.", "stub": false, "from": null
+    },
+    {
+      "id": "steady-second", "name": "Steady second", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["steady-second"], "summons": [] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Steady second",
+      "text": "The second attack in a turn takes no −1 edge. It still adds its heat.", "stub": false, "from": null
+    },
+    {
+      "id": "unbroken", "name": "Unbroken", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": { "per": "campfire", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["unbroken"], "summons": [] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Unbroken",
+      "text": "Once a Campfire, the Warden drops to 1 Integrity instead of going offline.", "stub": false, "from": null
+    },
+    {
+      "id": "steady-third", "name": "Steady third", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["steady-third"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Steady third", "text": "The third attack in a turn takes −1 edge instead of −2.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "soothe", "name": "Soothe", "kind": "knack", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": true,
+      "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "target-round", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally", "range": 1, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": ["below-half"] },
+      "effects": [{ "do": "patch", "line": "one" }], "crit": [], "upcast": false, "words": "Soothe",
+      "text": "One action, touch: patches an ally under half Integrity for the 1-action line, once per ally a round.", "stub": false, "from": null
+    },
+    {
+      "id": "reach-out", "name": "Reach out", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 2 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "offline-ally", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "reboot", "frac": 0.25 }], "crit": [], "upcast": false, "words": "Reach out to",
+      "text": "One action, twice a Breather: Reboot an Offline ally within 6 from where you stand.", "stub": false, "from": null
+    },
+    {
+      "id": "still-water", "name": "Still water", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": "mind",
+      "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [2], "uses": { "per": "breather", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 4, "at": "self" }, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "condition", "id": "spooked", "n": 2, "min": "hit" }, { "do": "rule", "id": "settle-low" }], "crit": [], "upcast": false,
+      "words": "Still water",
+      "text": "Two actions, once a Breather: strays within 4 are Spooked 2 on a Hit or better, and strays 4 or more levels below the party settle.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "tide-turns", "name": "Tide turns", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [3], "uses": { "per": "campfire", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": {
+        "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 6, "at": "self" }, "hits": "allies-and-self", "count": 1,
+        "need": []
+      },
+      "effects": [{ "do": "patch", "line": "three" }, { "do": "reboot", "frac": 0.25, "if": "offline" }], "crit": [], "upcast": false,
+      "words": "Tide turns", "text": "Once a Campfire: everyone within 6 is patched for the 3-action line, and Offline allies there come back.",
+      "stub": true, "from": "Phase 5"
+    },
+    {
+      "id": "pages", "name": "Pages", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": false,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [], "reaction": null,
+      "passive": { "mods": [], "aura": null, "rules": [], "summons": [] }, "choices": null, "by": null, "target": null, "effects": null, "crit": [],
+      "upcast": false, "words": "Pages", "text": "At camp or a lantern, prepare Wit plus level spells. Found scrolls copy into the book.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "proofread", "name": "Proofread", "kind": "reaction", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [],
+      "uses": { "per": "campfire", "n": { "byLevel": { "1": 2, "5": 3, "9": 4 } } }, "sustained": null, "requires": [],
+      "reaction": { "when": "outcome-in-sight", "range": 12 }, "passive": null, "choices": null, "by": null,
+      "target": { "who": "unit", "range": 12, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "degree", "by": 1 }], "crit": [], "upcast": false, "words": "Proofread",
+      "text": "Reaction, twice a Campfire (three from level 5, four from 9): an outcome in sight moves one degree your way.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "turn-back-a-page", "name": "Turn back a page", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [],
+      "uses": { "per": "campfire", "n": { "byLevel": { "2": 1, "7": 2 } } }, "sustained": null, "requires": [], "reaction": null,
+      "passive": { "mods": [], "aura": null, "rules": [], "summons": [] }, "choices": null, "by": null, "target": null, "effects": null, "crit": [],
+      "upcast": false, "words": "Turn back a page",
+      "text": "Once a Campfire (twice from level 7), a Breather also brings back charges: half the level, rounded down.", "stub": false, "from": null
+    },
+    {
+      "id": "two-sustained", "name": "Two at once", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["two-sustained"], "summons": [] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Two at once",
+      "text": "The Scrivener can keep two sustained spells going at once.", "stub": false, "from": null
+    },
+    {
+      "id": "bench-drone", "name": "Bench drone", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": [], "summons": [{ "template": "drone", "at": "fight-start" }] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Bench drone",
+      "text": "A tiny construct with Guard 1 and 5 Integrity a level stands ready when a fight begins.", "stub": false, "from": null
+    },
+    {
+      "id": "drone-order", "name": "Bench drone", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null,
+      "requires": ["has-device"], "reaction": null, "passive": null,
+      "choices": {
+        "zap": {
+          "words": "Zap", "target": { "who": "foe", "range": 6, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "command", "device": "drone", "order": "zap" }]
+        },
+        "assist": {
+          "words": "Drone assist on", "target": { "who": "foe", "range": 6, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "command", "device": "drone", "order": "assist" }]
+        },
+        "carry": {
+          "words": "Drone carries a tonic to",
+          "target": { "who": "ally", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "command", "device": "drone", "order": "carry" }]
+        }
+      },
+      "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Order the drone",
+      "text": "One action: the drone zaps (the 1-action line in Spark, at your heat), Assists, or carries a tonic to an ally.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "pop-up-cover", "name": "Pop-up cover", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1],
+      "uses": { "per": "breather", "n": { "byLevel": { "1": 2, "7": 3 } } }, "sustained": null, "requires": [], "reaction": null, "passive": null,
+      "choices": null, "by": null, "target": { "who": "tile", "range": 3, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "summon", "template": "pop-up-cover" }], "crit": [], "upcast": false, "words": "Pop-up cover at",
+      "text": "One action, twice a Breather (three from level 7): a low barrier with 10 plus 2 a level Integrity.", "stub": false, "from": null
+    },
+    {
+      "id": "quick-fix", "name": "Quick fix", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1, 2], "uses": { "per": "campfire", "n": "wit" },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null,
+      "by": {
+        "1": {
+          "target": { "who": "ally-or-self", "range": 1, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "patch", "line": "one" }]
+        },
+        "2": {
+          "target": { "who": "ally-or-self", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "patch", "line": "two" }]
+        }
+      },
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Quick fix",
+      "text": "Wit times a Campfire: 1 action patches an ally beside you for the 1-action line, or 2 actions one within 6 for the 2-action line.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "tune-ups", "name": "Tune-ups", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["tune-ups"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Tune-ups",
+      "text": "Your devices have +1 Guard, at most 2, and 2 more Integrity a level.", "stub": false, "from": null
+    },
+    {
+      "id": "two-drones", "name": "Two drones", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["two-drones"], "summons": [{ "template": "drone", "at": "fight-start" }] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Two drones",
+      "text": "A second bench drone stands ready beside the first.", "stub": false, "from": null
+    },
+    {
+      "id": "unseen-strike", "name": "Unseen strike", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["unseen-strike"], "summons": [] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Unseen strike",
+      "text": "Once a turn, a Strike with edge on its target, or with an ally beside the target, adds the 1-action line.", "stub": false, "from": null
+    },
+    {
+      "id": "slip", "name": "Slip", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": false,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null, "requires": [], "reaction": null,
+      "passive": null,
+      "choices": {
+        "stride": {
+          "words": "Slip away", "target": { "who": "none", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "act", "action": "stride", "noSwipes": true }]
+        },
+        "hide": {
+          "words": "Slip into hiding", "target": { "who": "none", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "act", "action": "hide" }]
+        }
+      },
+      "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Slip",
+      "text": "One action: Stride without drawing Parting swipes, or Hide.", "stub": false, "from": null
+    },
+    {
+      "id": "tuck-and-roll", "name": "Tuck and roll", "kind": "reaction", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": { "when": "self-struck", "range": 0 }, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "rule", "id": "tuck-and-roll" }], "crit": [], "upcast": false, "words": "Tuck and roll",
+      "text": "Reaction: halve a hit on you, after its degree and before Buffer.", "stub": false, "from": null
+    },
+    {
+      "id": "quick-feet", "name": "Quick feet", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [{ "stat": "speed", "by": 1, "until": "fight" }], "aura": null, "rules": [], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Quick feet",
+      "text": "One more tile on every Stride.", "stub": false, "from": null
+    },
+    {
+      "id": "swipe-strike", "name": "Swipe strike", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["swipe-strike"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Swipe strike", "text": "Unseen strike can land on a Parting swipe.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "ready-a-shot", "name": "Ready a shot", "kind": "reaction", "circle": 0, "attack": true, "big": false, "consumes": null, "meets": "guard",
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": { "when": "foe-moves-in-sight", "range": 12 }, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 12, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "act", "action": "strike" }], "crit": [], "upcast": false, "words": "Ready a shot",
+      "text": "Reaction: Strike a foe that moves in sight.", "stub": false, "from": null
+    },
+    {
+      "id": "bead", "name": "Bead", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": false,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null, "requires": [], "reaction": null,
+      "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 12, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "mark", "id": "bead", "n": { "byLevel": { "1": 2, "5": 4, "10": 6 } }, "until": "fight" }, { "do": "condition", "id": "singled-out" }],
+      "crit": [], "upcast": false, "words": "Draw a bead on",
+      "text": "One action, until you draw another: the foe is Singled out, and your Strikes on it deal 2 more (4 from level 5, 6 from 10).",
+      "stub": false, "from": null
+    },
+    {
+      "id": "read-the-ground", "name": "Read the ground", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": { "mods": [{ "stat": "initiative", "by": 2, "until": "fight" }], "aura": null, "rules": ["ignore-difficult"], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Read the ground",
+      "text": "Natural difficult ground costs you nothing extra, and you take +2 initiative.", "stub": false, "from": null
+    },
+    {
+      "id": "volley", "name": "Volley", "kind": "feature", "circle": 0, "attack": true, "big": false, "consumes": null, "meets": "guard",
+      "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [2], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "tile", "range": 12, "sight": true, "area": { "shape": "burst", "size": 1, "at": "target" }, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "act", "action": "strike" }], "crit": [], "upcast": false, "words": "Volley at",
+      "text": "Two actions, one attack for heat: a Strike on every foe within 1 of a point, each landing on its own.", "stub": true, "from": "Phase 5"
+    },
+    {
+      "id": "steady-aim", "name": "Steady aim", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": [], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Steady aim", "text": "Ready a shot adds the 1-action line.", "stub": true,
+      "from": "Phase 5"
+    },
+    {
+      "id": "heartening-verse", "name": "Heartening verse", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": true, "cannotMiss": false, "outcome": true, "spoken": true, "costs": [1], "uses": { "per": "campfire", "n": "charm" },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "heat", "by": -20 }, { "do": "mod", "stat": "edge-next", "by": { "byLevel": { "1": 1, "10": 2 } }, "until": "next-action" }],
+      "crit": [], "upcast": false, "words": "Heartening verse for",
+      "text": "One action, Charm times a Campfire: an ally within 6 cools by 20 and takes +1 edge on their next action (+2 from level 10).",
+      "stub": false, "from": null
+    },
+    {
+      "id": "hum-along", "name": "Hum along", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null,
+      "passive": {
+        "mods": [], "aura": { "radius": 6, "who": "allies", "mods": [{ "stat": "resolve-mind", "by": 1, "until": "fight" }] }, "rules": [],
+        "summons": []
+      },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Hum along",
+      "text": "Allies within 6 have +1 mind Resolve, never above 2.", "stub": false, "from": null
+    },
+    {
+      "id": "last-verse", "name": "Last verse", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": true, "spoken": true, "costs": [2], "uses": { "per": "campfire", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 12, "at": "self" }, "hits": "allies", "count": 1, "need": [] },
+      "effects": [{ "do": "heat", "by": -20 }, { "do": "mod", "stat": "edge-next", "by": 2, "until": "next-action" }], "crit": [], "upcast": false,
+      "words": "Last verse", "text": "Once a Campfire: every ally gets a Heartening verse and a Stride that costs no action.", "stub": true,
+      "from": "Phase 5"
+    },
+    {
+      "id": "burn-an-essence", "name": "Burn an essence", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [0], "uses": { "per": "campfire", "n": 1 },
+      "sustained": null, "requires": ["stitched-genre"], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "rule", "id": "burn-essence" }], "crit": [], "upcast": false, "words": "Burn an essence",
+      "text": "No action, once a Campfire: spend a carried essence for one pact charge.", "stub": false, "from": null
+    },
+    {
+      "id": "borrow-a-rule", "name": "Borrow a rule", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": "mind",
+      "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [2],
+      "uses": { "per": "breather", "n": { "byLevel": { "2": 1, "7": 2 } } }, "sustained": null, "requires": ["stitched-genre"], "reaction": null,
+      "passive": null,
+      "choices": {
+        "neon": {
+          "words": "Borrow Neon: a decoy",
+          "target": { "who": "tile", "range": 6, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "summon", "template": "decoy" }]
+        },
+        "nocturne": {
+          "words": "Borrow Nocturne: beguile",
+          "target": { "who": "foe", "range": 6, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "condition", "id": "beguiled", "n": 2, "min": "hit" }]
+        },
+        "gothic": {
+          "words": "Borrow Gothic: step between shadows",
+          "target": { "who": "tile", "range": 6, "sight": true, "area": null, "hits": "foes", "count": 1, "need": ["dim-or-dark"] },
+          "effects": [{ "do": "move", "who": "self", "how": "teleport", "tiles": 6, "into": "dim" }]
+        },
+        "iron": {
+          "words": "Borrow Iron: go Brisk",
+          "target": { "who": "ally-or-self", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "condition", "id": "brisk" }]
+        },
+        "void": {
+          "words": "Borrow Void: swap two",
+          "target": { "who": "unit", "range": 6, "sight": true, "area": null, "hits": "all", "count": 2, "need": [] },
+          "effects": [{ "do": "move", "who": "target", "how": "swap", "tiles": 6 }]
+        },
+        "noir": {
+          "words": "Borrow Noir: reveal",
+          "target": { "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 6, "at": "self" }, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "reveal", "what": "unseen", "radius": 6 }]
+        },
+        "frontier": {
+          "words": "Borrow Frontier: first in every tick",
+          "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "rule", "id": "first-in-tick" }]
+        },
+        "kaiju": {
+          "words": "Borrow Titan: a stomp",
+          "target": { "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 2, "at": "self" }, "hits": "foes", "count": 1, "need": [] },
+          "effects": [{ "do": "condition", "id": "tumbled", "min": "hit" }],
+          "meets": "body"
+        }
+      },
+      "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Borrow a rule",
+      "text": "Two actions, once a Breather (twice from level 7): for a round, the rule of a genre you’ve stitched.", "stub": false, "from": null
+    },
+    {
+      "id": "hearth-path", "name": "Hearth", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["hearth-path"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Hearth",
+      "text": "Allies in Milo’s light resist all damage by 2 (3 from level 5, 4 from 10), and his Salve never lands below a Hit.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "wick-path", "name": "Wick", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["wick-path"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Wick", "text": "Mote deals 2 more.", "stub": false, "from": null
+    },
+    {
+      "id": "wayward-path", "name": "Wayward", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["wayward-path"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Wayward", "text": "Milo has +1 Speed.", "stub": false, "from": null
+    },
+    {
+      "id": "wayward-step", "name": "Wayward step", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "tile", "range": 8, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "move", "who": "self", "how": "teleport", "tiles": 8 }], "crit": [], "upcast": false, "words": "Wayward step to",
+      "text": "One action, once a Breather: a mote of light to a tile within 8 in sight, and Milo steps into it.", "stub": false, "from": null
+    },
+    {
+      "id": "three-pens", "name": "Three Pens", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "round", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally-or-self", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 3, "need": [] },
+      "effects": [{ "do": "patch", "line": "one", "frac": [1, 3] }], "crit": [], "upcast": false, "words": "Three Pens for",
+      "text": "One action, once a round: up to three allies within 6 are each patched for a third of the 1-action line.", "stub": false, "from": null
+    },
+    {
+      "id": "three-pens-second-draft", "name": "Three Pens: second draft", "kind": "passive", "circle": 0, "attack": false, "big": false,
+      "consumes": null, "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null,
+      "sustained": null, "requires": [], "reaction": null,
+      "passive": { "mods": [{ "stat": "edge-first-each-turn", "by": 1, "until": "fight" }], "aura": null, "rules": [], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Second draft",
+      "text": "The Scribe’s first action each turn takes +1 edge.", "stub": false, "from": null
+    },
+    {
+      "id": "three-pens-fair-copy", "name": "Three Pens: fair copy", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": {
+        "mods": [], "aura": { "radius": 2, "who": "allies", "mods": [{ "stat": "edge-first-each-turn", "by": 1, "until": "fight" }] }, "rules": [],
+        "summons": []
+      },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Fair copy",
+      "text": "Allies within 2 of the Scribe take +1 edge on their first action each turn.", "stub": false, "from": null
+    },
+    {
+      "id": "footnote", "name": "Footnote", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": "mind",
+      "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "round", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 8, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "reveal", "what": "stats" }, { "do": "condition", "id": "exposed", "n": 1, "min": "hit" }], "crit": [], "upcast": false,
+      "words": "Footnote on",
+      "text": "One action, once a round: a foe within 8 is read like an Examine, and on a Hit or better against mind Resolve it’s Exposed 1.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "footnote-small-print", "name": "Footnote: small print", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": {
+        "mods": [], "aura": { "radius": 2, "who": "foes", "mods": [{ "stat": "resolve-mind", "by": -1, "until": "fight" }] }, "rules": [],
+        "summons": []
+      },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Small print",
+      "text": "Foes within 2 of the Scribe have 1 less mind Resolve, never below 0.", "stub": false, "from": null
+    },
+    {
+      "id": "footnote-appendix", "name": "Footnote: appendix", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": "mind", "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [2], "uses": { "per": "campfire", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 6, "at": "self" }, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "reveal", "what": "stats", "radius": 6 }, { "do": "condition", "id": "exposed", "n": 1, "min": "hit" }], "crit": [],
+      "upcast": false, "words": "Appendix",
+      "text": "Two actions, once a Campfire: every foe within 6 is read, and each is Exposed 1 on a Hit or better against mind Resolve.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "bench", "name": "Bench", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": false,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [], "reaction": null,
+      "passive": { "mods": [], "aura": null, "rules": [], "summons": [{ "template": "patch-kit", "at": "fight-start" }] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Bench",
+      "text": "Every fight starts with a patch kit set down beside the Artificer.", "stub": false, "from": null
+    },
+    {
+      "id": "bench-tool-belt", "name": "Bench: tool belt", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "round", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "tile", "range": 4, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "summon", "template": "snare" }], "crit": [], "upcast": false, "words": "Set a snare at",
+      "text": "One action, once a round: a snare on a tile within 4.", "stub": false, "from": null
+    },
+    {
+      "id": "bench-workshop", "name": "Bench: workshop", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": { "mods": [], "aura": null, "rules": [], "summons": [{ "template": "turret", "at": "fight-start" }] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Workshop",
+      "text": "Every fight starts with a turret standing ready beside the Artificer.", "stub": false, "from": null
+    },
+    {
+      "id": "slate", "name": "Slate", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": true,
+      "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "round", "n": 1 }, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally-or-self", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "patch", "line": "one", "frac": [1, 2] }, { "do": "end-condition", "class": "lingering", "count": 1 }], "crit": [],
+      "upcast": false, "words": "Tidy up",
+      "text": "One action, once a round: an ally within 6 is patched for half the 1-action line and shakes off lingering damage.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "slate-clean-build", "name": "Slate: clean build", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": {
+        "mods": [], "aura": { "radius": 1, "who": "allies", "mods": [{ "stat": "resist-all", "by": 2, "until": "fight" }] }, "rules": [],
+        "summons": []
+      },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Clean build",
+      "text": "Allies beside the Artificer resist all damage by 2.", "stub": false, "from": null
+    },
+    {
+      "id": "slate-clean-slate", "name": "Slate: a clean slate", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": true, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [2], "uses": { "per": "campfire", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": {
+        "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 6, "at": "self" }, "hits": "allies-and-self", "count": 1,
+        "need": []
+      },
+      "effects": [{ "do": "patch", "line": "two" }, { "do": "end-condition", "class": "bane", "count": 1 }], "crit": [], "upcast": false,
+      "words": "A clean slate",
+      "text": "Two actions, once a Campfire: everyone within 6 is patched for the 2-action line and has one condition ended.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "gavel", "name": "Gavel", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null, "helpful": false,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [], "reaction": null,
+      "passive": { "mods": [{ "stat": "edge-first-each-turn", "by": 1, "until": "fight" }], "aura": null, "rules": [], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Gavel",
+      "text": "Jev’s first action each turn takes +1 edge.", "stub": false, "from": null
+    },
+    {
+      "id": "gavel-ruling", "name": "Gavel: ruling", "kind": "art", "circle": 0, "attack": true, "big": false, "consumes": null, "meets": "guard",
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "round", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 1, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "act", "action": "strike" }, { "do": "condition", "id": "dazed", "n": 1, "min": "crit" }], "crit": [], "upcast": false,
+      "words": "Rule on", "text": "One action, once a round: a Strike, and on a Critical the foe is Dazed 1.", "stub": false, "from": null
+    },
+    {
+      "id": "gavel-last-word", "name": "Gavel: last word", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": "mind", "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "fight", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 6, "sight": true, "area": null, "hits": "foes", "count": 1, "need": ["not-lead"] },
+      "effects": [{ "do": "condition", "id": "dazed", "n": 2, "min": "hit" }], "crit": [], "upcast": false, "words": "Last word on",
+      "text": "One action, once a fight: a foe within 6 that isn’t a Tale-lead is Dazed 2 on a Hit or better against mind Resolve.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "courier", "name": "Courier", "kind": "item", "circle": 0, "attack": false, "big": false, "consumes": "cordial", "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally-or-self", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "patch", "ofMax": 0.25 }], "crit": [], "upcast": false, "words": "Fly a cordial to",
+      "text": "One action: Jev flies one of the party’s cordials to an ally within 6.", "stub": false, "from": null
+    },
+    {
+      "id": "courier-express", "name": "Courier: express", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": {
+        "mods": [{ "stat": "speed", "by": 1, "until": "fight" }, { "stat": "initiative", "by": 2, "until": "fight" }], "aura": null, "rules": [],
+        "summons": []
+      },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Express",
+      "text": "Jev has +1 Speed and +2 initiative.", "stub": false, "from": null
+    },
+    {
+      "id": "courier-return-post", "name": "Courier: return post", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "round", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally-or-self", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 2, "need": [] },
+      "effects": [{ "do": "move", "who": "target", "how": "swap", "tiles": 6 }], "crit": [], "upcast": false, "words": "Swap",
+      "text": "One action, once a round: two allies within 6 swap places.", "stub": false, "from": null
+    },
+    {
+      "id": "bridge", "name": "Bridge", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null,
+      "passive": { "mods": [], "aura": { "radius": 1, "who": "allies", "mods": [{ "stat": "guard", "by": 1, "until": "fight" }] }, "rules": [], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Bridge",
+      "text": "Allies beside the Tollkeeper have +1 Guard, never above 2.", "stub": false, "from": null
+    },
+    {
+      "id": "bridge-hold-fast", "name": "Bridge: hold fast", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": {
+        "mods": [], "aura": { "radius": 1, "who": "allies", "mods": [{ "stat": "resolve-body", "by": 1, "until": "fight" }] }, "rules": [],
+        "summons": []
+      },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Hold fast",
+      "text": "Allies beside the Tollkeeper have +1 body Resolve.", "stub": true, "from": "Phase 5"
+    },
+    {
+      "id": "bridge-all-cross", "name": "Bridge: all cross", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "round", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "move", "who": "target", "how": "pull", "tiles": 3, "noSwipes": true }], "crit": [], "upcast": false, "words": "Wave across",
+      "text": "One action, once a round: an ally within 6 crosses 3 tiles toward him, drawing no Parting swipes.", "stub": true, "from": "Phase 5"
+    },
+    {
+      "id": "troll-kin", "name": "Troll-kin", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [{ "stat": "resist-all", "by": 2, "until": "fight" }], "aura": null, "rules": [], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Troll-kin",
+      "text": "The Tollkeeper resists all damage by 2.", "stub": false, "from": null
+    },
+    {
+      "id": "troll-kin-stone", "name": "Troll-kin: stone at dawn", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": null, "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null,
+      "requires": [], "reaction": null,
+      "passive": { "mods": [{ "stat": "guard", "by": 1, "until": "fight" }], "aura": null, "rules": [], "summons": [] }, "choices": null, "by": null,
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Stone at dawn", "text": "The Tollkeeper has +1 Guard, never above 2.",
+      "stub": true, "from": "Phase 5"
+    },
+    {
+      "id": "troll-kin-old-stories", "name": "Troll-kin: old stories", "kind": "feature", "circle": 0, "attack": false, "big": false, "consumes": null,
+      "meets": "mind", "helpful": false, "cannotMiss": false, "outcome": true, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 },
+      "sustained": null, "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "self", "range": 0, "sight": true, "area": { "shape": "burst", "size": 2, "at": "self" }, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "condition", "id": "spooked", "n": 1, "min": "hit" }], "crit": [], "upcast": false, "words": "Old stories",
+      "text": "One action, once a Breather: foes within 2 are Spooked 1 on a Hit or better against mind Resolve.", "stub": true, "from": "Phase 5"
+    },
+    {
+      "id": "tripping-cut", "name": "Tripping cut", "kind": "art", "circle": 0, "attack": true, "big": false, "consumes": null, "meets": "guard",
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 1, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "act", "action": "strike" }, { "do": "condition", "id": "tumbled", "min": "hit" }], "crit": [], "upcast": false,
+      "words": "Tripping cut on", "text": "Light weapons, once a Breather: a Strike that Tumbles the foe on a Hit or better.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "pommel-tap", "name": "Pommel tap", "kind": "art", "circle": 0, "attack": true, "big": false, "consumes": null, "meets": "guard",
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 1, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "act", "action": "strike" }, { "do": "condition", "id": "dazed", "n": 1, "min": "hit" }], "crit": [], "upcast": false,
+      "words": "Pommel tap on", "text": "Standard weapons, once a Breather: a Strike that Dazes the foe 1 on a Hit or better.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "cleave", "name": "Cleave", "kind": "art", "circle": 0, "attack": true, "big": false, "consumes": null, "meets": "guard", "helpful": false,
+      "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 }, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 1, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "act", "action": "strike" }, { "do": "rule", "id": "cleave" }], "crit": [], "upcast": false, "words": "Cleave",
+      "text": "Heavy weapons, once a Breather: a Strike, and a second foe beside the first takes half its damage.", "stub": false, "from": null
+    },
+    {
+      "id": "pinning-shot", "name": "Pinning shot", "kind": "art", "circle": 0, "attack": true, "big": false, "consumes": null, "meets": "guard",
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": { "per": "breather", "n": 1 }, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "foe", "range": 12, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "act", "action": "strike" }, { "do": "condition", "id": "tangled", "n": 1, "min": "hit" }], "crit": [], "upcast": false,
+      "words": "Pinning shot at", "text": "Ranged weapons, once a Breather: a Strike that leaves the foe Tangled 1 on a Hit or better.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "ability-up", "name": "Ability up", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": [], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Ability up", "text": "One ability rises by 1, never above 5.", "stub": false,
+      "from": null
+    },
+    {
+      "id": "early-riser", "name": "Early riser", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [{ "stat": "initiative", "by": 2, "until": "fight" }], "aura": null, "rules": [], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Early riser",
+      "text": "You take +2 initiative.", "stub": false, "from": null
+    },
+    {
+      "id": "good-boots", "name": "Good boots", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [{ "stat": "speed", "by": 1, "until": "fight" }], "aura": null, "rules": [], "summons": [] },
+      "choices": null, "by": null, "target": null, "effects": null, "crit": [], "upcast": false, "words": "Good boots", "text": "You have +1 Speed.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "steady-hands", "name": "Steady hands", "kind": "passive", "circle": 0, "attack": false, "big": false, "consumes": null, "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": { "mods": [], "aura": null, "rules": ["steady-hands"], "summons": [] }, "choices": null, "by": null, "target": null,
+      "effects": null, "crit": [], "upcast": false, "words": "Steady hands",
+      "text": "Tonics you use patch a third of the Integrity instead of a quarter.", "stub": false, "from": null
+    },
+    {
+      "id": "cordial", "name": "Hearthberry cordial", "kind": "item", "circle": 0, "attack": false, "big": false, "consumes": "cordial", "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1, 2], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null,
+      "by": {
+        "1": {
+          "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "patch", "ofMax": 0.25 }]
+        },
+        "2": {
+          "target": { "who": "ally", "range": 1, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "patch", "ofMax": 0.25 }]
+        }
+      },
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Hearthberry cordial",
+      "text": "Drink it (1 action) or give it to an ally beside you (2): a quarter of their max Integrity back.", "stub": false, "from": null
+    },
+    {
+      "id": "brew-of-clear-morning", "name": "Brew of clear morning", "kind": "item", "circle": 0, "attack": false, "big": false, "consumes": "brew",
+      "meets": null, "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1, 2], "uses": null, "sustained": null,
+      "requires": [], "reaction": null, "passive": null, "choices": null,
+      "by": {
+        "1": {
+          "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "end-condition", "class": "bane", "count": 1 }]
+        },
+        "2": {
+          "target": { "who": "ally", "range": 1, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+          "effects": [{ "do": "end-condition", "class": "bane", "count": 1 }]
+        }
+      },
+      "target": null, "effects": null, "crit": [], "upcast": false, "words": "Brew of clear morning",
+      "text": "Drink it (1 action) or give it to an ally beside you (2): one condition ends.", "stub": false, "from": null
+    },
+    {
+      "id": "margin-note", "name": "Margin Note", "kind": "item", "circle": 0, "attack": false, "big": false, "consumes": "margin", "meets": null,
+      "helpful": true, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "ally-or-self", "range": 6, "sight": true, "area": null, "hits": "allies-and-self", "count": 1, "need": [] },
+      "effects": [{ "do": "end-condition", "class": "bane", "count": 1 }, { "do": "patch", "line": "one" }], "crit": [], "upcast": false,
+      "words": "Margin Note for", "text": "One action, one use: an ally within 6 has one condition ended and is patched for the 1-action line.",
+      "stub": false, "from": null
+    },
+    {
+      "id": "spare-part", "name": "Spare Part", "kind": "item", "circle": 0, "attack": false, "big": false, "consumes": "spare", "meets": null,
+      "helpful": false, "cannotMiss": false, "outcome": false, "spoken": false, "costs": [1], "uses": null, "sustained": null, "requires": [],
+      "reaction": null, "passive": null, "choices": null, "by": null,
+      "target": { "who": "tile", "range": 3, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
+      "effects": [{ "do": "summon", "template": "turret", "rounds": 3 }], "crit": [], "upcast": false, "words": "Spare Part at",
+      "text": "One action, one use: a turret on a tile within 3 that lasts 3 rounds.", "stub": false, "from": null
+    }
+  ],
+  "weaponArts": { "light": "tripping-cut", "standard": "pommel-tap", "heavy": "cleave", "ranged": "pinning-shot" },
+  "boons": ["ability-up", "early-riser", "good-boots", "steady-hands"], "items": ["cordial", "brew-of-clear-morning"],
+  "gifts": { "margin": "margin-note", "spare": "spare-part" }
+}

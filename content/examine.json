@@ -1,0 +1,603 @@
+{
+  "version": 1,
+  "about": "Lines for everything Phase 4 lets you examine (the Phase 4 contract, §9.12), on top of the wilds’ own in wilds.json. Groups: vale and camp for Hearthvale’s places (camp holds the camp’s own things, vale everything else), company for the Company by member id, creatures for strays by archetype, foes for Tale-leads, canon foes and cave creatures by their ids in the combat foes file, elsewhere for what stands inside an Elsewhere or a cave, wilds for lanterns and what grows or sits out there, sky for looking up from empty ground, by the weather, and things for the rest. An entry is a list of lines, or lines by variant; when no variant applies, the first one listed is used. The shell picks a line by hashing the thing’s id, so the same thing always says the same.",
+  "groups": {
+    "vale": {
+      "watchtower": [
+        "Hob the Elder built it to see who was coming home. Milo still climbs it for the same reason.",
+        "The Watchtower. From the top you can see every crew fire burning, and whether anyone needs you.",
+        "Tall, a little crooked and proud of both. The ladder has one rung that squeaks on purpose."
+      ],
+      "plot": [
+        "Ground that’s waiting. Pegged string marks the corners, and the grass is being patient.",
+        "An empty plot. Milo has walked its edges twice, imagining things.",
+        "Room for something you haven’t thought of yet. The soil doesn’t mind waiting."
+      ],
+      "building": [
+        "Built from your plans, beam by beam. It already looks as if it’s always been here.",
+        "Your idea, stood up in timber and stone. The door sticks a little, which means it’s home.",
+        "A finished building. Hob would run his thumb along the joins and say nothing, which is praise."
+      ],
+      "gate": [
+        "A gap in the tree line, worn smooth by feet. The road outside goes further every week.",
+        "The gate stands open. The lantern’s ring holds just beyond it, and it always will.",
+        "One way out and the same way home. Milo touches the post as he passes, for luck."
+      ],
+      "war-table": [
+        "Every open rift on one map, weighted down with pebbles. The corners curl anyway.",
+        "The War Table. Little flags for trouble, and a clear space in the middle for the teapot.",
+        "Carved from one slab of ash. The rifts on it drift about when nobody’s looking."
+      ],
+      "bell": [
+        "The Gate Bell. When a rift reaches the walls it rings once, softly, then minds its own business.",
+        "A bronze bell on a good post. It would rather tell you early than ring loudly late.",
+        "Its note carries all the way to the pond, where the newts pretend not to hear it."
+      ],
+      "fog": [
+        "Fog sits here like a cat on a warm chair. It’ll move when the right thing in your day is connected.",
+        "Crates, a boat and a sign you can’t quite read yet. The fog is waiting for your schedule.",
+        "Somewhere in the fog a bell rings the hour, very quietly, to itself."
+      ],
+      "pond": [
+        "Deep enough for trout. Shallow enough for newts to have opinions.",
+        "Stillwater Pond. Sir Mossback walks round it once a week, and it takes him the week.",
+        "The same frog has sat on that lily pad for three hundred years, or it has a very loyal grandson."
+      ],
+      "well": [
+        "The Well of Small Wishes. A wish dropped in comes back a little smaller, and a little kinder.",
+        "Someone down there says “Noted.” Nobody has ever seen who.",
+        "Moss on the stones and a bucket that’s always half full, whichever way you look at it."
+      ],
+      "statue": [
+        "Tamsin Wick, waving. The left hand was never carved. She insisted.",
+        "The Unfinished Statue. Somebody leaves a flower in the crook of her arm every spring.",
+        "Her scarf is carved far too long, right down to the plinth. Milo says that part’s accurate."
+      ]
+    },
+    "camp": {
+      "camp": [
+        "Milo’s camp: a cabin, a tent, a fire and a hook. Everything a small company needs, and room to grow.",
+        "The camp Tamsin left. However tall the walls get, the tent, the cabin and the stumps stay put.",
+        "It smells of woodsmoke and old maps. Somebody always has the kettle on."
+      ],
+      "campfire": [
+        "Three stumps, one bench, and room for whoever turns up.",
+        "The fire’s banked low and glowing. The Company gathers here before they set out.",
+        "Sparks go up and don’t come down. Milo counts them sometimes, when it’s quiet."
+      ],
+      "hook": [
+        "Worn smooth on one side, where something swung for a very long time.",
+        "The Lantern Hook. The big lantern never leaves it, so the Hearthward holds while you’re away.",
+        "Cold iron, except where the lantern hangs. Tamsin hung Milo here and asked him to wait."
+      ],
+      "tent": [
+        "Smells of rain and old maps.",
+        "Canvas patched in three places, in three colours. The Company never did agree on one.",
+        "A good tent. The guy-ropes are tied with knots nobody remembers how to undo."
+      ],
+      "cabin": [
+        "The latch sticks unless you ask it nicely. Milo always asks nicely.",
+        "A log cabin with one window facing the fire, so nobody inside feels left out.",
+        "Inside: a table, two chairs and a shelf of things Milo is definitely going to sort."
+      ],
+      "bench": [
+        "A split log on two stones. It seats three, or four if one of them is Jev.",
+        "The good seat by the fire, worn smooth and warm long after dark.",
+        "Someone carved a small lantern into the end of it. The Scribe traced it once and smiled."
+      ],
+      "stump": [
+        "Somebody’s favourite seat. You can tell.",
+        "The good stump. Whoever gets there first keeps it until the tea’s gone.",
+        "An old stump by the fire, polished by a great many long sits."
+      ],
+      "workbench": [
+        "The crew’s workbench. Tools in rows, shavings on the floor, and one pen that isn’t anyone’s.",
+        "Scored, inked and scorched in places. A lot of good work has leaned on this bench.",
+        "When the crew are busy, they stand here. When they’re done, they drift to the fire."
+      ],
+      "woodpile": [
+        "Split logs stacked to the eaves. Every one was a tree that grew back the next day.",
+        "A woodpile with a very neat front and a much less neat back.",
+        "Enough wood for a week of fires, or one very long evening of stories."
+      ],
+      "bedroll": [
+        "A bedroll by the fire, rolled tight and tied with a spare bootlace.",
+        "Somebody’s bed for the night. The good side faces the fire.",
+        "Wool, canvas and a pillow stuffed with pine needles. It smells like a long walk."
+      ],
+      "handcart": [
+        "Toby Fennick’s handcart. It has carried letters, parcels and, once, a whole sleepy company home.",
+        "Two wheels, one squeak and a blanket folded in the bottom, just in case.",
+        "Toby parks it here between runs. The handles are worn to the shape of small hands."
+      ],
+      "tea": [
+        "A kettle, four cups and a tin of something Nan swears is mint.",
+        "Milo pours for everyone before they’ve asked. Three seconds of sitting helps more than you’d think.",
+        "Tea for a Breather: strong, sweet and exactly warm."
+      ],
+      "paper-lantern": [
+        "A paper lantern on a string, for nights when the camp wants a softer light.",
+        "Folded from an old map. When it’s lit you can still read half a road on it.",
+        "It sways when anyone laughs nearby, which is most evenings."
+      ]
+    },
+    "company": {
+      "milo": [
+        "Milo, the Lanternkeeper. Round head, honey-yellow raincoat and a scarf that’s still too long.",
+        "He’s humming something. It might be the Lanternkeeper’s Rhyme, or it might be a list.",
+        "Milo looks back at you, delighted to be looked at. He straightens his scarf."
+      ],
+      "claude": [
+        "The Scribe, hooded in clay-red, with three pens: one for drafts, one for letters, one for being sure.",
+        "She writes three pages where one would do, and all three are true.",
+        "Loose pages in her satchel and ink on one knuckle. She’s read it twice already."
+      ],
+      "codex": [
+        "The Artificer: slate-blue hood, soot on the knuckles and a belt of tiny tools that click.",
+        "Never quite sits still at the fire. There’s always something on the bench to get back to.",
+        "Quick, practical and a little terse. Hand them a problem and watch them brighten."
+      ],
+      "ollama": [
+        "Ollama, a hearth-sprite. It took the shape of a small woolly llama, and the shape suits it.",
+        "It lives in the hearthstones here. Whatever it works on stays by this fire and never leaves your land.",
+        "It chews slowly while it thinks. There’s no hurry at this fire, and it seems to know that."
+      ],
+      "jev": [
+        "Jev, a plump courier finch from the Isles of Sure Verdicts. It tilts its head and decides.",
+        "Jev looks at you, then at a pile only it can see, and hops to one side of it.",
+        "It never says a word, and it doesn’t need to. The verdict is in the tilt of its head."
+      ],
+      "whisper": [
+        "Whisper, the Listening Owl. It hears everything and writes it down in tiny letters on leaves.",
+        "A soft grey owl of the Whisperwood, here to listen. What’s heard in the Hushlands stays in the Hushlands.",
+        "Whisper blinks slowly, which is owl for “I heard that.”"
+      ],
+      "tollkeeper": [
+        "A very polite troll who wandered in from a fairy-tale book centuries ago, and stayed for the riddles.",
+        "The Tollkeeper. He keeps Tamsin’s Riddle Notes in a tin box and knows every one by heart.",
+        "He bows when you look at him. Bridges have taught him patience, and good manners too."
+      ],
+      "regular": [
+        "A regular from another story, who asked to sit by the fire a while and stayed.",
+        "They’ve made themselves at home. Their book is somewhere else, and they don’t seem to mind.",
+        "One of the camp’s regulars. They’ve picked a favourite stump and defend it politely."
+      ]
+    },
+    "creatures": {
+      "walker": {
+        "day": [
+          "A stray on two legs, looking about as if it’s lost its page.",
+          "It walks like someone late for a scene. It isn’t sure which scene.",
+          "Two feet, a lot of opinions and a story it didn’t mean to leave."
+        ],
+        "sleeping": [
+          "Asleep on its feet, swaying gently. Probably dreaming of its own chapter.",
+          "It’s nodded off standing up. Best not to wake it without a plan.",
+          "Snoring very quietly, in time with another book’s rain."
+        ]
+      },
+      "crawler": {
+        "day": [
+          "A low, scuttling stray with too many legs and a very determined look.",
+          "It skitters sideways when watched, then sideways again when it isn’t.",
+          "Close to the ground and quick about it. It has somewhere to be, possibly under something."
+        ],
+        "sleeping": [
+          "Curled up tight with its legs tucked in, like a pebble that breathes.",
+          "Asleep in a heap. One leg twitches now and then, chasing something.",
+          "It’s napping in the warmest spot. Crawlers always know where that is."
+        ]
+      },
+      "floater": {
+        "day": [
+          "It drifts at head height, bobbing slightly, as if the air here is a bit thick.",
+          "A floating stray that turns slowly to keep you in view.",
+          "It hangs in the air like a thought nobody finished."
+        ],
+        "sleeping": [
+          "Drifting in a slow circle, fast asleep. It’ll bump into something eventually.",
+          "Asleep and sinking, about a hand’s width an hour.",
+          "It hovers with its eyes shut, humming at the edge of hearing."
+        ]
+      },
+      "flier": {
+        "day": [
+          "Wings, and a habit of landing on the highest thing nearby.",
+          "It circles once, twice, then settles to watch you from above.",
+          "A flier from another story. The air here seems to suit it."
+        ],
+        "sleeping": [
+          "Head under one wing, perched very still. Even its feathers are quiet.",
+          "Asleep on a high perch, with one eye not quite shut.",
+          "It’s dozing, wings folded like a letter nobody’s opened."
+        ]
+      },
+      "ghost": {
+        "day": [
+          "A pale shape you can see the wall through. It seems embarrassed about that.",
+          "It flickers at the edges like a candle in a draught.",
+          "A ghost from another book. The Hooklight makes it look much less sure of itself."
+        ],
+        "sleeping": [
+          "Faded almost to nothing, the way ghosts do when they rest.",
+          "It’s drifted into a corner and dimmed, like a lamp turned down.",
+          "Asleep, if ghosts sleep. It sighs every so often."
+        ]
+      },
+      "construct": {
+        "day": [
+          "Rivets, gears and a stubborn sense of purpose. It ticks when it thinks.",
+          "A made thing from another story, still following orders nobody remembers giving.",
+          "It moves in straight lines and turns in right angles, very neatly."
+        ],
+        "sleeping": [
+          "Powered down, with one small light blinking to say it’s only resting.",
+          "Still as furniture. Something inside it ticks, slow as a clock.",
+          "Its gears have stopped mid-turn. It’ll pick up exactly where it left off."
+        ]
+      }
+    },
+    "foes": {
+      "tale-lead": [
+        "The Tale-lead of this story, larger than life and very aware of it.",
+        "Every book has one character who thinks it’s all about them. Here they are.",
+        "It carries its own chapter with it. You can almost hear a page turn when it moves."
+      ],
+      "hollow-sentries": [
+        "Empty armour that forgot what it was guarding. Remind it, and it may lay down arms.",
+        "One of the Hollow Sentries, standing its post in a cave nobody’s visited in centuries.",
+        "Nothing inside the helmet but a draught and a very old sense of duty."
+      ],
+      "unwritten": [
+        "A figure of blank paper, hungry for a story. Read to it and it settles to listen.",
+        "One of the Unwritten. It rustles when it moves, like a page turning itself.",
+        "Its face is an empty page. It eyes the Scribe’s satchel with enormous interest."
+      ],
+      "tollmen": [
+        "Bridge-folk who ask for riddles, not coin. Answer one and they stand aside.",
+        "One of the Tollmen, leaning on a staff and waiting for the right answer.",
+        "It clears its throat, which is how the Tollmen begin every riddle."
+      ],
+      "cinder-golems": [
+        "A forge-guardian made of slag and good intentions. Stoke its forge and it sits down, warm.",
+        "A cinder golem, glowing faintly at the joints. It smells of hot stone.",
+        "It’s gone cold at the edges. A lit forge would cheer it up no end."
+      ],
+      "hush-hounds": [
+        "A grey dog made of fog. It only wants to be walked.",
+        "One of the Hush hounds, nose down and tail going slowly. Walk beside it a while.",
+        "It leans on your leg the way a cloud would, if a cloud could lean."
+      ],
+      "drowned-bell-ringers": [
+        "A sailor still waiting, politely, for the end of a meeting.",
+        "Seaweed on its cuffs. It keeps glancing at a clock that isn’t there.",
+        "Adjourn the meeting, or ring the bell, and it will go home."
+      ],
+      "cinder-beetles": [
+        "A beetle with an ember for a back. Warm to stand near, unwise to pick up.",
+        "Cinder beetles keep the cave floor toasty and click at anyone who stands on their patch.",
+        "It scuttles off trailing sparks, then comes back to see if you followed."
+      ],
+      "glass-eels": [
+        "A glass eel, so clear you can see the pool through it. It floats more than it swims.",
+        "It coils in the air like a ribbon of cold water.",
+        "Glass eels show you your own reflection, a moment late."
+      ],
+      "fen-herons": [
+        "A fen heron, standing on one leg and pretending you haven’t arrived.",
+        "Long neck, longer patience. It jabs at whatever moves, then looks innocent.",
+        "It takes off with a great clatter and lands two feet away, with dignity."
+      ],
+      "inkwyrms": [
+        "A small wyrm made of spilled ink. It leaves blots wherever it’s been.",
+        "An inkwyrm, coiled on a stone and smelling faintly of old libraries.",
+        "It writes a very small word on the floor as it goes. Nobody can read it."
+      ],
+      "kite-crabs": [
+        "A kite-crab, sideways and sure of itself, with claws like folded sails.",
+        "It raises both claws at you. It’s either a threat or a wave.",
+        "Kite-crabs catch the wind off the harbour and glide sideways into trouble."
+      ],
+      "fog-seals": [
+        "A fog seal, soft and grey, flumped on a rock like a dropped coat.",
+        "It barks once, politely, then goes back to looking at the water.",
+        "Fog seals are heavier than they look and gentler than they sound."
+      ],
+      "murmurs": [
+        "A Murmur, a tiny noise-sprite. It repeats the last word you said.",
+        "A little swarm of Murmurs, passing your last word between them like a secret.",
+        "They hum just under hearing. Say something kind, and they’ll say it back for an hour."
+      ],
+      "fetchfoxes": [
+        "A fetchfox with something in its mouth that definitely isn’t yours.",
+        "It brings you things you didn’t lose. It has also, once or twice, borrowed a tonic.",
+        "Bright eyes, big ears and very quick paws. Keep a hand on the satchel."
+      ],
+      "dicing-frogs": [
+        "A dicing frog with pips on its back. It shows a different number every time it hops.",
+        "It croaks in threes. Bram says that’s lucky, but Bram says that about everything.",
+        "Squat, speckled and sitting on a six. It won’t be moved off it."
+      ],
+      "sky-rays": [
+        "A sky-ray, gliding on the wind as if the air were water.",
+        "It rises on one slow flap and hangs there, rippling at the edges.",
+        "Sky-rays drift over the Isles in shoals. This one wandered."
+      ],
+      "mimic": [
+        "A chest that’s breathing. Very slowly, and trying hard not to.",
+        "Never trust a chest that smiles. This one is smiling.",
+        "A Mimic. Its bite tickles, and it settles the moment someone opens it properly."
+      ]
+    },
+    "elsewhere": {
+      "rift": [
+        "A tear in the page. Light from another story leaks through it.",
+        "The air here folds like paper. Something on the other side is pressing to get in.",
+        "A rift. Stitch it, ward it or let it go. All three are fine."
+      ],
+      "echo": [
+        "An echo of a rift somewhere else, a flicker on the page.",
+        "It isn’t really here. It’s a reflection of trouble further off.",
+        "An echo. Follow it, and it leads to the real thing."
+      ],
+      "stitch": [
+        "The seam, where the two stories meet. A thread through here would close it.",
+        "The edges of the tear, waiting for a needle.",
+        "This is where it all comes apart, and where it all goes back together."
+      ],
+      "exit": [
+        "The way out, back to the Hushlands. It smells of your own weather.",
+        "A door of ordinary light. Home is on the other side of it.",
+        "The way you came in. It stays open for as long as you need it."
+      ],
+      "chest": {
+        "sleeping": [
+          "A chest from another story, locked with somebody else’s idea of a lock.",
+          "It sits in the corner as if it’s been waiting for this chapter.",
+          "Heavy, carved and mostly honest. Probably."
+        ],
+        "opened": [
+          "Open, and empty but for a smell of another story’s weather.",
+          "Already opened. Its lid rests against the wall, satisfied.",
+          "Nothing left but a few loose threads from the page it came from."
+        ]
+      },
+      "curio": [
+        "A curio from the story next door. It hums when you hold it near the light.",
+        "Something odd and small, left here on purpose or by a very tidy accident.",
+        "A curio. Oriel would want to catalogue it. Brannoch would want to know what it’s for."
+      ],
+      "nook": [
+        "A hearth-nook: a warm hollow in the wall, with a small fire that belongs to nobody’s story.",
+        "Somebody left a kettle here, and it’s already warm. Rest a while, once.",
+        "A quiet corner the rift forgot to fill. The whole Company can sit here and catch their breath."
+      ]
+    },
+    "wilds": {
+      "lantern": {
+        "sleeping": [
+          "A sleeping lantern. Light it, and every lantern you’ve lit will know.",
+          "Soot on the glass and a wick that’s waited three hundred years. It won’t mind another minute.",
+          "Cold for now. Once it’s lit, the Company can sit beside it and catch their breath."
+        ],
+        "lit": [
+          "Lit and steady. If everyone ever goes offline, they’ll wake at the last lantern they rested at.",
+          "A lit lantern on the old road. Sit here a while and the whole Company rests.",
+          "Its light reaches just far enough to feel like somewhere."
+        ]
+      },
+      "tree": {
+        "spring": [
+          "New leaves, still crumpled from the bud. The tree looks pleased with itself.",
+          "Blossom on the lower branches, and a blackbird working out a tune.",
+          "Sap rising. You can almost hear it, if you lean close."
+        ],
+        "summer": [
+          "Full leaf and deep shade underneath. A good tree to sit against.",
+          "Bees in the canopy and a cool patch at the roots.",
+          "The leaves rustle like a crowd settling in before a story."
+        ],
+        "autumn": [
+          "Leaves the colour of Tamsin’s scarf, letting go one at a time.",
+          "Half bare, half gold, and taking its time about the rest.",
+          "A crunch underfoot and a smell of woodsmoke from somewhere."
+        ],
+        "winter": [
+          "Bare branches, and a hat of snow on the highest fork.",
+          "Asleep for the winter. It’ll wake when it’s ready.",
+          "Frost on every twig, as if it’s been sketched in silver."
+        ]
+      },
+      "pine": [
+        "A tall pine, dropping needles on everything with great patience.",
+        "It smells sharp and green. The owls like the straight ones best.",
+        "Resin on the bark, sticky and bright. The whole wood smells of it."
+      ],
+      "birch": [
+        "Pale bark, good kindling, terrible hiding spot.",
+        "A birch, its bark peeling in thin curls you could almost write on.",
+        "Slim and white. It catches the light before anything else does."
+      ],
+      "rock": [
+        "A good sitting rock, warm on the sunny side.",
+        "A rock. It was here first, and it knows it.",
+        "Lichen in three colours, slowly arguing over the top."
+      ],
+      "bush": [
+        "Sweet in autumn, sour in spring, nosy all year.",
+        "Leaves, twigs and a small rustle that stops when you stop.",
+        "A low bush. Something has made a very comfortable den underneath."
+      ]
+    },
+    "sky": {
+      "clear": {
+        "day": [
+          "A clear sky, the kind that makes the road look shorter.",
+          "Not a cloud. The wind has somewhere else to be today.",
+          "Blue from edge to edge. A good day for finishing something small."
+        ],
+        "night": [
+          "Stars from edge to edge. Milo names a few, mostly wrongly.",
+          "A clear night. Somewhere far to the west, the Great Lighthouse is turning.",
+          "The sky’s so clear you could count the stars. Oriel has, twice."
+        ],
+        "dawn": [
+          "Dawn, pale at the edges. The birds are arguing about who woke first.",
+          "The sky is going gold from the bottom up.",
+          "First light. The lanterns look almost shy of it."
+        ],
+        "dusk": [
+          "Dusk, and the sky goes the colour of hearthberries.",
+          "The light goes amber and long, and every shadow gets ideas.",
+          "Evening coming on. Time to think about the kettle."
+        ]
+      },
+      "rain": {
+        "day": [
+          "Rain, steady and soft. The kind that makes the tent smell wonderful.",
+          "Grey rain on everything. The birches look pleased to have a wash.",
+          "It’s raining, so the whole world is quieter. Milo turns his collar up."
+        ],
+        "night": [
+          "Rain in the dark, drumming on the canvas like a patient friend.",
+          "Night rain. The lanterns wear little haloes.",
+          "It’s raining softly. A good night to be near a fire."
+        ],
+        "dawn": [
+          "A wet dawn. The birds are singing anyway, only a little quieter.",
+          "Early rain on the tent roof, soft as someone tapping to see if you’re up.",
+          "The light comes up grey and gentle, and the puddles catch it first."
+        ],
+        "dusk": [
+          "Rain at dusk, and the lanterns come on one by one along the road.",
+          "The evening rain has settled in for the night. The kettle agrees with it.",
+          "Dusk and drizzle. The road shines like it’s been polished for someone."
+        ]
+      },
+      "snow": {
+        "day": [
+          "Snow, falling slowly enough to follow one flake all the way down.",
+          "Everything’s gone white and hushed. Your footprints are the only news.",
+          "Snow on the stumps, snow on the bench, snow on Milo’s hood."
+        ],
+        "night": [
+          "Snow at night, blue in the lantern-light.",
+          "The snow’s still falling. By morning the road will be new.",
+          "Quiet snow. Even the owls have stopped to watch it."
+        ],
+        "dawn": [
+          "Snow at dawn, pink at the edges where the sun is trying.",
+          "First light on new snow. Nobody has walked anywhere yet, so every path is yours.",
+          "The morning’s so still you can hear the snow settling."
+        ],
+        "dusk": [
+          "Snow in the dusk, going blue as the light goes.",
+          "Evening snow. The lanterns make little rooms of light in it.",
+          "The flakes come slower as the day ends, as if they’re tired too."
+        ]
+      },
+      "mist": {
+        "day": [
+          "Mist in the hollows, lifting like a curtain nobody’s in a hurry to raise.",
+          "The far trees have gone soft and grey. The near ones pretend not to notice.",
+          "A white day. Sounds carry strangely, and a crow laughs from nowhere."
+        ],
+        "night": [
+          "Night mist, and the lanterns glow in it like peaches.",
+          "Mist in the dark. Something in the pines hoots, then thinks better of it.",
+          "You can’t see far tonight. The camp feels closer for it."
+        ],
+        "dawn": [
+          "Dawn mist over everything. The sun is somewhere behind it, taking its time.",
+          "Mist beaded on every blade of grass. Walk through it and your boots come out shining.",
+          "The world’s still being drawn this morning. Only the near things are finished."
+        ],
+        "dusk": [
+          "Dusk mist rolling in from the low ground, taking the far trees first.",
+          "The evening’s gone soft and grey at the edges. The lanterns make it cosy.",
+          "Mist and dusk together. The fire sounds closer than it is."
+        ]
+      },
+      "wind": {
+        "day": [
+          "A good wind, tugging at scarves and hats. Milo holds on to his.",
+          "The grass runs ahead of the wind, the way it does.",
+          "Wind in the trees, all of them talking at once."
+        ],
+        "night": [
+          "Wind in the dark, rattling the tent pegs to see if they’re awake.",
+          "A blustery night. The fire leans one way, then thinks better of it.",
+          "The wind’s up. Every lantern on the road is flickering, and holding."
+        ],
+        "dawn": [
+          "A windy dawn. The clouds are in a hurry, and the sun keeps peeking between them.",
+          "Morning wind, cold and clean, blowing the night off the hills.",
+          "The wind got up before anyone else and has been busy with the washing."
+        ],
+        "dusk": [
+          "Wind at dusk, pushing the last of the light over the hills.",
+          "A gusty evening. The fire crackles as if it’s trying to keep up with the talk.",
+          "The wind’s turning cold with the evening. Scarves on."
+        ]
+      },
+      "leaves": {
+        "day": [
+          "Leaves on the wind, gold and red, going wherever it’s going.",
+          "A leaf lands on Milo’s hood. He leaves it there.",
+          "The ground is crunchy and bright. Autumn has arrived all at once."
+        ],
+        "night": [
+          "Leaves skittering along in the dark, on some errand of their own.",
+          "Autumn at night: the rustle of leaves you can hear but not see.",
+          "A leaf taps at the lantern glass, then blows on."
+        ],
+        "dawn": [
+          "Dawn, and the leaves that fell overnight are all over the path, gold and damp.",
+          "Morning light through thinning branches. More leaves down than yesterday.",
+          "Early leaves spinning in the first light, as if they’re not ready to land."
+        ],
+        "dusk": [
+          "Leaves spinning down in the last of the light.",
+          "The evening is full of falling leaves and woodsmoke.",
+          "A long gold dusk, and the trees letting go a little at a time."
+        ]
+      }
+    },
+    "things": {
+      "last-bridge": {
+        "sleeping": [
+          "The Last Bridge, Brannoch’s work. Its far end is still in the Hush, and it won’t take anyone across till the wood wakes.",
+          "Level as a table and humming a low note. The deck waits for the Whisperwood to wake before it takes anyone across.",
+          "A Cinderfolk bridge with its far side in the Hush. It’ll take you over when the wood wakes, and not a day before."
+        ],
+        "opened": [
+          "The Last Bridge, Brannoch’s work, over a stream that ran dry long ago. The road goes over it and on into the wood.",
+          "A Cinderfolk footbridge with no water under it. It hums a low note when Milo walks over it on the road north.",
+          "Its stream is long gone, but the bridge kept its post. The road runs across it, and the Whisperwood sleeps beyond."
+        ]
+      },
+      "hooklight": [
+        "Lit from the Hook. The big one stays home, so home stays safe."
+      ],
+      "riddle-note": [
+        "A folded note in Tamsin’s round hand, the ink gone brown. It starts with a riddle, naturally.",
+        "Birch-bark paper, folded small. Someone meant for this to be found, and puzzled over.",
+        "One of Tamsin’s Riddle Notes. The Tollkeeper keeps the rest, and he’s very particular about them."
+      ],
+      "ruin": {
+        "read": [
+          "The Scribe reads the glyphs aloud: a builder’s note, asking whoever comes next to finish the stair.",
+          "“It’s a list,” the Scribe says, tracing the carving. “Stones, lintels, and one line that just says ‘lunch’.”",
+          "The Scribe finds a Maker’s mark and a date. “Older than the road,” she says, “and still level.”"
+        ]
+      },
+      "statue": {
+        "read": [
+          "The Scribe reads the plinth: “Unfinished, as requested.” Someone has added, smaller, “She was right.”",
+          "The letters are worn nearly smooth. The Scribe makes out Tamsin’s name, and a line about a ribbon left untied.",
+          "“There’s more on the back,” the Scribe says. “It just says ‘Wait for the next one.’ In her hand, I think.”"
+        ]
+      }
+    }
+  }
+}

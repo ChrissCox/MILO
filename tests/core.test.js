@@ -1,8 +1,10 @@
 // Core tests: state model (step 2 plots, Phase 3 tally, Hearth, satchel, wilds, rifts and story), recap, greeting, live alerts, skills, built text.
+// Phase 4 (CONTRACT-PHASE4 §8) changes the state's pins on purpose and extends the capped-state measure.
 // Run: node --test tests/core.test.js
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
 
 import {
   createState, normalizeState, markSeen, dayKey, toTime, looksLikeSavedState, DEFAULT_SETTINGS,
@@ -11,6 +13,7 @@ import {
   dayNumber, dayStart, tallyFinished, cleanEveningBell, addMaterials, markFelled, lightLantern, markPoi, markExplored,
   STATE_LIMITS, WARD_POSTS,
 } from '../src/model.js';
+import { STATE4_LIMITS, SKILL_IDS, battleBytes } from '../src/state4.js';
 import { buildRecap, greeting, diffSnapshots, alertText, agentName, truncate, AWAY_THRESHOLD_MS, builtText, designerName } from '../src/recap.js';
 import { SKILLS, evaluateSkills, skillForPlace, hasLevelTree } from '../src/skills.js';
 
@@ -67,6 +70,20 @@ const EMPTY_PLOT = { status: 'empty', suggestions: [], asked: null, idea: null, 
 
 // Phase 3 adds these to every setting object (CONTRACT-PHASE3 §4.6).
 const PHASE3_SETTINGS = { eveningBell: '22:00', gateBell: true, wardPost: null };
+// Phase 4 changes these pins on purpose (CONTRACT-PHASE4 §8.2): the HUD's mode and the Kindle bell,
+// the tally's new counts, the satchel's Marks and tonics, and the story's trails and facts.
+const PHASE4_SETTINGS = { hud: 'adventure', kindleBell: true };
+const PHASE4_TALLY = {
+  byCrew: { claude: 0, codex: 0, jev: 0, whisper: 0 }, answered: 0, answeredFast: 0, waiting: {}, answeredWaits: {},
+  focusSessions: 0, restsHonoured: 0, chunksCharted: 0, features: {},
+};
+const PHASE4_SATCHEL = { marks: 0, tonics: { cordial: 0, brew: 0 } };
+const PHASE4_STORY = { trails: {}, facts: {} };
+const EMPTY_MEMBER = {
+  joinedAt: 0, warmth: 0, warmthWeek: { week: null, outing: 0 }, habitDay: null, path: null, boons: [], pending: [],
+  control: 'review', reactions: {}, prepared: [], gifts: { margin: 0, spare: 0, through: null },
+  notebook: { count: 0, fights: 0, rules: [], struck: [], accepts: '', previous: null },
+};
 
 test('createState has the contract shape and calm defaults', () => {
   const state = createState(NOW);
@@ -76,7 +93,7 @@ test('createState has the contract shape and calm defaults', () => {
     milo: { name: 'Milo', tile: null },
     lastSeenAt: null,
     lastGreetedDay: null,
-    settings: { motion: true, notifications: true, greeting: true, designer: 'auto', ...PHASE3_SETTINGS },
+    settings: { motion: true, notifications: true, greeting: true, designer: 'auto', ...PHASE3_SETTINGS, ...PHASE4_SETTINGS },
     skills: {},
     panel: null,
     plots: {
@@ -84,17 +101,35 @@ test('createState has the contract shape and calm defaults', () => {
     },
     // Phase 3: the Hearth and the Wilds.
     firstSeenAt: null,
-    tally: { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0 },
+    tally: { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0, ...PHASE4_TALLY },
     hearth: { tier: 1, raisedAt: {} },
-    satchel: { materials: { birch: 0, ash: 0, pine: 0 }, essences: {}, essenceGenres: {}, relics: [] },
+    satchel: { materials: { birch: 0, ash: 0, pine: 0 }, essences: {}, essenceGenres: {}, relics: [], ...PHASE4_SATCHEL },
     wilds: { seed: 'hushlands', at: null, wake: null, explored: [], lanterns: {}, opened: {}, notes: {}, glimmers: {}, felled: {} },
     rifts: {
       open: {}, warded: {}, letGo: {}, belled: {}, closedWild: {}, visited: {},
       stitched: { real: 0, wild: 0, story: 0 }, deepest: 0, history: [],
     },
-    story: { prologue: { done: {} }, letterReadAt: null, trackerHidden: false },
+    story: { prologue: { done: {} }, letterReadAt: null, trackerHidden: false, ...PHASE4_STORY },
+    // Phase 4: the Adventurer's Kit and the Company (CONTRACT-PHASE4 §8.3).
+    embers: { balance: 0, lifetime: 0, ledger: [], paid: {}, paidBefore: 0, through: null, day: { key: null, crew: 0, answered: 0 }, backlogAt: null },
+    xp: { skills: {}, through: null, day: { key: null, travels: 0 } },
+    kindle: { phase: 'idle', startedAt: null, focusEndsAt: null, restStartedAt: null, restEndsAt: null, earned: false, paid: { focus: null, rest: null } },
+    chronicle: { days: {}, fights: [], xpLines: [] },
+    road: { xp: 0, paidFights: {}, stitchedThrough: null, levelShown: 1, firstWin: false },
+    party: {
+      roster: { milo: EMPTY_MEMBER, claude: EMPTY_MEMBER, codex: EMPTY_MEMBER, jev: EMPTY_MEMBER },
+      chosen: ['claude', 'codex', 'jev'], formation: 'line', cheers: 0, regulars: [],
+      outing: { startedAt: null, breathers: 0, breatherFight: null, freeBreather: false, warmed: false, heroes: {} },
+      rests: { lanternDay: null, nooks: {}, freeReentry: {} },
+      mode: 'long-road', play: 'guided',
+      calm: { noise: true, adaptation: true, odds: 'bars', fastFoes: true, playback: 1, ghosts: false },
+      strayMemory: {}, firstLeadMet: false, teachDay: null, seenScenes: {},
+    },
+    expedition: null,
+    board: { quests: [], projects: [], thoughts: [], seq: 0 },
   });
-  assert.deepEqual(Object.keys(state).slice(9), ['firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story'], 'new keys come after plots');
+  assert.deepEqual(Object.keys(state).slice(9), ['firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story',
+    'embers', 'xp', 'kindle', 'chronicle', 'road', 'party', 'expedition', 'board'], 'new keys come after plots, Phase 4’s after story, and Phase 5’s last');
   assert.notEqual(createState().plots['plot-meadow'], createState().plots['plot-meadow'], 'plots are not shared between states');
   assert.notEqual(createState().settings, createState().settings, 'settings are not shared between states');
   assert.ok(Object.isFrozen(DEFAULT_SETTINGS));
@@ -145,7 +180,7 @@ test('normalizeState repairs each field on its own', () => {
   assert.deepEqual(state.milo.tile, { x: 3, y: 8 });
   assert.equal(state.lastSeenAt, null);
   assert.equal(state.lastGreetedDay, null);
-  assert.deepEqual(state.settings, { motion: true, notifications: false, greeting: true, designer: 'auto', ...PHASE3_SETTINGS });
+  assert.deepEqual(state.settings, { motion: true, notifications: false, greeting: true, designer: 'auto', ...PHASE3_SETTINGS, ...PHASE4_SETTINGS });
   assert.deepEqual(state.skills, {});
   assert.equal(state.panel, null);
 });
@@ -191,7 +226,7 @@ test('normalizeState: settings and skills keep unknown keys, fix known ones', ()
       '': { level: 1 },
     },
   }, NOW);
-  assert.deepEqual(state.settings, { motion: false, notifications: true, greeting: true, sound: 'soft', designer: 'auto', ...PHASE3_SETTINGS });
+  assert.deepEqual(state.settings, { motion: false, notifications: true, greeting: true, sound: 'soft', designer: 'auto', ...PHASE3_SETTINGS, ...PHASE4_SETTINGS });
   assert.deepEqual(state.skills, {
     watchkeeping: { level: 2, provenAt: null, note: 'kept' },
     dispatch: { level: 3, provenAt: null },
@@ -254,7 +289,7 @@ test('markSeen counts each new local day once, with a new tally object (Phase 3)
   const firstTally = state.tally;
   markSeen(state, at(9));
   assert.equal(state.firstSeenAt, at(9), 'the first look is remembered');
-  assert.deepEqual(state.tally, { daysSeen: 1, lastDay: '2026-09-26', sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0 });
+  assert.deepEqual(state.tally, { daysSeen: 1, lastDay: '2026-09-26', sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0, ...PHASE4_TALLY });
   assert.notEqual(state.tally, firstTally, 'a new tally object');
   assert.equal(firstTally.daysSeen, 0, 'the old tally is never changed in place');
   const sameDay = state.tally;
@@ -1058,7 +1093,7 @@ test('Phase 3 migration: a step 2 state gets its tally seeded honestly from the 
   };
   const state = normalizeState(step2, NOW);
   assert.equal(state.firstSeenAt, on(20, 10), 'the earliest evidence');
-  assert.deepEqual(state.tally, { daysSeen: 4, lastDay: '2026-09-26', sessionsFinished: 0, finishedIds: [], buildingsDesigned: 2 }, 'the 20th, 22nd, 24th and 26th');
+  assert.deepEqual(state.tally, { daysSeen: 4, lastDay: '2026-09-26', sessionsFinished: 0, finishedIds: [], buildingsDesigned: 2, ...PHASE4_TALLY }, 'the 20th, 22nd, 24th and 26th');
   // Seeded once: the next load keeps what the tally says, and today isn't counted twice.
   assert.deepEqual(normalizeState(state, NOW), state);
   markSeen(state, NOW);
@@ -1072,7 +1107,7 @@ test('Phase 3 migration: a step 2 state gets its tally seeded honestly from the 
   // Nothing to go on: nothing counted.
   const bare = normalizeState({ settings: {} }, NOW);
   assert.equal(bare.firstSeenAt, null);
-  assert.deepEqual(bare.tally, { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0 });
+  assert.deepEqual(bare.tally, { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0, ...PHASE4_TALLY });
   // Evidence from the future (a clock that jumped) is left out.
   const future = normalizeState({ skills: { lore: { level: 1, provenAt: NOW + 3 * DAY_MS } }, lastGreetedDay: '2026-12-01' }, NOW);
   assert.equal(future.firstSeenAt, null);
@@ -1338,7 +1373,7 @@ test('Phase 3: the hearth, satchel and story are cleaned', () => {
   const kept = normalizeState({ satchel: { relics } }, NOW).satchel.relics;
   assert.equal(kept.length, STATE_LIMITS.relics);
   assert.equal(kept.at(-1).name, 'Relic 229', 'the newest relics are kept');
-  assert.deepEqual(state.story, { prologue: { done: { light: NOW - DAY_MS }, extra: 1 }, letterReadAt: NOW - HOUR, trackerHidden: false, chapterTwo: { a: 1 } });
+  assert.deepEqual(state.story, { prologue: { done: { light: NOW - DAY_MS }, extra: 1 }, letterReadAt: NOW - HOUR, trackerHidden: false, chapterTwo: { a: 1 }, ...PHASE4_STORY });
   assert.equal(normalizeState({ story: { trackerHidden: true } }, NOW).story.trackerHidden, true);
 });
 
@@ -1428,6 +1463,47 @@ test('Phase 3: rifts in the state are cleaned, pruned and capped', () => {
   assert.equal(wildEntry.key, null, 'wild rifts have no key');
 });
 
+test('Phase 3: each capped map past its cap keeps its newest entries, in the order saved', () => {
+  const today = dayNumber(NOW);
+  // Each map is saved 3 past its cap with its times (or days) out of saved order, so its newest N are
+  // neither its first N nor its last N: a cleaner that keeps by place, or the oldest, is caught.
+  const ranks = (n, seed) => {
+    let s = seed;
+    const random = () => ((s = (Math.imul(s, 1103515245) + 12345) >>> 0) / 4294967296);
+    const out = Array.from({ length: n }, (_, i) => i);
+    for (let i = n - 1; i > 0; i -= 1) {
+      const j = Math.floor(random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  };
+  const ago = (r) => NOW - (r + 1) * MIN;
+  const cases = [
+    // [section, field, cap, key i, value at rank r (0 is the newest)]
+    ['wilds', 'lanterns', STATE_LIMITS.lanterns, (i) => `lantern:${i},-1`, ago],
+    ['wilds', 'opened', STATE_LIMITS.opened, (i) => `poi:chest:${i},2`, ago],
+    ['wilds', 'notes', STATE_LIMITS.notes, (i) => `poi:note:${i},3`, ago],
+    ['wilds', 'glimmers', STATE_LIMITS.glimmers, (i) => `poi:statue:${i},4`, ago],
+    ['wilds', 'felled', STATE_LIMITS.felled, (i) => `tree:${i},5`, (r) => today + 5000 - r],
+    ['rifts', 'open', STATE_LIMITS.open, (i) => `knock:claude:s${i}`, (r, i) => ({ id: `rift:o${i.toString(36)}`, since: NOW - DAY_MS, openedAt: ago(r) })],
+    ['rifts', 'warded', STATE_LIMITS.warded, (i) => `knock:claude:w${i}`, (r) => ({ since: NOW - DAY_MS, until: NOW + DAY_MS - r * MIN, stage: 'open' })],
+    ['rifts', 'letGo', STATE_LIMITS.letGo, (i) => `knock:claude:g${i}`, (r) => ({ since: NOW - DAY_MS, at: ago(r) })],
+    ['rifts', 'belled', STATE_LIMITS.belled, (i) => `night:b${i}`, (r) => ({ since: NOW - DAY_MS, at: ago(r) })],
+    ['rifts', 'closedWild', STATE_LIMITS.closedWild, (i) => `rift:c${i.toString(36)}`, (r) => today + 5000 - r],
+    ['rifts', 'visited', STATE_LIMITS.visited, (i) => `rift:v${i.toString(36)}`, ago],
+  ];
+  for (const [n, [section, field, cap, keyOf, valueOf]] of cases.entries()) {
+    const order = ranks(cap + 3, 7 + n);
+    const keys = order.map((_, i) => keyOf(i));
+    const saved = Object.fromEntries(order.map((r, i) => [keys[i], valueOf(r, i)]));
+    const kept = Object.keys(normalizeState({ [section]: { [field]: saved } }, NOW)[section][field]);
+    const newest = keys.filter((_, i) => order[i] < cap);
+    assert.deepEqual(kept, newest, `${section}.${field}: the newest ${cap}, in the order saved`);
+    assert.notDeepEqual(newest, keys.slice(0, cap), `${section}.${field}: the fixture tells the newest from the first saved`);
+    assert.notDeepEqual(newest, keys.slice(-cap), `${section}.${field}: the fixture tells the newest from the last saved`);
+  }
+});
+
 test('Phase 3 normalization is idempotent, prototype-safe and never throws on junk', () => {
   const junk = [null, undefined, 0, 7, 'x', true, [], [1], {}, { a: 1 }, NaN, () => 1];
   for (const key of ['firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story']) {
@@ -1476,8 +1552,38 @@ test('Phase 3 normalization is idempotent, prototype-safe and never throws on ju
   assert.deepEqual(safe.tally.finishedIds, ['__proto__'], 'a string in a list is only a string');
 });
 
-test('Phase 3: a state at every cap stays well under the 2 MiB file limit', () => {
-  const big = normalizeState({
+// Phase 3's full caps (CONTRACT-PHASE4 §8.3 "Size", §15): every one of STATE_LIMITS' sixteen lists at
+// its cap (the open, warded, let-go and belled rifts included, beside §8.3's glimmers, felled, closed
+// wild rifts and visited places), each text at its clip length, lists inside an entry at the most
+// their producer writes (riftgen's loot: four genres' essences, Maelstrom glass and a relic), and a
+// Knocking's key and session id as long as a Claude session's uuid makes them. The five plots are
+// built, with every blueprint and idea text at its limit. The four rift maps get more than their cap.
+const P3_TEXT = (words, n) => words.padEnd(n, 'x').slice(0, n);
+const P3_UUID = (tag, i) => `${tag}${String(i).padStart(7, '0')}-0000-4000-8000-000000000000`; // 36 characters
+const P3_GENRES = ['gothic', 'neon', 'noir', 'backhalls'];
+function phase3Plot(i) {
+  const text = P3_TEXT;
+  return {
+    status: 'built', suggestions: [], asked: null, designedBy: 'codex', builtAt: NOW, firstBuiltAt: NOW, name: text(`Plot name ${i}`, 28),
+    idea: { id: `local:${text(`idea-${i}-`, 40)}`, title: text(`Idea ${i}`, 28), pitch: text(`Pitch ${i}`, 110), why: text(`Why ${i}`, 110), source: 'local' },
+    blueprint: blueprint({
+      name: text(`Building ${i}`, 28), tagline: text(`Tagline ${i}`, 70), purpose: text(`Purpose ${i}`, 160),
+      levels: [1, 2, 3, 4, 5].map((n) => ({ level: n, title: text(`Level ${n} feature`, 50), summary: text(`What level ${n} does`, 140), proof: text(`A check for level ${n} passes`, 140) })),
+    }),
+  };
+}
+function phase3AtCaps() {
+  const today = dayNumber(NOW);
+  const text = P3_TEXT;
+  const knock = (tag, i) => `knock:claude:${P3_UUID(tag, i)}`;
+  const over = (limit, make) => Object.fromEntries(Array.from({ length: STATE_LIMITS[limit] + 5 }, (_, i) => make(i)));
+  const loot = [
+    ...P3_GENRES.map((genre) => ({ item: text(`Essence of ${genre}`, 120), qty: 9999, genre })),
+    { item: text('Maelstrom glass', 120), qty: 9999, genre: null },
+    { item: text('A relic', 120), qty: 1, genre: 'gothic', relic: true, text: text('A relic’s story', 220) },
+  ];
+  return {
+    plots: Object.fromEntries(PLOT_IDS.map((id, i) => [id, phase3Plot(i)])),
     tally: { finishedIds: Array.from({ length: 400 }, (_, i) => `claude:${'0'.repeat(28)}${String(i).padStart(8, '0')}`) },
     satchel: {
       essences: Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`Essence number ${i}`, 99])),
@@ -1488,11 +1594,327 @@ test('Phase 3: a state at every cap stays well under the 2 MiB file limit', () =
       lanterns: Object.fromEntries(Array.from({ length: 2000 }, (_, i) => [`lantern:${-9000 + i},123456`, NOW])),
       opened: Object.fromEntries(Array.from({ length: 5000 }, (_, i) => [`poi:chest:${-9000 + i},123456`, NOW])),
       notes: Object.fromEntries(Array.from({ length: 2000 }, (_, i) => [`poi:note:${-9000 + i},123456`, NOW])),
+      glimmers: Object.fromEntries(Array.from({ length: STATE_LIMITS.glimmers }, (_, i) => [`poi:statue:${-9000 + i},123456`, NOW])),
+      felled: Object.fromEntries(Array.from({ length: STATE_LIMITS.felled }, (_, i) => [`tree:${-9000 + i},123456`, today])),
     },
-    rifts: { history: Array.from({ length: 100 }, (_, i) => ({ key: `knock:claude:${'a'.repeat(36)}`, id: `rift:${(1e9 + i).toString(36)}`, name: 'n'.repeat(120), genres: ['gothic', 'neon'], kind: 'real', openedAt: NOW, closedAt: NOW, how: 'sealed' })) },
-  }, NOW);
-  const bytes = Buffer.byteLength(JSON.stringify(big, null, 2));
-  assert.ok(bytes < 1.6 * 1024 * 1024, `${bytes} bytes`);
+    rifts: {
+      open: over('open', (i) => [knock('o', i), {
+        id: `rift:${(3e12 + i).toString(36)}`, since: NOW - i * MIN, openedAt: NOW - i * MIN, kind: 'real', realKind: 'knocking',
+        name: text(`The rift over a long session ${i}`, 120), genres: P3_GENRES, loot,
+        signals: ['needs-you-unanswered', 'session-after-midnight', 'crew-capacity-high', 'working-past-bell', 'milestone-reached', 'sync-error'],
+        subject: text('A very long subject', 40), urgency: 0.95, cause: text('A very long cause', 160), stitch: text('A very long stitch line', 140),
+        echo: { place: 'watchtower', icon: 'knocker' }, bright: false, sessionId: `claude:${P3_UUID('s', i)}`,
+      }]),
+      warded: over('warded', (i) => [knock('w', i), { since: NOW - i * MIN, until: NOW + 7 * DAY_MS - i * MIN, stage: 'hairline' }]),
+      letGo: over('letGo', (i) => [knock('l', i), { since: NOW - DAY_MS - i * MIN, at: NOW - i * MIN }]),
+      belled: over('belled', (i) => [knock('b', i), { since: NOW - DAY_MS - i * MIN, at: NOW - i * MIN }]),
+      history: Array.from({ length: 100 }, (_, i) => ({ key: `knock:claude:${'a'.repeat(36)}`, id: `rift:${(1e9 + i).toString(36)}`, name: 'n'.repeat(120), genres: ['gothic', 'neon'], kind: 'real', openedAt: NOW, closedAt: NOW, how: 'sealed' })),
+      closedWild: Object.fromEntries(Array.from({ length: STATE_LIMITS.closedWild }, (_, i) => [`rift:${(1e12 + i).toString(36)}`, today])),
+      visited: Object.fromEntries(Array.from({ length: STATE_LIMITS.visited }, (_, i) => [`rift:${(2e12 + i).toString(36)}`, NOW])),
+    },
+  };
+}
+
+// A BattleSave with every list at its cap (§5.4: 16 units, 8 conditions, 4 marks and 6 mods each,
+// 24 objects, lights and timed surfaces, 8 sustained spells, a plan for every unit, 30 log lines of
+// 100), padded to exactly 49,152 bytes by battleBytes, the most expedition.battle may hold.
+function battleAtCap() {
+  const heroes = ['milo', 'claude', 'codex', 'jev'];
+  const idOf = (i) => (i < 4 ? heroes[i] : `f${i}`);
+  const action = { id: 'use', ability: 'turn-back-a-page', cost: 1, target: { unit: 'f5', tile: { x: 4, y: 5 } }, extra: 1, choice: null, cheer: true, trigger: null };
+  const save = {
+    v: 2, id: `fight:rift:${'a'.repeat(13)}:w:r12`, seed: 4294967295, attempt: 3, k: 999, round: 7, tick: 2, cursor: 11, status: 'running',
+    mode: 'long-road', modeNext: 'storybook', calm: { noise: true, adaptation: true }, firstLead: false, roadLevel: 5, warding: 50,
+    levels: { milo: 5, claude: 9, codex: 8, jev: 5 },
+    units: Array.from({ length: 16 }, (_, i) => ({
+      id: idOf(i), x: i % 20, y: i % 16, facing: 'right', integrity: 150, maxIntegrity: 194, strikeAmount: 23, heat: 65, buffer: 13,
+      conditions: Array.from({ length: 8 }, (_, c) => ({ id: 'lingering', n: 12, source: `f${c}`, data: { kind: 'static' } })),
+      marks: Array.from({ length: 4 }, () => ({ id: 'wanted', by: 'claude', n: 2, until: 'end-of-round' })),
+      mods: Array.from({ length: 6 }, () => ({ stat: 'guard', by: 1, until: 'start-of-turn', source: 'hold-here' })),
+      offline: false, drops: 1, sorted: null, reactionUsed: true, attacks: 2, examined: true, revealedUntil: 'fight',
+      usedRound: { 'being-sure': 1, letter: 1 }, uses: { 'second-breath': 1, 'draw-the-blow': 1 }, chargesLeft: 5, rattled: false,
+      carry: { cordial: 3, brew: 2, margin: 3, spare: 3, essences: 4, stitched: ['neon', 'noir'] }, spawn: null,
+    })),
+    order: Array.from({ length: 16 }, (_, i) => idOf(i)),
+    objects: Array.from({ length: 24 }, (_, i) => ({ id: `o${i}`, state: 'running', integrity: 20 })),
+    surfaces: { grid: '.'.repeat(320), timed: Array.from({ length: 24 }, (_, i) => ({ x: i % 20, y: i % 16, rounds: 3, level: 5 })) },
+    lights: Array.from({ length: 24 }, (_, i) => ({ id: `light${i}`, x: i % 20, y: i % 16, radius: 3, rounds: null, source: 'little-light' })),
+    sustained: Array.from({ length: 8 }, (_, i) => ({ unitId: 'claude', abilityId: 'candle-wall', rounds: 3, target: { tile: { x: i, y: i } }, cost: 2 })),
+    talk: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`k${i}`, { calm: 2, need: 4, done: false }])),
+    cheers: 4,
+    plans: Object.fromEntries(Array.from({ length: 16 }, (_, i) => [idOf(i), { unitId: idOf(i), slots: [action, action, action], reactions: { 'parting-swipe': 'always', shoulder: 'under-half' }, by: 'draft', changed: [false, true, false] }])),
+    drafted: Object.fromEntries(heroes.map((id) => [id, { confidence: 71, source: 'habit', choices: [{ slot: 0, template: 12, ability: 4242 }, { slot: 1, template: 3, ability: 0 }, { slot: 2, template: 7, ability: 99 }], layers: ['habit', 'habit', 'rule'] }])),
+    lead: { unitId: 'lead', mechanic: 'noon-duel', phase: 'twist', bar: 1, bars: [63, 63, 63], armourUsed: true, feintsLeft: 1, asides: 2, bow: { progress: 2, need: 3 }, data: { objects: ['o1', 'o2', 'o3'] } },
+    seen: Object.fromEntries(Array.from({ length: 24 }, (_, i) => [`${i}:${1000 + i}`, 2])),
+    memory: { habit: '12:4242', count: 9 },
+    log: Array.from({ length: 30 }, (_, i) => `Line ${i}: the Scribe patches Milo for 12. `.padEnd(100, 'x')),
+    ask: { unitId: 'claude', reactionId: 'shoulder', trigger: 'strike-at-ally', words: 'Shoulder the bite on Pip?' },
+    result: null,
+  };
+  save.pad = '';
+  save.pad = 'z'.repeat(49_152 - battleBytes(save));
+  return save;
+}
+
+// The id lengths the producers write at their longest (the next test checks them against the
+// producers). Content ids (paths, boons, spells, reactions, rules, uses,
+// parts, mechanics, trails, steps, features) 24; fight ids and pay keys 48 (§5.1's formats at their
+// longest are ≤ 44); scene ids 32; event keys 19 ('focus:<ms>'); fact ids 46 ('glimmer:poi:<kind
+// ≤ 16>:<x>,<y>'); room ids 5 ('field'); chest ids 8 ('loot:<n>'); ledger sources 8 ('answered'); XP
+// line sources 17 ('building-designed'); regular ids 11 ('reg-' and a 32-bit hash in base 36); nook
+// ids 18 ('rift:' and 13); stray-memory genres 9 ('starlight'); callings 13 ('lanternkeeper'); a
+// Knocking's rift key 49 ('knock:claude:' and a session's uuid); signals as riftgen names them (0).
+const PRODUCER_IDS = Object.freeze({
+  content: 24, fight: 48, scene: 32, event: 19, fact: 46, room: 5, chest: 8, ledgerSource: 8, lineSource: 17,
+  regular: 11, nook: 18, genre: 9, calling: 13, riftKey: 49, signal: 0,
+});
+// Every id at the longest its cleaner accepts (state4.js's regexes and clips; §5.1's fight id): the
+// cleaners' outer bounds, where §18.2 measures Phase 4's 450 KiB. A place id is a cave's at its
+// widest (22), and a rift key 'capacity:' and 150 more (159).
+const OUTER_IDS = Object.freeze({
+  content: 40, fight: 96, scene: 64, event: 29, fact: 64, room: 64, chest: 64, ledgerSource: 20, lineSource: 20,
+  regular: 40, nook: 22, genre: 24, calling: 40, riftKey: 159, signal: 40,
+});
+const GENRES = ['neon', 'nocturne', 'gothic', 'iron', 'void', 'noir', 'frontier', 'kaiju', 'verdant', 'starlight', 'summit', 'backhalls'];
+// Every named companion goes into the fixture; the cleaner keeps the one Phase 4 can recruit.
+const NAMED = ['rivet', 'pip', 'dusty', 'juno', 'mae', 'lumi', 'tova', 'nell', 'whisper', 'vesperine', 'tollkeeper'];
+
+/**
+ * Phase 4 at every cap (STATE4_LIMITS), each text at its clip length and each id at the length
+ * `ids` gives (PRODUCER_IDS or OUTER_IDS). Lists that the cleaner caps get more than their cap, so
+ * the size is measured at what the cleaner keeps.
+ */
+function phase4AtCaps(ids = PRODUCER_IDS) {
+  const L = STATE4_LIMITS;
+  const DAY = 24 * HOUR;
+  const T = (i) => NOW - i * 1000;
+  const fit = (text, n, fill = 'a') => `${text}`.padEnd(n, fill).slice(0, n);
+  const slug = (prefix, i, n = ids.content) => fit(`${prefix}${i}-`, n);
+  const fightId = (tag, i) => fit(`fight:rift:${tag.repeat(13)}:${i}:`, ids.fight, '0');
+  const list = (n, make) => Array.from({ length: n }, (_, i) => make(i));
+  const map = (n, make) => Object.fromEntries(list(n, make));
+  const member = (i) => ({
+    joinedAt: T(i), warmth: L.warmth, warmthWeek: { week: dayNumber(NOW) - 3, outing: L.weekOuting }, habitDay: dayNumber(NOW),
+    path: slug('path', i), boons: list(L.boons, (b) => slug(`boon${b}-`, i)), pending: list(L.pending, (p) => (p % 2 ? 'boon' : 'path')),
+    control: 'mine', reactions: map(L.reactions, (r) => [slug(`reaction${r}-`, i), 'under-half']), prepared: list(L.prepared, (p) => slug(`spell${p}-`, i)),
+    gifts: { margin: L.gifts, spare: L.gifts, through: 999999 },
+    notebook: {
+      count: 50000, fights: L.notebookFights, rules: list(L.rules, (r) => ({ if: slug(`if${r}-`, i), then: slug(`then${r}-`, i) })),
+      struck: list(L.struck, (s) => `${100 + s}:${60000 + s}`), accepts: '10'.repeat(L.accepts / 2), previous: { count: 49999, at: NOW },
+    },
+  });
+  const regulars = list(L.regulars, (i) => ({
+    id: fit(`reg-${(4294967295 - i).toString(36)}`, ids.regular, '0'), riftId: `rift:${'b'.repeat(12)}${i.toString(36)}`, riftSeed: 4294967295, name: `A very long regular name ${i}`.padEnd(40, 'x'),
+    genre: fit('backhalls', ids.genre, 'z'), second: fit('starlight', ids.genre, 'z'), archetype: 'construct', bodyKey: 'R', parts: list(L.parts, (p) => ({ id: slug(`part${p}-`, i), layer: 1 })),
+    eyeKey: 'u', temperament: 'dramatic', calling: fit('chorister', Math.max(9, ids.calling), 'r'), lead: true, mechanic: slug('mechanic', i), joinedAt: T(i),
+  }));
+  const roster = Object.fromEntries(['milo', 'claude', 'codex', 'jev', ...NAMED, ...regulars.map((r) => r.id)].map((who, i) => [who, member(i)]));
+  const out = ['milo', 'claude', 'codex', 'jev'];
+  const bigXp = L.xp;
+  const eventKey = (i) => (ids.event > 19 ? `${fit('focus', ids.event - 17, 'f')}:${String(T(i)).padStart(16, '1')}` : `focus:${T(i)}`);
+  // A Knocking's key at the producers' lengths; past 'knock:' and 150 characters it's a Capacity rift's.
+  const riftKey = ids.riftKey <= 156 ? fit('knock:claude:', ids.riftKey, 'g') : fit('capacity:', ids.riftKey, 'g');
+  const place = ids.nook > 18 ? 'cave:-9999999,-9999999' : `rift:${'f'.repeat(13)}`;
+  const signals = ['needs-you-unanswered', 'sync-error', 'crew-capacity-high', 'working-past-bell', 'session-after-midnight', 'milestone-reached'];
+  return {
+    embers: {
+      balance: L.cap, lifetime: 999_999_999,
+      ledger: list(L.ledger, (i) => ({ at: T(i), n: i % 2 ? L.ledgerMin : L.ledgerMax, banked: i % 2 ? 0 : L.cap, source: fit('answered', ids.ledgerSource, 's'), text: 'From before the Kit, a long line of ledger text '.padEnd(L.ledgerText, 'x') })),
+      paid: map(L.paid, (i) => [eventKey(i), T(i)]), paidBefore: NOW - DAY,
+      through: { sessionsFinished: 999999, answered: 999999, stitchedReal: 999999, buildingsDesigned: 999999 },
+      day: { key: dayKey(NOW), crew: 10, answered: 5 }, backlogAt: NOW,
+    },
+    xp: { skills: Object.fromEntries(SKILL_IDS.map((skill) => [skill, bigXp])), through: { sessionsFinished: 999999, answeredFast: 999999, buildingsDesigned: 999999 }, day: { key: dayKey(NOW), travels: 10 } },
+    kindle: { phase: 'rest', startedAt: NOW - HOUR, focusEndsAt: NOW - 10 * MIN, restStartedAt: NOW - 10 * MIN, restEndsAt: NOW + 5 * MIN, earned: true, paid: { focus: NOW - HOUR, rest: NOW - 2 * HOUR } },
+    chronicle: {
+      days: map(L.days + 5, (d) => [dayKey(NOW - d * DAY), {
+        embersIn: L.ledgerMax, embersOut: 100, focus: 30, rests: 30, crew: 200, answered: 99, stitched: 20, fights: 400,
+        xp: Object.fromEntries(SKILL_IDS.map((skill) => [skill, bigXp])),
+      }]),
+      fights: list(L.fights, (i) => ({ id: fightId('c', i), at: T(i), where: 'The Glass Fen, a long way out '.padEnd(L.where, 'x'), outcome: 'last-page', rounds: 999, xp: 999999, marks: 999999, summary: 'Rivet held the door. Milo kept the lantern high. '.padEnd(L.summary, 'x') })),
+      xpLines: list(L.xpLines, (i) => ({ at: T(i), skill: 'hearthkeeping', n: bigXp, source: fit('building-designed', ids.lineSource, 's'), text: 'Hearthkeeping 200,000,000: honoured rest 09:50–10:05 '.padEnd(L.lineText, 'x') })),
+    },
+    road: { xp: 999_999_999, paidFights: map(L.paidFights + 20, (i) => [fightId('d', i), T(i)]), stitchedThrough: 999999, levelShown: 12, firstWin: true },
+    party: {
+      roster, chosen: regulars.slice(0, L.chosen).map((r) => r.id), formation: 'wedge', cheers: L.cheers, regulars,
+      outing: { startedAt: NOW, breathers: L.breathers, breatherFight: fightId('e', 0), freeBreather: true, warmed: true,
+        heroes: Object.fromEntries(out.map((who) => [who, { integrity: 9999, charges: 99, uses: map(L.uses, (u) => [slug(`use${u}-`, 0), 99]), rattled: true }])) },
+      rests: {
+        lanternDay: dayNumber(NOW),
+        nooks: map(L.nooks, (i) => [ids.nook > 18 ? `cave:-${1000000 + i},-1000000` : fit(`rift:${(1e12 + i).toString(36)}`, ids.nook, '0'), T(i)]),
+        freeReentry: map(L.freeReentry, (i) => [`cave:-${1000000 + i},-1000000`, T(i)]),
+      },
+      mode: 'mauds-table', play: 'handle', calm: { noise: false, adaptation: false, odds: 'words', fastFoes: false, playback: 4, ghosts: true },
+      strayMemory: Object.fromEntries(GENRES.slice(0, L.strayMemory).map((g) => [fit(g, Math.max(g.length, ids.genre), 'z'), { habit: '255:65535', count: 999999 }])),
+      firstLeadMet: true, teachDay: dayNumber(NOW), seenScenes: map(L.seenScenes, (i) => [fit(`scene:arrival-${i}-`, ids.scene), T(i)]),
+    },
+    expedition: {
+      runId: 'run:'.padEnd(80, '1'), kind: 'real', riftId: place, key: riftKey, since: NOW - DAY,
+      source: { key: riftKey, subject: '“A very long session title”'.padEnd(40, 'x'), signals: signals.map((signal) => fit(signal, Math.max(signal.length, ids.signal), 'z')), urgency: 0.95, tier: 1, cause: 'A very long cause for a rift '.padEnd(160, 'x'), since: NOW - DAY },
+      depth: 9999, tier: 8, enteredAt: NOW, embersPaid: 10, inside: true,
+      rooms: map(L.rooms, (i) => [fit(`r${i}`, Math.max(`r${i}`.length, ids.room), 'r'), 'last-page']), chests: map(L.chests, (i) => [fit(`loot:${i}`, Math.max(`loot:${i}`.length, ids.chest), 'l'), T(i)]),
+      nookUsed: true, entry: Object.fromEntries(out.map((who) => [who, 9999])),
+      battle: battleAtCap(), card: 'yielded',
+    },
+    // Phase 4's fields in Phase 3's sections, at their caps too.
+    tally: {
+      byCrew: { claude: 100, codex: 100, jev: 100, whisper: 100 }, answered: 999999, answeredFast: 999999,
+      waiting: map(L.waiting, (i) => [`claude:${i}-`.padEnd(64, '9'), T(i)]), answeredWaits: map(L.answeredWaits, (i) => [`claude:w${i}-`.padEnd(64, '8'), T(i)]),
+      focusSessions: 999999, restsHonoured: 999999, chunksCharted: 999999, features: map(L.features, (i) => [slug('feature', i), T(i)]),
+    },
+    satchel: { marks: L.marks, tonics: { cordial: L.tonics, brew: L.tonics } },
+    story: {
+      trails: map(L.trails, (t) => [slug('trail', t), { found: map(L.trailSteps, (s) => [slug(`step${s}-`, t), T(s)]), done: map(L.trailSteps, (s) => [slug(`step${s}-`, t), T(s)]), joinedAt: NOW }]),
+      facts: map(L.facts, (i) => [fit(`examined:backhalls:construct:${i}:`, ids.fact, 'q'), T(i)]),
+    },
+  };
+}
+
+function cappedState(ids) {
+  const p3 = phase3AtCaps();
+  const p4 = phase4AtCaps(ids);
+  return { ...p3, ...p4, tally: { ...p3.tally, ...p4.tally }, satchel: { ...p3.satchel, ...p4.satchel }, story: p4.story };
+}
+
+const PHASE4_KEYS = ['embers', 'xp', 'kindle', 'chronicle', 'road', 'party', 'expedition'];
+const prettyBytes = (value) => Buffer.byteLength(JSON.stringify(value, null, 2));
+const phase4Of = (state) => prettyBytes(state) - prettyBytes(Object.fromEntries(Object.entries(state).filter(([key]) => !PHASE4_KEYS.includes(key))));
+const MIB_1_6 = 1.6 * 1024 * 1024;
+// CONTRACT-PHASE4 §18.2: the whole capped state stays under 1.9 MiB (1,992,294 bytes), and Phase 4's
+// sections at the cleaners' outer bounds are at most 450 KiB.
+const MIB_1_9 = 1.9 * 1024 * 1024;
+const PHASE4_BUDGET = 450 * 1024;
+// main.cjs refuses to write a state bigger than this (checked against its source below).
+const MAX_STATE_BYTES = 2 * 1024 * 1024;
+
+/** The capped states and their sizes, measured once for the two tests below. */
+let measured = null;
+function measureCaps() {
+  if (measured) return measured;
+  const phase3 = normalizeState(phase3AtCaps(), NOW);
+  const big = normalizeState(cappedState(PRODUCER_IDS), NOW);
+  const outer = normalizeState(cappedState(OUTER_IDS), NOW);
+  measured = {
+    phase3, big, outer,
+    phase3Bytes: prettyBytes(phase3), phase4Bytes: phase4Of(big), bytes: prettyBytes(big),
+    outerPhase4Bytes: phase4Of(outer), widest: prettyBytes(outer),
+  };
+  return measured;
+}
+
+// CONTRACT-PHASE4 §8.3 "Size", §15 and §18.2 change this pin on purpose: Phase 3's fixture now fills
+// every one of its caps, Phase 4's sections are measured too, and so is normalizeState's time at every
+// cap. The whole state's pin (1.9 MiB since §18.2) is the next test.
+test('Phase 3 and 4: at every cap, Phase 3 stays under 1.6 MiB, Phase 4’s sections are at most 450 KiB at the cleaners’ outer bounds, and the whole state fits main’s 2 MiB file limit', (t) => {
+  const { phase3, big, outer, phase3Bytes, phase4Bytes, bytes, outerPhase4Bytes, widest } = measureCaps();
+  // Every one of Phase 3's sixteen lists really is at its cap.
+  const sizeOf = (value) => (Array.isArray(value) ? value.length : Object.keys(value).length);
+  const lists = {
+    finishedIds: big.tally.finishedIds, relics: big.satchel.relics, essences: big.satchel.essences, explored: big.wilds.explored,
+    lanterns: big.wilds.lanterns, opened: big.wilds.opened, notes: big.wilds.notes, glimmers: big.wilds.glimmers, felled: big.wilds.felled,
+    open: big.rifts.open, warded: big.rifts.warded, letGo: big.rifts.letGo, belled: big.rifts.belled, closedWild: big.rifts.closedWild,
+    visited: big.rifts.visited, history: big.rifts.history,
+  };
+  assert.deepEqual(Object.keys(lists).sort(), Object.keys(STATE_LIMITS).sort(), 'every Phase 3 cap is in the fixture');
+  for (const [name, value] of Object.entries(lists)) assert.equal(sizeOf(value), STATE_LIMITS[name], `${name} at its cap`);
+  assert.equal(big.rifts.open[`knock:claude:${P3_UUID('o', 0)}`].loot.length, 6, 'an open rift keeps all of riftgen’s loot');
+  for (const id of PLOT_IDS) assert.equal(big.plots[id].blueprint.purpose.length, 160, `${id}: built, its texts at their limits`);
+  // And so is every Phase 4 list, the roster and the BattleSave included.
+  assert.equal(big.embers.ledger.length, 300);
+  assert.equal(Object.keys(big.embers.paid).length, 200);
+  assert.equal(Object.keys(big.road.paidFights).length, 500);
+  assert.equal(Object.keys(big.chronicle.days).length, 60);
+  assert.ok(Object.values(big.chronicle.days).every((day) => Object.keys(day.xp).length === 6));
+  assert.deepEqual(Object.keys(big.party.roster).slice(0, 5), ['milo', 'claude', 'codex', 'jev', 'tollkeeper'], 'the one named companion kept is the one Phase 4 recruits');
+  assert.equal(Object.keys(big.party.roster).length, STATE4_LIMITS.roster, 'the founders, the Tollkeeper and every regular');
+  assert.equal(STATE4_LIMITS.roster, 4 + STATE4_LIMITS.others + 12);
+  assert.equal(battleBytes(big.expedition.battle), 49_152, 'a BattleSave at its cap is kept');
+  assert.equal(Object.keys(outer.party.roster).length, STATE4_LIMITS.roster);
+  assert.equal(Object.keys(outer.embers.paid).length, 200, 'the longest event keys are kept');
+  assert.equal(Object.keys(outer.story.facts).length, 200, 'the longest fact ids are kept');
+  assert.equal(Object.keys(outer.road.paidFights).length, 500, 'the longest fight ids are kept');
+  assert.equal(Object.keys(outer.expedition.rooms).length, STATE4_LIMITS.rooms, 'the longest room ids are kept');
+  assert.deepEqual(Object.keys(phase3.rifts.open), Object.keys(big.rifts.open), 'Phase 3 is measured at the same caps alone');
+  // Phase 3 alone keeps its own pin (the test this one replaces), now at every one of its caps.
+  assert.ok(phase3Bytes < MIB_1_6, `Phase 3 at its full caps: ${phase3Bytes} bytes`);
+  // Phase 4's sections as they sit in the saved file (one level in, pretty-printed as main writes it),
+  // with every id at the longest its cleaner accepts (§18.2), and never less at the producers' lengths.
+  assert.equal(PHASE4_BUDGET, 460_800);
+  assert.ok(outerPhase4Bytes <= PHASE4_BUDGET, `Phase 4’s sections at the cleaners’ outer bounds: ${outerPhase4Bytes} bytes, ${PHASE4_BUDGET - outerPhase4Bytes} under 450 KiB`);
+  assert.ok(phase4Bytes < outerPhase4Bytes, `at the producers’ id lengths: ${phase4Bytes} bytes`);
+  // main.cjs refuses to save past MAX_STATE_BYTES, so the whole state must fit it, at the producers'
+  // id lengths and with every Phase 4 id at the longest its cleaner accepts.
+  assert.match(readFileSync(new URL('../electron/main.cjs', import.meta.url), 'utf8'), /const MAX_STATE_BYTES = 2 \* 1024 \* 1024;/);
+  assert.ok(bytes < MAX_STATE_BYTES, `the whole capped state: ${bytes} bytes`);
+  assert.ok(widest < MAX_STATE_BYTES, `the cleaners’ outer bounds: ${widest} bytes`);
+  t.diagnostic(`Phase 3 ${phase3Bytes}, Phase 4 ${phase4Bytes}, whole ${bytes}; at the outer bounds Phase 4 ${outerPhase4Bytes} (${PHASE4_BUDGET - outerPhase4Bytes} under 450 KiB), whole ${widest} (${Math.floor(MIB_1_9) - widest} under 1.9 MiB, ${MAX_STATE_BYTES - widest} under 2 MiB)`);
+});
+
+// §8.3 and §15 pinned the whole capped state under 1.6 MiB, but Phase 3 alone at its full caps is
+// about 1.44 MB, which §8.3's estimate missed. §18.2 moved the pin to 1.9 MiB (1,992,294 bytes,
+// pretty-printed), under main's 2 MiB write cap: at the producers' id lengths and at the cleaners'
+// outer bounds.
+test('Phase 3 and 4: the whole capped state stays under the pinned 1.9 MiB', () => {
+  const { bytes, widest } = measureCaps();
+  assert.equal(Math.floor(MIB_1_9), 1_992_294);
+  assert.ok(MIB_1_9 < MAX_STATE_BYTES);
+  assert.ok(bytes < MIB_1_9, `the whole capped state: ${bytes} bytes, ${bytes - Math.floor(MIB_1_9)} past 1.9 MiB`);
+  assert.ok(widest < MIB_1_9, `the cleaners’ outer bounds: ${widest} bytes, ${widest - Math.floor(MIB_1_9)} past 1.9 MiB`);
+});
+
+test('Phase 4’s size budget assumes the longest ids their producers write', () => {
+  // Content ids (content/combat and content/party): the ids members store (paths, boons, spells, reactions, uses, parts, mechanics).
+  const ids = [];
+  const walk = (value) => {
+    if (Array.isArray(value)) value.forEach(walk);
+    else if (value && typeof value === 'object') for (const [key, child] of Object.entries(value)) (key === 'id' && typeof child === 'string' ? ids.push(child) : walk(child));
+  };
+  const dirs = ['content/combat', 'content/party', 'content/party/companions', 'content/camp'];
+  for (const dir of dirs) {
+    const url = new URL(`../${dir}/`, import.meta.url);
+    if (!existsSync(url)) continue;
+    for (const name of readdirSync(url).filter((n) => n.endsWith('.json'))) walk(JSON.parse(readFileSync(new URL(name, url), 'utf8').replace(/^﻿/, '')));
+  }
+  const longest = ids.reduce((a, b) => (b.length > a.length ? b : a), '');
+  assert.ok(longest.length <= PRODUCER_IDS.content, `the longest content id, “${longest}”, is ${longest.length} characters: re-measure the budget`);
+  // §5.1's fight ids at their longest (a 13-character rift id, a since at the clock's end, a 7-digit cave, the longest room id).
+  const since = (8.64e15).toString(36);
+  for (const id of [`fight:rift:${'z'.repeat(13)}:w:field`, `fight:rift:${'z'.repeat(13)}:${since}:field`, `fight:cave:-9999999,-9999999:${dayNumber(8.64e15)}:field`]) {
+    assert.match(id, /^fight:[a-z0-9:,.-]{1,90}$/);
+    assert.ok(id.length <= PRODUCER_IDS.fight, `${id}: ${id.length}`);
+  }
+  // Kindle's event keys until the year 2286, and the longest fact ids §8.2 names.
+  assert.equal(`focus:${9_999_999_999_999}`.length, PRODUCER_IDS.event);
+  assert.ok(`glimmer:poi:${'a'.repeat(16)}:-9999999,-9999999`.length <= PRODUCER_IDS.fact);
+  assert.ok(`examined:${'a'.repeat(24)}:construct`.length <= PRODUCER_IDS.fact);
+});
+
+// `npm test` runs every file at once (23 processes on this 24-thread PC, which mixes fast and slow
+// cores). While the heavy files run, this process can land on a slow core or share a fast one, and
+// then every clock reads about twice the quiet time, the thread's own CPU time included (measured:
+// 13.2 ms of CPU time a run under the whole suite, 6.6 ms alone), so CPU time can't take the load
+// out. Neighbours can only slow a round, never speed it up, so the measure is the best median of
+// rounds of 21 runs, spaced out so the machine can quieten: it stops at the first round within
+// budget, and waits up to two minutes (the whole suite takes under one) for one. Alone, the first
+// round is about 7 ms.
+test('Phase 3 and 4: normalizeState at every cap takes at most 10 ms (median)', async (t) => {
+  const saved = JSON.parse(JSON.stringify(normalizeState(cappedState(PRODUCER_IDS), NOW)));
+  for (let i = 0; i < 5; i += 1) normalizeState(saved, NOW);
+  const medians = [];
+  const deadline = performance.now() + 120_000;
+  while (!(medians.length && Math.min(...medians) <= 10) && (medians.length < 3 || performance.now() < deadline)) {
+    if (medians.length) await new Promise((resolve) => { setTimeout(resolve, 250); });
+    const times = [];
+    for (let i = 0; i < 21; i += 1) {
+      const start = performance.now();
+      normalizeState(saved, NOW);
+      times.push(performance.now() - start);
+    }
+    medians.push(times.sort((a, b) => a - b)[10]);
+  }
+  const best = Math.min(...medians);
+  assert.ok(best <= 10, `best median ${best.toFixed(2)} ms over ${medians.length} rounds (the last: ${medians.slice(-5).map((m) => m.toFixed(2)).join(', ')})`);
+  t.diagnostic(`normalizeState median ${best.toFixed(2)} ms, after ${medians.length} round(s)`);
 });
 
 test('Phase 3 helpers: materials, stumps, lanterns, points of interest and the fog', () => {

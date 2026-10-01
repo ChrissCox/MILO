@@ -16,7 +16,7 @@ import {
   runRiftLoop, echoesFor, wildStateOf, warGroups, riftWhere, stageWord, wardUntilText, heldRule, riftActions, rowActions,
   areaStatus, areaLabel, eveningBellOptions, bootRiftLine, loopBubbles, genreTable, genreChips, anchorNames, riftsSignature,
   snapshotUsable, inHeart, midName, elsewhereLandmarks, elsewhereEntries, createReachTest, stageTag, kindTag, closedWord,
-  engineLandmarks, sharedWorldgen, terrainSource, startName, gateEntries, contentProblem, stillStanding,
+  engineLandmarks, sharedWorldgen, terrainSource, startName, gateEntries, contentProblem, stillStanding, LANDMARK_ORDER,
 } from '../src/ui/frontier.js';
 import {
   pickLine, rollRange, chanceFor, lootFor, materialsText, materialItems, lootItems, listWords, floatWords, chopLogs, woodOf, parseId, tabletKeys, chunkKeyOf,
@@ -24,7 +24,7 @@ import {
 } from '../src/ui/wildtext.js';
 import {
   esc, riftRow, closedRow, riftSection, riftPanel, warTablePanel, hearthPanel, satchelSection, lanternPanel, poiPanel,
-  storyPanel, trackerCard, elsewhereBanner, entityList, eveningBellSetting, actionWord, splitSignature, requirementTag, materialTag,
+  storyPanel, trackerCard, elsewhereBanner, entityList, eveningBellSetting, actionWord, splitSignature, requirementTag, materialTag, costWord,
 } from '../src/ui/panels.js';
 import { riftScene, poiScene, hearthScene, spriteScene, frontierOverlay, makeImage, POI_SPRITES, fitScale, riftFrame, hushTable, bleedGenreAt } from '../src/ui/panelart.js';
 import { baseTable } from '../src/world/sprites.js';
@@ -1136,4 +1136,109 @@ test('place pictures stand on their own ground: water for the quay and fishing, 
     assert.ok(type === 'quay' || type === 'fishing' ? watery(edge) : grassy(edge), `${type}: its own ground at the far edge`);
   }
   assert.equal(poiScene({ type: 'ruin', x: 5, y: 5 }, { w: 10 }).width, poiScene({ type: 'ruin', x: 5, y: 5 }).width, 'never narrower than it was');
+});
+// ---------------------------------------------------------------------------
+// Phase 4's hooks in the shell's helpers (CONTRACT-PHASE4.md §12.4 "L", module L1): the fight-ready
+// Elsewhere's landmarks, combatants first in a fight, Challenge for a field boss, the doors' prices
+// and the suggested level on the rift panel, and the cave's door.
+
+const { loadRules } = await import('../src/combat/rules.js');
+const { prepareElsewhere, prepareCave } = await import('../src/combat/encounters.js');
+const { caveSpec, caveLayout } = await import('../src/world/caves.js');
+const { leadDisplayName } = await import('../src/world/leadname.js');
+const combat = { rules: read('combat/rules'), leads: read('combat/leads'), foes: read('combat/foes'), tuning: read('combat/tuning') };
+const loadedRules = loadRules(combat.rules, combat.tuning);
+const hooks = (combat.leads.hooks || []).map((h) => h.name);
+
+test('a fight-ready Elsewhere lists its nook and its Tale-lead as the scene shows them, and a cave its chests without a seam', () => {
+  assert.deepEqual(LANDMARK_ORDER, ['stitch', 'tale-lead', 'loot', 'curio', 'nook', 'exit']);
+  let nooks = 0;
+  const specs = [];
+  for (let cy = -5; cy <= 5 && specs.length < 8; cy += 1) {
+    for (let cx = -5; cx <= 5 && specs.length < 8; cx += 1) {
+      for (const rift of wildRiftsForChunk({ worldgen, riftgen, cx, cy, day: dayNumber(NOON), wardRadius: 0, isFree })) if (rift.spec.stage !== 'hairline') specs.push(rift.spec);
+    }
+  }
+  for (const spec of specs) {
+    const ready = prepareElsewhere(spec, { riftgen, genres: content.genres, words: content.riftgen, kind: 'wild', roadLevel: 1, partySize: 4, rules: loadedRules, leads: combat.leads, foes: combat.foes, tuning: combat.tuning, hooks });
+    const marks = elsewhereLandmarks(spec, ready.layout, { plan: ready.plan, encounters: ready.encounters, words: content.riftgen, hooks });
+    const scene = buildElsewhere(spec, ready.layout, { genres: content.genres, kind: 'wild', words: content.riftgen, hooks, fight: { plan: ready.plan, encounters: ready.encounters } });
+    const clickable = new Map(scene.objects.filter((o) => !o.scenery && o.kind !== 'foliage').map((o) => [o.id, o]));
+    assert.deepEqual(new Set(marks.map((m) => m.id)), new Set(clickable.keys()), `every object is listed (${spec.name})`);
+    for (const mark of marks) {
+      assert.equal(mark.kind, clickable.get(mark.id).kind);
+      assert.deepEqual([mark.x, mark.y], [clickable.get(mark.id).x, clickable.get(mark.id).y]);
+      assertCalm(mark.label);
+    }
+    const lead = marks.find((m) => m.id === 'tale-lead');
+    if (lead) assert.equal(lead.label, leadDisplayName(spec, content.riftgen, { hooks }), 'the lead’s shown name');
+    if (lead) assert.equal(lead.label, clickable.get('tale-lead').label);
+    const nook = marks.find((m) => m.kind === 'nook');
+    if (nook) {
+      nooks += 1;
+      assert.equal(nook.label, 'Hearth-nook · rest here');
+      assert.equal(marks.at(-1).id, 'exit', 'the way home still last');
+    }
+    const ranks = marks.map((m) => LANDMARK_ORDER.indexOf(m.kind));
+    assert.deepEqual(ranks, [...ranks].sort((a, b) => a - b), 'in the landmark order');
+    assert.deepEqual(new Set(engineLandmarks([...clickable.values()]).map((m) => m.id)), new Set(marks.map((m) => m.id)), 'the engine’s list holds the same');
+  }
+  assert.ok(nooks > 0, 'some Elsewhere has a nook');
+
+  const pois = [];
+  for (let cy = -4; cy <= 4 && pois.length < 2; cy += 1) for (let cx = -4; cx <= 4 && pois.length < 2; cx += 1) for (const p of worldgen.chunk(cx, cy).pois) if (p.type === 'cave') pois.push(p);
+  const cave = caveSpec(pois[0], { worldgen, wilds, foes: combat.foes, day: dayNumber(NOON) });
+  const ready = prepareCave(cave, { layout: caveLayout(cave, riftgen), roadLevel: 1, partySize: 4, rules: loadedRules, foes: combat.foes, words: content.riftgen, day: cave.day, genres: content.genres });
+  const marks = elsewhereLandmarks(cave, ready.layout, { plan: ready.plan, encounters: ready.encounters });
+  const scene = buildElsewhere(cave, ready.layout, { genres: content.genres, kind: 'cave', words: content.riftgen, fight: { plan: ready.plan, encounters: ready.encounters } });
+  const clickable = scene.objects.filter((o) => !o.scenery && o.kind !== 'foliage');
+  assert.deepEqual(new Set(marks.map((m) => m.id)), new Set(clickable.map((o) => o.id)), 'a cave’s chests, the added ones too');
+  assert.ok(!marks.some((m) => m.kind === 'stitch' || m.kind === 'tale-lead'), 'a cave has no seam and no Tale-lead');
+  const locked = ready.encounters.chests.find((c) => c.locked);
+  assert.equal(marks.find((m) => m.id === locked.id).label, 'A locked chest');
+  assert.equal(elsewhereLandmarks(cave, ready.layout, { plan: ready.plan, encounters: ready.encounters, chests: { [locked.id]: NOON } }).find((m) => m.id === locked.id).label, 'An open chest');
+});
+
+test('in a fight the place list puts the combatants first; Challenge is offered for a field boss only', () => {
+  const marks = [{ id: 'stitch', kind: 'stitch', x: 20, y: 5, label: 'The seam · stitch it' }, { id: 'exit', kind: 'exit', x: 2, y: 9, label: 'The way home' }];
+  const inView = [
+    { id: 'stray:rift:a:0', kind: 'stray', x: 3, y: 8, label: 'Near stray' },
+    { id: 'cb:f0', kind: 'combatant', x: 9, y: 9, label: 'Glitch drone, 6 of 16 Integrity' },
+    { id: 'cb:milo', kind: 'combatant', x: 4, y: 9, label: 'Milo, 18 of 18 Integrity' },
+  ];
+  assert.deepEqual(elsewhereEntries(marks, inView, { x: 2, y: 8 }).map((e) => e.id), ['cb:f0', 'cb:milo', 'stitch', 'exit', 'stray:rift:a:0']);
+  assert.deepEqual(riftActions({ kind: 'wild' }, { field: true }), ['step', 'challenge', 'let-go']);
+  assert.deepEqual(riftActions({ kind: 'wild' }, { field: true, challenged: true }), ['step', 'let-go'], 'once a day');
+  assert.deepEqual(riftActions({ kind: 'wild' }, { field: true, away: true }), ['leave', 'let-go']);
+  assert.deepEqual(riftActions({ kind: 'wild' }, { field: true, inside: true }), ['stitch', 'leave']);
+  assert.deepEqual(riftActions({ kind: 'real' }, { field: true }), ['step', 'ward', 'let-go'], 'only wild rifts have field bosses');
+  assert.equal(actionWord('challenge'), 'Challenge');
+  assert.equal(actionWord('enter-cave'), 'Go in');
+});
+
+test('the rift panel prices its doors and says the suggested level; the War Table’s rows too; the cave’s door goes in for its Embers', () => {
+  assert.equal(costWord('step', 5), 'Step through · 5 Embers');
+  assert.equal(costWord('challenge', 1), 'Challenge · 1 Ember');
+  assert.equal(costWord('step', 0), 'Step through');
+  const view = {
+    id: 'rift:abc', kind: 'wild', name: 'The Haunted <b>Choir</b>', genres: [], stage: 'Gaping', stageId: 'gaping', cause: 'c', actions: ['step', 'challenge', 'let-go'],
+    costs: { step: 6, challenge: 5 }, level: 'Runs at level 5. Your company is level 3 (4 on average, with the Scribe).',
+  };
+  const html = riftPanel(view);
+  assert.match(html, /data-action="rift-step"[^>]*>Step through · 6 Embers</);
+  assert.match(html, /data-action="rift-challenge"[^>]*>Challenge · 5 Embers</);
+  assert.match(html, /data-action="rift-let-go"[^>]*>Let go</);
+  assert.match(html, /<p class="rift-where rift-level">Runs at level 5\. Your company is level 3 \(4 on average, with the Scribe\)\.<\/p>/);
+  assert.doesNotMatch(html, /<b>/, 'escaped');
+  assertCalm(html);
+  assert.doesNotMatch(riftPanel({ ...view, costs: undefined, level: undefined }), /Embers|rift-level/, 'without them the panel is Phase 3’s');
+  const row = riftRow({ id: 'rift:abc', kind: 'real', name: 'X', genres: [], stage: 'Open', stageId: 'open', level: 'Runs at level 2. Your company is level 2.' });
+  assert.match(row, /<p class="rift-meta rift-level">Runs at level 2\. Your company is level 2\.<\/p>/);
+  const poi = { id: 'poi:cave:86,-115', type: 'cave', x: 86, y: -115, name: 'A cave mouth', depth: 3 };
+  const cave = poiPanel({ id: poi.id, type: 'cave', ...poiView(poi, content.wilds, createState(NOON), { phase4World: true, economy: read('economy') }) });
+  assert.match(cave, /data-action="poi-enter-cave"[^>]*>Go in · 3 Embers</);
+  assert.doesNotMatch(poiPanel({ id: poi.id, type: 'cave', ...poiView(poi, content.wilds, createState(NOON), {}) }), /poi-enter-cave/, 'only with the Phase 4 world');
+  // Phase 3's loop returns nothing of Phase 4's without its passes.
+  const plain = loop(freshState(), snapshotWith({ capacity: reading(91) }));
+  assert.deepEqual([plain.paid, plain.drops, plain.stitches], [[], [], 0]);
 });

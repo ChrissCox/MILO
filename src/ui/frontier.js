@@ -6,6 +6,7 @@ import { deriveSignals, buildRealRifts, reconcileRifts, sealedSummary, bellText,
 import { settleStory, prologueStatus } from '../story.js';
 import { tallyFinished } from '../model.js';
 import { hearthTier, wardRadius as hearthWardRadius } from '../hearth.js';
+import { leadDisplayName } from '../world/leadname.js';
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const finite = (value) => typeof value === 'number' && Number.isFinite(value);
@@ -83,27 +84,37 @@ export const startName = (name) => capFirst(String(name ?? ''));
  * `closed`: Nocturnes the evening bell no longer covers (moved or switched off), which go quietly,
  * never as a seal. A redesign keeps its building's bright rift (rifts.js reads firstBuiltAt).
  * `state` is the same object when nothing changed.
+ *
+ * Phase 4 (CONTRACT-PHASE4.md §12.4 "L", §4.18, §4.20): with `phase4` (phase4Passes' object, made
+ * from the modules the shell loaded for the areas phase4Problem passes), the loop also runs these
+ * pure passes: tallyAnswered after tallyFinished; then, once the rifts are reconciled (so a seal
+ * pays in the same pass), payFromSignals, payLifeFromSignals, topUpCrewGifts and payRealStitches;
+ * and last it clears an expedition whose place has closed. It also returns { paid (the Ember ledger
+ * entries paid), drops (life-XP drops), stitches (real stitches paid) }. Without `phase4` it's
+ * Phase 3's loop exactly.
  */
-export function runRiftLoop({ state, snapshot = null, now, content = null, riftgen = null, worldgen = null, isFree = null, dryRun = false }) {
+export function runRiftLoop({ state, snapshot = null, now, content = null, riftgen = null, worldgen = null, isFree = null, dryRun = false, phase4 = null }) {
   const tier = hearthTier(state);
   const ward = hearthWardRadius(state, content?.fortress ?? null);
   if (dryRun) {
     // Before the first look at the crew: the rifts the state already knows, placed, and nothing changed.
     const signals = deriveSignals({ snapshot: null, state, now, story: content?.story ?? null });
     const rifts = buildRealRifts({ signals, state, now, riftgen, worldgen, wardRadius: ward, isFree });
-    return { state, rifts, opened: [], sealed: [], closed: [], bell: [], notify: false, completed: [], tier, wardRadius: ward, hasSessions: false };
+    return { state, rifts, opened: [], sealed: [], closed: [], bell: [], notify: false, completed: [], tier, wardRadius: ward, hasSessions: false, paid: [], drops: [], stitches: 0 };
   }
   let next = state;
   const usable = snapshotUsable(snapshot);
   if (usable) next = tallyFinished(next, snapshot, now);
+  if (usable && typeof phase4?.tallyAnswered === 'function') next = pass('tallyAnswered', next, () => phase4.tallyAnswered(next, snapshot, now));
   const hasSessions = usable && Array.isArray(snapshot.sessions) && snapshot.sessions.length > 0;
   const settled = settleStory(next, content?.story ?? null, { hasSessions }, now);
   next = settled.state;
   const signals = deriveSignals({ snapshot, state: next, now, story: content?.story ?? null });
   const rifts = buildRealRifts({ signals, state: next, now, riftgen, worldgen, wardRadius: ward, isFree });
   const result = reconcileRifts(next, rifts, now, { tier });
+  const extra = phase4 ? phase4Pass(result.state, { now, rifts, usable, phase4 }) : { state: result.state, paid: [], drops: [], stitches: 0 };
   return {
-    state: result.state,
+    state: extra.state,
     rifts,
     opened: result.opened,
     sealed: result.sealed,
@@ -114,7 +125,67 @@ export function runRiftLoop({ state, snapshot = null, now, content = null, riftg
     tier,
     wardRadius: ward,
     hasSessions,
+    paid: extra.paid,
+    drops: extra.drops,
+    stitches: extra.stitches,
   };
+}
+
+// A Phase 4 pass that throws leaves the state as it was (and says so in the console), never the loop.
+function pass(name, state, fn) {
+  try {
+    return fn() ?? state;
+  } catch (error) {
+    console.error(`[MILO] ${name}`, error);
+    return state;
+  }
+}
+
+function phase4Pass(state, { now, rifts, usable, phase4 }) {
+  let next = state;
+  let paid = [];
+  let drops = [];
+  let stitches = 0;
+  if (typeof phase4.payFromSignals === 'function') {
+    const r = pass('payFromSignals', null, () => phase4.payFromSignals(next, now, phase4.economy ?? null));
+    if (r) { next = r.state; paid = Array.isArray(r.paid) ? r.paid : []; }
+  }
+  if (typeof phase4.payLifeFromSignals === 'function') {
+    const r = pass('payLifeFromSignals', null, () => phase4.payLifeFromSignals(next, now, phase4.xp ?? null));
+    if (r) { next = r.state; drops = Array.isArray(r.drops) ? r.drops : []; }
+  }
+  if (typeof phase4.topUpCrewGifts === 'function') next = pass('topUpCrewGifts', next, () => phase4.topUpCrewGifts(next, now));
+  if (typeof phase4.payRealStitches === 'function' && isRecord(phase4.rules)) {
+    const r = pass('payRealStitches', null, () => phase4.payRealStitches(next, now, { rules: phase4.rules, xp: phase4.xp ?? null }));
+    if (r) { next = r.state; stitches = finite(r.paid) ? r.paid : 0; }
+  }
+  // A real rift's episode is judged closed only on a real look at the crew (a watcher hiccup carries it).
+  if (typeof phase4.clearClosed === 'function') next = pass('clearClosed', next, () => phase4.clearClosed(next, { now, rifts: usable ? rifts : null }));
+  return { state: next, paid, drops, stitches };
+}
+
+/**
+ * The Phase 4 passes for runRiftLoop, from the modules the shell loaded (state4, embers, lifeskills,
+ * party, expedition) and phase4Problem's result: groundwork's (tallyAnswered, payFromSignals,
+ * payLifeFromSignals) when that area is sound, and the party's (topUpCrewGifts, payRealStitches with
+ * the loaded combat `rules`, and the expedition's clearClosed) when combat and party both are. A
+ * missing module or a broken area leaves its passes out, so the loop never depends on a Phase 4
+ * file to stand the wilds up. → the object runRiftLoop takes, or null.
+ */
+export function phase4Passes({ state4 = null, embers = null, lifeskills = null, party = null, expedition = null } = {}, { problem = null, content = null, rules = null } = {}) {
+  const sound = (area) => !isRecord(problem) || problem[area] == null;
+  const out = { economy: content?.economy ?? null, xp: content?.xp ?? null };
+  if (sound('groundwork')) {
+    if (typeof state4?.tallyAnswered === 'function') out.tallyAnswered = state4.tallyAnswered;
+    if (typeof embers?.payFromSignals === 'function') out.payFromSignals = embers.payFromSignals;
+    if (typeof lifeskills?.payLifeFromSignals === 'function') out.payLifeFromSignals = lifeskills.payLifeFromSignals;
+  }
+  if (sound('combat') && sound('party')) {
+    if (typeof party?.topUpCrewGifts === 'function') out.topUpCrewGifts = party.topUpCrewGifts;
+    if (typeof party?.payRealStitches === 'function' && isRecord(rules)) { out.payRealStitches = party.payRealStitches; out.rules = rules; }
+    if (typeof expedition?.clearClosed === 'function') out.clearClosed = expedition.clearClosed;
+  }
+  return Object.values(out).some((v) => typeof v === 'function') ? out : null;
 }
 
 /** A short signature of what the engine draws for these rifts, so unchanged lists aren't resent. */
@@ -230,8 +301,10 @@ export function heldRule(rift) {
  * What a rift's panel and rows offer, by kind and where Milo is. `inside`: Milo is in this rift's
  * Elsewhere. `away`: he's inside another rift's Elsewhere, so he has to leave it before he can set
  * off for this one (Leave stands in for Step through, Visit and Show me).
+ * `field` (Phase 4, §12.4): the rift's Tale-lead is a field boss (fieldboss.isFieldBoss), so a wild
+ * rift also offers Challenge, the only way its fight starts, until it's been `challenged` today.
  */
-export function riftActions(rift, { via = 'list', inside = false, stitched = false, away = false } = {}) {
+export function riftActions(rift, { via = 'list', inside = false, stitched = false, away = false, field = false, challenged = false } = {}) {
   if (!rift) return [];
   if (inside) {
     if (stitched) return rift.kind === 'wild' ? ['deeper', 'leave'] : ['leave'];
@@ -242,7 +315,7 @@ export function riftActions(rift, { via = 'list', inside = false, stitched = fal
   const step = away ? 'leave' : via === 'echo' ? 'show' : 'step';
   if (rift.bright) return [away ? 'leave' : via === 'echo' ? 'show' : 'visit', 'let-be'];
   if (rift.kind === 'story') return [step];
-  if (rift.kind === 'wild') return [step, 'let-go'];
+  if (rift.kind === 'wild') return field && !challenged && !away ? [step, 'challenge', 'let-go'] : [step, 'let-go'];
   return [step, rift.warded ? 'unward' : 'ward', 'let-go'];
 }
 
@@ -487,32 +560,53 @@ export const gateWord = (short) => GATE_WORDS[short] || 'north';
  * (so world.walkToEntity(id) finds each one even out of view).
  * → [{ id, kind, x, y, label }] in that order. A mended tear isn't listed.
  * `refused`: a real rift's seam, which won't take the thread. `opened`: its chests were claimed.
+ * Phase 4 (§12.4): with `plan` (a fight-ready place's ArenaPlan) it also lists a cave's added
+ * chests (`loot:<n>` after the layout's own) and the hearth-nook, before the way home; with
+ * `encounters` a cave's locked chest reads "A locked chest"; `chests` (expedition.chests) marks
+ * the ones opened. A cave (`spec.kind === 'cave'`) has no seam and no Tale-lead. The Tale-lead's name
+ * is leadDisplayName's (`words` riftgen.json and `hooks` leads.json's names), as the scene shows it.
  */
-export function elsewhereLandmarks(spec, layout, { stitched = false, refused = false, opened = false } = {}) {
+export function elsewhereLandmarks(spec, layout, { stitched = false, refused = false, opened = false, plan = null, encounters = null, chests = null, words = null, hooks = [] } = {}) {
   if (!isRecord(layout)) return [];
   const at = (spot) => isRecord(spot) && finite(spot.x) && finite(spot.y);
+  const cave = spec?.kind === 'cave';
+  const locked = new Set((Array.isArray(encounters?.chests) ? encounters.chests : []).filter((c) => c?.locked).map((c) => c.id));
+  const open = (id) => opened || (isRecord(chests) && Object.hasOwn(chests, id));
+  const chestLabel = (id) => (open(id) ? 'An open chest' : locked.has(id) ? 'A locked chest' : 'A chest');
   const out = [];
-  if (!stitched && at(layout.stitch)) {
+  if (!cave && !stitched && at(layout.stitch)) {
     out.push({ id: 'stitch', kind: 'stitch', x: layout.stitch.x, y: layout.stitch.y, label: refused ? 'The seam, holding for now' : 'The seam · stitch it' });
   }
-  if (isRecord(spec?.taleLead) && at(layout.boss)) {
-    out.push({ id: 'tale-lead', kind: 'tale-lead', x: layout.boss.x, y: layout.boss.y, label: spec.taleLead.name || 'The Tale-lead' });
+  if (!cave && isRecord(spec?.taleLead) && at(layout.boss)) {
+    out.push({ id: 'tale-lead', kind: 'tale-lead', x: layout.boss.x, y: layout.boss.y, label: leadDisplayName(spec, words, { hooks }) || 'The Tale-lead' });
   }
-  (Array.isArray(layout.loot) ? layout.loot : []).forEach((spot, n) => {
-    if (at(spot)) out.push({ id: `loot:${n}`, kind: 'loot', x: spot.x, y: spot.y, label: opened ? 'An open chest' : 'A chest' });
+  const loot = Array.isArray(layout.loot) ? layout.loot : [];
+  loot.forEach((spot, n) => {
+    if (at(spot)) out.push({ id: `loot:${n}`, kind: 'loot', x: spot.x, y: spot.y, label: chestLabel(`loot:${n}`) });
+  });
+  (Array.isArray(plan?.chests) ? plan.chests : []).forEach((spot, i) => {
+    const lid = `loot:${loot.length + i}`;
+    if (at(spot)) out.push({ id: lid, kind: 'loot', x: spot.x, y: spot.y, label: chestLabel(lid) });
   });
   if (at(layout.puzzle)) out.push({ id: 'curio', kind: 'curio', x: layout.puzzle.x, y: layout.puzzle.y, label: 'A curio' });
+  if (at(plan?.nook)) out.push({ id: 'nook', kind: 'nook', x: plan.nook.x, y: plan.nook.y, label: 'Hearth-nook · rest here' });
   if (at(layout.entrance)) out.push({ id: 'exit', kind: 'exit', x: layout.entrance.x, y: layout.entrance.y, label: 'The way home' });
   return out;
 }
 
 /**
- * The place list inside an Elsewhere: its landmarks first (wherever they are), then whatever else
- * is in view (strays), nearest first, each once.
+ * The place list inside an Elsewhere: in a fight its combatants first (`kind: 'combatant'`, in the
+ * engine's order), then its landmarks (wherever they are), then whatever else is in view (strays),
+ * nearest first, each once.
  */
 export function elsewhereEntries(landmarks, inView, tile = null) {
   const seen = new Set();
   const out = [];
+  for (const e of Array.isArray(inView) ? inView : []) {
+    if (!isRecord(e) || e.kind !== 'combatant' || typeof e.id !== 'string' || seen.has(e.id)) continue;
+    seen.add(e.id);
+    out.push(e);
+  }
   for (const mark of Array.isArray(landmarks) ? landmarks : []) {
     if (!mark || seen.has(mark.id)) continue;
     seen.add(mark.id);
@@ -536,11 +630,12 @@ export function elsewhereEntries(landmarks, inView, tile = null) {
 
 /**
  * The landmarks of the Elsewhere Milo is in, from the engine's own list of its things
- * (world.elsewhereEntities()): the tear, the Tale-lead, the chests, the curio and the way home, in
- * that order, each once. Strays wander, so they come from what's in view instead. → the same shape
- * as elsewhereLandmarks, or null when the engine gave no list (the shell falls back to the layout).
+ * (world.elsewhereEntities()): the tear, the Tale-lead, the chests, the curio, the hearth-nook and
+ * the way home, in that order, each once. Strays wander, so they come from what's in view instead.
+ * → the same shape as elsewhereLandmarks, or null when the engine gave no list (the shell falls back
+ * to the layout).
  */
-const LANDMARK_ORDER = ['stitch', 'tale-lead', 'loot', 'curio', 'exit'];
+export const LANDMARK_ORDER = Object.freeze(['stitch', 'tale-lead', 'loot', 'curio', 'nook', 'exit']);
 export function engineLandmarks(list) {
   if (!Array.isArray(list)) return null;
   const seen = new Set();

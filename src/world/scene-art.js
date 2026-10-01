@@ -170,8 +170,12 @@ export function createPainter(makeCanvas) {
     return canvas;
   }
 
-  /** Step `step` of `steps` of a dissolve: pixels a hash keeps (fewer as the step grows; invert grows them). */
-  function dissolve(rows, step, steps, { invert = false, table = null, key = 'base', tag = null } = {}) {
+  /**
+   * Step `step` of `steps` of a dissolve: pixels a hash keeps (fewer as the step grows; invert grows
+   * them). With `layers` and `table2`, layer-1 pixels take the second table, as grid() does, so a
+   * fusion stray settles in both its genres.
+   */
+  function dissolve(rows, step, steps, { invert = false, table = null, key = 'base', tag = null, layers = null, table2 = null } = {}) {
     let entry = byRows.get(rows);
     if (!entry) {
       entry = new Map();
@@ -186,7 +190,9 @@ export function createPainter(makeCanvas) {
       if (ch === '.') return null;
       const h = dissolveHash(x, y);
       const keep = invert ? h < cut : h >= cut;
-      return keep ? (table && table[ch]) || BASE_RGBA[ch] || null : null;
+      if (!keep) return null;
+      const t = layers && table2 && layers[y] && layers[y][x] === '1' ? table2 : table;
+      return (t && t[ch]) || BASE_RGBA[ch] || null;
     }, tag);
     entry.set(k, canvas);
     return canvas;
@@ -278,5 +284,77 @@ export function textRows(text, { fill = 'c', outline = 'o' } = {}) {
   const rows = Object.freeze(cells.map((r) => r.join('')));
   if (TEXT_CACHE.size > 200) TEXT_CACHE.delete(TEXT_CACHE.keys().next().value);
   TEXT_CACHE.set(key, rows);
+  return rows;
+}
+
+// ---------- fight numbers (CONTRACT-PHASE4.md §7.8, COMBAT.md §14.4) ----------
+
+// The big set: 5 × 8 glyphs with two-pixel strokes. The small set is the font's own 3 × 5.
+const BIG_GLYPHS = {
+  0: ['.###.', '##.##', '##.##', '##.##', '##.##', '##.##', '##.##', '.###.'],
+  1: ['..##.', '.###.', '..##.', '..##.', '..##.', '..##.', '..##.', '.####'],
+  2: ['.###.', '##.##', '...##', '..##.', '.##..', '##...', '##...', '#####'],
+  3: ['####.', '...##', '...##', '.###.', '...##', '...##', '...##', '####.'],
+  4: ['##.##', '##.##', '##.##', '#####', '...##', '...##', '...##', '...##'],
+  5: ['#####', '##...', '##...', '####.', '...##', '...##', '...##', '####.'],
+  6: ['.###.', '##...', '##...', '####.', '##.##', '##.##', '##.##', '.###.'],
+  7: ['#####', '...##', '...##', '..##.', '..##.', '.##..', '.##..', '.##..'],
+  8: ['.###.', '##.##', '##.##', '.###.', '##.##', '##.##', '##.##', '.###.'],
+  9: ['.###.', '##.##', '##.##', '##.##', '.####', '...##', '...##', '.###.'],
+  '+': ['.....', '.....', '..#..', '..#..', '#####', '..#..', '..#..', '.....'],
+  '-': ['.....', '.....', '.....', '.....', '#####', '.....', '.....', '.....'],
+  '?': ['.###.', '##.##', '...##', '..##.', '.##..', '.##..', '.....', '.##..'],
+  m: ['.....', '.....', '####.', '#.#.#', '#.#.#', '#.#.#', '#.#.#', '#.#.#'],
+  i: ['##', '..', '##', '##', '##', '##', '##', '##'],
+  s: ['....', '....', '.###', '##..', '.##.', '..##', '..##', '###.'],
+  ' ': ['..', '..', '..', '..', '..', '..', '..', '..'],
+};
+const STARS = {
+  small: ['.#.', '###', '.#.', '...', '...'],
+  big: ['..#..', '..#..', '##.##', '..#..', '..#..', '.....', '.....', '.....'],
+};
+export const NUMBER_SIZES = Object.freeze({ small: Object.freeze({ w: 4, h: 6 }), big: Object.freeze({ w: 6, h: 9 }) });
+
+const NUMBER_CACHE = new Map(); // an LRU: key → frozen rows
+const NUMBER_MAX = 200;
+/**
+ * A fight number as frozen rows of palette keys: '17', '+5', '14?' or 'miss', in the small set (3 × 5
+ * glyphs, 4 × 6 with the gap and shadow) or the big one (5 × 8, 6 × 9). A hard ink shadow falls one
+ * pixel right and down, so it reads on any floor. Fill `c` for damage, `l` for a patch, `u` with
+ * `star` for a Critical (a cream sparkle after it) and `S` for "miss" (COMBAT.md §14.4). Cached.
+ */
+export function numberRows(text, { size = 'small', fill = 'c', star = false } = {}) {
+  const big = size === 'big';
+  const key = `${big ? 'b' : 's'}${fill}${star ? '*' : ''}|${text}`;
+  const known = NUMBER_CACHE.get(key);
+  if (known) {
+    // Least recently used goes first: a hit moves the number to the back of the queue.
+    NUMBER_CACHE.delete(key);
+    NUMBER_CACHE.set(key, known);
+    return known;
+  }
+  const set = big ? BIG_GLYPHS : GLYPHS;
+  const H = big ? 8 : 5;
+  const glyphs = [...String(text ?? '').toLowerCase()].map((ch) => ({ rows: set[ch] || set[' '], key: fill }));
+  if (star) glyphs.push({ rows: STARS[big ? 'big' : 'small'], key: 'c' });
+  if (!glyphs.length) glyphs.push({ rows: set[' '], key: fill });
+  const inner = glyphs.reduce((w, g, i) => w + g.rows[0].length + (i ? 1 : 0), 0);
+  const W = inner + 1;
+  const cells = Array.from({ length: H + 1 }, () => Array(W).fill('.'));
+  let x0 = 0;
+  for (const g of glyphs) {
+    g.rows.forEach((row, y) => { for (let x = 0; x < row.length; x += 1) if (row[x] === '#') cells[y][x0 + x] = g.key; });
+    x0 += g.rows[0].length + 1;
+  }
+  for (let y = H; y >= 0; y -= 1) {
+    for (let x = W - 1; x >= 0; x -= 1) {
+      if (cells[y][x] !== '.') continue;
+      const lit = (dx, dy) => { const ch = cells[y - dy]?.[x - dx]; return ch !== undefined && ch !== '.' && ch !== 'o'; };
+      if (lit(1, 0) || lit(0, 1) || lit(1, 1)) cells[y][x] = 'o';
+    }
+  }
+  const rows = Object.freeze(cells.map((r) => r.join('')));
+  if (NUMBER_CACHE.size >= NUMBER_MAX) NUMBER_CACHE.delete(NUMBER_CACHE.keys().next().value);
+  NUMBER_CACHE.set(key, rows);
   return rows;
 }

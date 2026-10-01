@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "about": "Embers (CONTRACT-PHASE4.md §4.20; COMBAT.md §12; PLAN.md §6). They come only from real work and pay for the trip, never the swing. The bank caps at 100, the lifetime count keeps going past it, and the ledger keeps the newest 300 entries. perDay counts Embers, not sessions: what’s past a day’s cap is forfeited, never carried over. A wild rift (or a ladder rung) costs min(max, base + floor((depth − offset) / every)), so 5 at depth 1–3, 6 at 4–6 and 10 from 16. src/embers.js reads every number here. The cap and the ledger’s length are also the save’s own limits (§8.3), which every load keeps to, so they can be lowered here but never raised past 100 and 300.",
+  "cap": 100,
+  "ledger": 300,
+  "earn": [
+    { "id": "focus", "n": 10 },
+    { "id": "rest", "n": 5 },
+    { "id": "crew", "n": 2, "perDay": 10 },
+    { "id": "answered", "n": 1, "perDay": 5 },
+    { "id": "stitch", "n": 5 },
+    { "id": "design", "n": 5 },
+    { "id": "quest-main", "n": 3 },
+    { "id": "quest-side", "n": 2 }
+  ],
+  "spend": {
+    "wild": { "base": 5, "every": 3, "offset": 1, "max": 10 },
+    "real": 5,
+    "story": 0,
+    "field": 5,
+    "cave": 3,
+    "chunk": 1
+  }
+}

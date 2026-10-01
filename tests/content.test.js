@@ -290,7 +290,9 @@ test('hamlets greet you, mimics are friendly, chopping has its lines, and the la
     assertCalm(text, `notes_later.${key}`);
     assert.ok(text.length <= 120, `notes_later.${key} is short`);
   }
-  assert.match(wilds.notes_later.cave, /Adventurer’s Kit/);
+  // Caves open in Phase 4 (CONTRACT-PHASE4.md §9.12): the cave note no longer promises the Kit.
+  assert.match(wilds.notes_later.cave, /\bopen\b/);
+  assert.doesNotMatch(wilds.notes_later.cave, /Adventurer’s Kit/);
   assert.match(wilds.notes_later.gathering, /Notice Board/);
   assert.match(wilds.notes_later.ferry, /Act VI/);
 });
@@ -409,7 +411,8 @@ test('Oriel’s letter comes by paper bird and builds to tea', () => {
 /* --- fortress.json */
 
 test('the Stockade costs birch and ash from the wilds, needs only what MILO can count, and its ward-post is §5’s', () => {
-  assert.equal(fortress.constructionFrom, 'Phase 4');
+  // Construction has no source until Phase 5, so it isn't asked for yet (CONTRACT-PHASE4.md §3.2).
+  assert.equal(fortress.constructionFrom, 'Phase 5');
   const [camp, stockade] = fortress.tiers;
   assert.equal(camp.id, 'camp');
   assert.deepEqual(camp.materials, {});

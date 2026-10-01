@@ -105,10 +105,10 @@ const [modelModule, recapModule, skillsModule, mapModule, engineModule, kitModul
 ]);
 // Phase 3: the Hearth, the frontier and the wilds. If any of these can't load, the shell runs as
 // before (vale only) and the Phase 3 chrome stays hidden.
-const [riftsModule, hearthModule, storyModule, worldgenModule, riftgenModule, wildsModule, navModule, wildsartModule, frontierModule, wildtextModule, panelsModule, panelartModule] = await Promise.all([
+const [riftsModule, hearthModule, storyModule, worldgenModule, riftgenModule, wildsModule, navModule, wildsartModule, frontierModule, wildtextModule, panelsModule, panelartModule, phase4Module] = await Promise.all([
   load('./rifts.js'), load('./hearth.js'), load('./story.js'), load('./world/worldgen.js'), load('./world/riftgen.js'),
   load('./world/wilds.js'), load('./world/nav.js'), load('./world/wildsart.js'), load('./ui/frontier.js'), load('./ui/wildtext.js'),
-  load('./ui/panels.js'), load('./ui/panelart.js'),
+  load('./ui/panels.js'), load('./ui/panelart.js'), load('./ui/phase4.js'),
 ]);
 const PHASE3_MODULES = [riftsModule, hearthModule, storyModule, worldgenModule, riftgenModule, wildsModule, navModule, frontierModule, wildtextModule, panelsModule];
 // The map view is its own module (src/ui/mapview.js); it loads only when first opened.
@@ -259,6 +259,7 @@ let prevSessions = null;
 let booted = false;
 let pendingSnapshot = null;
 let world = null;
+let phase4 = null;           // Phase 4's wiring (src/ui/phase4.js); null when its content can't run
 let earlierLimit = EARLIER_STEP;
 let lastPanelOpener = null;
 let panelClosing = false;
@@ -324,6 +325,8 @@ function placeName(id) {
 
 // What a place is called right now: a built plot goes by its building's name.
 function placeTitle(id) {
+  const registered = phase4?.panels.title(id);
+  if (registered) return registered;
   const special = phase3Title(id);
   if (special) return special;
   if (isPlot(id)) {
@@ -336,6 +339,8 @@ function placeTitle(id) {
 
 // Hover tips name the plot and what's there.
 function placeLabel(id) {
+  const registered = phase4?.panels.title(id);
+  if (registered) return registered;
   const special = phase3Title(id);
   if (special) return special;
   if (!isPlot(id)) return placeName(id);
@@ -398,9 +403,16 @@ function startWorld() {
     onCrewClick: id => openCrew(id),
     onHover: info => showTip(info),
     onMiloMove: tile => miloMoved(tile),
-    motion: motionOn,
+    // MILO's own setting only: the engine reads the system's reduced-motion wish itself, and keeps
+    // walks walking under it while everything decorative holds still.
+    motion: () => state.settings?.motion !== false,
     // Launch always begins in the vale: milo.tile is only ever a vale tile.
     startTile: state.milo?.tile ?? null,
+    // Phase 4 (late-bound: its wiring is made once the world stands).
+    onSceneStep: step => phase4?.onSceneStep(step),
+    onCombatHover: target => phase4?.onCombatHover(target),
+    onCombatCommand: cmd => phase4?.onCombatCommand(cmd),
+    onContextMenu: info => phase4?.onContextMenu(info),
   };
   if (phase3) {
     Object.assign(options, {
@@ -454,15 +466,48 @@ function valePicture() {
 // Tell the world which screen edges the overlays cover, so its camera keeps Milo and his camp in
 // the open part: below the crew strip, and left of an open panel. Uses layout positions, so a
 // panel still sliding in counts at its resting place.
+// Named screen rectangles the Phase 4 overlays report (shell.insets): the combat HUD's bands feed
+// the camera, and the HUD and the Log keep Milo's bubbles and the hover tip off them.
+const insetRects = new Map();
+function setInset(name, rect) {
+  const ok = rect && typeof rect === 'object' && Number.isFinite(rect.width) && rect.width > 0 && Number.isFinite(rect.height);
+  if (ok) {
+    const left = Number.isFinite(rect.left) ? rect.left : rect.x;
+    const topEdge = Number.isFinite(rect.top) ? rect.top : rect.y;
+    insetRects.set(name, { left, top: topEdge, right: left + rect.width, bottom: topEdge + rect.height, width: rect.width, height: rect.height });
+  } else insetRects.delete(name);
+  if (name.startsWith('combat-')) updateWorldInsets();
+}
+
 function updateWorldInsets() {
   const stage = els.stage.getBoundingClientRect();
   const crew = els.crew.getBoundingClientRect();
   // The story card sits just under the crew strip, however many rows the strip wraps to.
   els.tracker?.style.setProperty('--tracker-top', `${Math.round(Math.max(0, crew.bottom - stage.top) + 14)}px`);
   if (!world) return;
-  const top = crew.height > 1 ? Math.max(0, crew.bottom - stage.top + 8) : 0;
-  const right = els.panel.hidden || panelClosing ? 0 : Math.max(0, els.stage.clientWidth - els.panel.offsetLeft + 8);
-  worldCall('setInsets', { top, right });
+  let top = crew.height > 1 ? Math.max(0, crew.bottom - stage.top + 8) : 0;
+  let right = els.panel.hidden || panelClosing ? 0 : Math.max(0, els.stage.clientWidth - els.panel.offsetLeft + 8);
+  let left = 0;
+  let bottom = 0;
+  // A fight frames its arena in the space the combat HUD leaves: below its ribbon, between the
+  // hero column and the foe column, above the planner (src/ui/combat-hud.js).
+  const hud = els.stage.dataset.mode === 'combat' ? document.getElementById('combat-hud') : null;
+  if (hud && !hud.hidden) {
+    const box = selector => {
+      const part = hud.querySelector(selector);
+      const rect = part && !part.hidden ? part.getBoundingClientRect() : null;
+      return rect && rect.width > 1 && rect.height > 1 ? rect : null;
+    };
+    const ribbon = box('.hud-ribbon');
+    const party = box('.hud-party');
+    const foes = box('.hud-foes');
+    const lower = [box('.hud-odds'), box('.planner')].filter(Boolean);
+    if (ribbon) top = Math.max(top, Math.round(ribbon.bottom - stage.top + 8));
+    if (party) left = Math.max(0, Math.round(party.right - stage.left + 8));
+    if (foes) right = Math.max(right, Math.round(stage.right - foes.left + 8));
+    if (lower.length) bottom = Math.max(0, Math.round(stage.bottom - Math.min(...lower.map(rect => rect.top)) + 8));
+  }
+  worldCall('setInsets', { top, right, bottom, left });
 }
 
 function miloPoint() {
@@ -516,7 +561,7 @@ function showTip(info) {
   let x = clamp(px - width / 2, 8, Math.max(8, rightLimit - width));
   let y = clamp(pointerY - 34, 40, innerHeight - 30);
   // Never over the crew strip, the story card or the place list: flip below the pointer, or slide clear.
-  const keepOut = [els.crew, els.places, els.tracker, els.banner]
+  const keepOut = [els.crew, els.places, els.tracker, els.banner, ...phase4Overlays()]
     .filter(overlay => overlay && !overlay.hidden)
     .map(overlay => overlay.getBoundingClientRect())
     .filter(box => box.width > 1 && box.height > 1)
@@ -647,6 +692,12 @@ let bubbleLast = '';
 function queueBubble(message) {
   if (message.kind === 'alert' && bubbleQueue.filter(item => item.kind === 'alert').length >= 4) return;
   bubbleQueue.push(message);
+  // Every bubble is also a line in the Log (Phase 4), so what Milo said is never lost.
+  phase4?.shell.log({
+    tab: message.kind === 'alert' || message.kind === 'progress' ? 'crew' : 'milo',
+    text: [message.lines?.[0]?.startsWith(message.title) ? '' : message.title, ...(message.lines || [])].filter(Boolean).join(' · ').slice(0, 120),
+    at: clockNow(), detail: (message.lines || []).filter(Boolean).length > 1 ? (message.lines || []).filter(Boolean) : null, action: null,
+  });
   if (!bubbleCurrent) nextBubble();
 }
 
@@ -657,7 +708,11 @@ function clearProgressBubbles() {
   if (PASSING.has(bubbleCurrent?.kind)) dismissBubble();
 }
 
+// A fight on screen holds Milo's bubbles until it ends, so none sits on the arena (the Log has them).
+const fightIsLive = () => els.stage.dataset.mode === 'combat';
+
 function nextBubble() {
+  if (fightIsLive()) return;
   const message = bubbleQueue.shift();
   if (!message) return;
   bubbleCurrent = { ...message, touched: false };
@@ -734,7 +789,7 @@ function bubbleAvoid() {
     x: canvas.left + rect.x, y: canvas.top + rect.y, w: rect.w, h: rect.h,
     weight: rect.kind === 'crew' || rect.kind === 'milo' ? 3 : 1, pad: rect.kind === 'milo' ? 0 : 4,
   }));
-  for (const overlay of [els.crew, els.places, els.tracker, els.banner]) {
+  for (const overlay of [els.crew, els.places, els.tracker, els.banner, ...phase4Overlays()]) {
     if (!overlay || overlay.hidden) continue;
     const rect = overlay.getBoundingClientRect();
     if (rect.width > 1 && rect.height > 1) avoid.push({ x: rect.left, y: rect.top, w: rect.width, h: rect.height, weight: 2, pad: 6 });
@@ -821,6 +876,11 @@ els.bubble.addEventListener('click', event => {
   dismissBubble();
   if (action === 'show') {
     openPanel(message.place || 'watchtower', { walk: true, focus: true });
+  } else if (action === 'challenge' && message.challenge) {
+    const rift = riftFor(message.challenge);
+    if (rift) challengeRift(rift);
+  } else if (typeof message.onAction === 'function') {
+    safe(() => message.onAction(action), null, 'a bubble action');
   }
 });
 window.addEventListener('focus', () => armBubbleTimer());
@@ -984,9 +1044,9 @@ function renderDesigner() {
 
 function renderCamp() {
   const all = evaluations();
-  let html = '<p class="panel-lede">Milo\'s home base. His skills grow only when he can really do something new for you.</p>';
+  let html = renderCompanyLinks();
   if (SKILLS.length) {
-    html += '<section class="skills"><h3>Skills</h3>';
+    html += `<section class="skills"><h3>${phase4 ? 'Milo’s Arts' : 'Skills'}</h3>`;
     for (const skill of SKILLS) {
       const evaluation = all[skill.id] || { level: 0, next: skill.levels?.[0] || null, proven: [] };
       const level = Number(evaluation.level) || 0;
@@ -1001,9 +1061,9 @@ function renderCamp() {
   }
   html += renderDesigner();
   const settings = [
-    ['motion', 'Motion', 'Gentle movement in the world and the panels.'],
-    ['notifications', 'Alerts', 'A quiet desktop note when a task finishes while MILO is in the background.'],
-    ['greeting', 'Greeting', 'Milo says hello and recaps when you open MILO.'],
+    ['motion', 'Motion', 'Gentle movement in the world.'],
+    ['notifications', 'Alerts', 'A quiet note when a task finishes.'],
+    ['greeting', 'Greeting', 'Milo says hello when you open MILO.'],
   ];
   html += '<section class="settings"><h3>Settings</h3>' + settings.map(([key, label, hint]) => {
     const on = state.settings?.[key] !== false;
@@ -1012,8 +1072,21 @@ function renderCamp() {
   }).join('')
     // The evening bell is a threshold a rift reads, so it's visible and editable at every tier.
     + (phase3 ? panelsModule.eveningBellSetting(bellSettings()) : '')
-    + (reducedMotion.matches ? '<p class="setting-hint">Your system asks for reduced motion, so the world stays still.</p>' : '') + '</section>';
+    + (reducedMotion.matches ? '<p class="setting-hint">Your system asks for reduced motion, so only walking moves.</p>' : '') + '</section>';
   return html;
+}
+
+// Phase 4: the way into Setting out, the company's sheets and their notebooks, from the camp.
+function renderCompanyLinks() {
+  if (!phase4?.fight) return '';
+  const names = { claude: 'The Scribe', codex: 'The Artificer', jev: 'Jev', tollkeeper: 'The Tollkeeper' };
+  const roster = Object.keys(state.party?.roster || {}).filter(id => id !== 'milo');
+  const sheet = id => `<button type="button" class="px-btn" data-action="phase4-open" data-panel="company:${esc(id)}" data-focus-key="company-${esc(id)}">${esc(names[id] || state.party?.roster?.[id]?.name || id)}</button>`;
+  return '<section class="company-links"><h3>The company</h3>'
+    + '<div class="notebook-actions"><button type="button" class="px-btn primary" data-action="phase4-open" data-panel="muster" data-focus-key="company-muster">Setting out</button>'
+    + '<button type="button" class="px-btn" data-action="phase4-open" data-panel="company:milo" data-focus-key="company-milo">Milo’s sheet</button></div>'
+    + (roster.length ? `<div class="notebook-actions">${roster.slice(0, 6).map(sheet).join('')}</div>` : '')
+    + '</section>';
 }
 
 // The harbor: still in the fog until a calendar is connected.
@@ -1302,6 +1375,8 @@ function renderPlot(place) {
 }
 
 function renderPanelBody(id) {
+  const registered = phase4?.panels.render(id);
+  if (typeof registered === 'string') return registered;
   const special = phase3 ? renderPhase3Panel(id) : null;
   if (special !== null) return special;
   const place = placeById(id) || { id, name: id, blurb: '', kind: 'plot' };
@@ -1470,6 +1545,7 @@ function paintPanelArt() {
     }, ART_TICK_MS);
   }
   if (phase3) paintScenes();
+  phase4?.paintPortraits(els.panelBody);
 }
 
 // ---------------------------------------------------------------------------
@@ -1890,6 +1966,9 @@ els.panel.addEventListener('click', event => {
     return;
   }
   const button = event.target.closest('button[data-action]');
+  if (button?.dataset.action === 'phase4-open' && button.dataset.panel) { openPanel(button.dataset.panel); return; }
+  // Phase 4's panels (the Chronicle, Setting out, a companion's sheet …) take their own buttons first.
+  if (button && !button.disabled && phase4?.panels.action(button, els.panel.dataset.place)) return;
   // The Hearth, the frontier and the wilds have their own actions.
   if (button && !button.disabled && phase3 && handlePhase3Action(button)) return;
   const plotId = panelPlotId();
@@ -1993,6 +2072,8 @@ els.panel.addEventListener('input', event => {
 });
 
 els.panel.addEventListener('change', event => {
+  const picked = event.target.closest('select[data-action]');
+  if (picked && phase4?.panels.action(picked, els.panel.dataset.place)) return;
   // The ward-post rule and the evening bell (the War Table, and the bell at camp too).
   const post = event.target.closest('[data-ward-post]');
   if (post && post.checked) { setWardPost(post.value); return; }
@@ -2203,6 +2284,64 @@ function setupPhase3(bundle) {
   document.documentElement.classList.add('phase3');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 4 (CONTRACT-PHASE4.md §12): the Kit and the Company. src/ui/phase4.js builds the shell the
+// Phase 4 modules mount against and loads what the content bundle can run; this hands it closures
+// over the shell's own state, and consults it from the panels, the doors and the rift loop.
+
+// The corner overlays Phase 4 adds, so bubbles and the hover tip keep off them.
+const phase4Overlays = () => ['hud', 'log', 'context-menu'].map(id => document.getElementById(id)).filter(Boolean);
+
+// What a menu choice does when it isn't the plain default (K1's menus run the default themselves
+// when this returns false).
+function chooseOption(option, target, { doors, combatHud } = {}) {
+  const id = option?.id || '';
+  if (id.startsWith('field-') && doors) { doors.fieldSkill(id.slice(6), target); return true; }
+  if (id === 'challenge' && doors) {
+    const rift = riftIndex.get(target?.riftId || target?.id) || rifts.find(r => r.id === (target?.riftId || target?.id));
+    if (rift) { doors.challenge(rift); return true; }
+    return false;
+  }
+  if (id.startsWith('act:') && combatHud?.act) return combatHud.act(option);
+  if (id === 'default' && target?.kind === 'combatant' && combatHud) { combatHud.select(String(target.id).replace(/^cb:/, '')); return true; }
+  return false;
+}
+
+async function startPhase4(bundle) {
+  if (!phase3 || !phase4Module?.setupPhase4) return;
+  try {
+    phase4 = await phase4Module.setupPhase4({
+      bundle,
+      getState: () => state,
+      setState: (next, delay) => { state = next; scheduleSave(delay); },
+      clockNow, motionOn,
+      getSnapshot: () => snapshot,
+      getArea: () => areaInfo,
+      worldCall, queueBubble, openPanel, closePanel, refreshPanel,
+      travel, leaveElsewhere,
+      openMap: () => { if (!mapIsOpen()) openMap(); },
+      esc, bridge,
+      setInset,
+      riftgen: () => riftgen,
+      worldgen: () => worldgen,
+      wilds: () => shellWilds,
+      wardRadius: () => wardRadiusNow(),
+      walkable: () => (x, y) => Boolean(worldCall('isWalkable', x, y)),
+      sneaking: () => false,
+      where: () => (areaInfo.area === 'vale' ? 'camp' : 'away'),
+      atCamp: () => areaInfo.area === 'vale',
+      placeLabel,
+      choose: chooseOption,
+      statusChanged: () => summarizeStatus(),
+    });
+    // When a fight ends, the bubbles it held come out one by one.
+    phase4?.shell.on('combat', message => { if (!message?.live && !bubbleCurrent) setTimeout(nextBubble, 600); });
+  } catch (error) {
+    console.warn('[MILO] Phase 4 did not start: ' + error.message);
+    phase4 = null;
+  }
+}
+
 // Once the world stands, the shell looks places up in it: the engine's own worldgen when it shares
 // one (world.worldgen), so the roads are laid out once rather than twice, else one of the shell's
 // own from the same seed. Its terrain comes from the engine too (world.terrainAt) when it can.
@@ -2367,6 +2506,7 @@ function riftLoop({ boot = false, quiet = false } = {}) {
   const tierBefore = hearthTierNow();
   const result = safe(() => frontierModule.runRiftLoop({
     state, snapshot: quiet ? null : snapshot, now: clockNow(), content, riftgen, worldgen, isFree: isFreeTile, dryRun: quiet,
+    phase4: phase4?.passes ?? null,
   }), null, 'rift loop');
   if (!result) return null;
   state = result.state;
@@ -2467,6 +2607,7 @@ function applyArea(info) {
     placesDirty();
   }
   summarizeStatus();
+  phase4?.emit('area', areaInfo);
 }
 
 // Chunks newly seen go on the map (the fog lifts), saved on the slow debounce.
@@ -2584,6 +2725,8 @@ async function travel(target) {
 
 // `keep`: the open panel stays (another rift's, which Milo can set off for once he's out).
 async function leaveElsewhere({ keep = false } = {}) {
+  // Mid-fight, Leave is Head home: the Hooklight takes everyone out at the end of the tick, and nothing is lost.
+  if (phase4?.fight?.live?.()) { await Promise.resolve(phase4.fight.command({ t: 'head-home' })); return; }
   if (!keep && !els.panel.hidden && (els.panel.dataset.place || '').startsWith('rift:')) closePanel();
   try {
     await Promise.resolve(worldCall('leaveElsewhere'));
@@ -2654,6 +2797,7 @@ function handleEntity(entity) {
       if (rift) openPanel(rift.id, { via: 'inside' });
       break;
     }
+    case 'landmark': phase4?.landmarkClick(entity); break;
     case 'tale-lead': leadBubble(); break;
     case 'loot': claimElsewhereLoot(); break;
     case 'curio': curioBubble(); break;
@@ -2864,6 +3008,7 @@ function phase3Title(id) {
 
 function panelExists(id) {
   if (placeById(id)) return true;
+  if (phase4?.panels.exists(id)) return true;
   if (!phase3 || typeof id !== 'string') return false;
   if (id === 'hearth' || id === 'story') return true;
   if (id === 'war-table') return hearthTierNow() >= 2;
@@ -2926,7 +3071,8 @@ function renderRift(id) {
   const away = areaInfo.area === 'elsewhere' && !inside;
   const current = rift.kind === 'wild' || rift.kind === 'ladder' || rifts.some(r => r.id === rift.id);
   const stitched = stitchedHere.has(rift.id) || (rift.kind === 'wild' && state.rifts?.closedWild?.[rift.id] === riftsModule.dayNumber(clockNow()));
-  let actions = current || inside ? frontierModule.riftActions(rift, { via: riftUi.via, inside, stitched, away }) : [];
+  const field = Boolean(phase4?.isFieldBoss(rift));
+  let actions = current || inside ? frontierModule.riftActions(rift, { via: riftUi.via, inside, stitched, away, field }) : [];
   if (hearthTierNow() < 2) actions = actions.filter(action => action !== 'war-table');
   // A note from a walk out ("Milo sets off…") is for a rift still there: one that sealed on the
   // way says it closed.
@@ -2957,6 +3103,7 @@ function renderRift(id) {
     wardText: frontierModule.wardUntilText(rift, clockNow()), held: frontierModule.heldRule(rift),
     affixes: Array.isArray(spec.affixes) ? spec.affixes : [], lead, loot: Array.isArray(spec.loot) ? spec.loot : [], lootTaken,
     actions, confirming: riftUi.confirming === rift.id, says, inside, busy: riftUi.busy,
+    level: inside ? null : phase4?.suggestedLevel(rift) || null, costs: phase4?.costsFor(rift) || null,
     artLabel: `Pixel drawing of ${spec.name ? frontierModule.midName(spec.name) : 'the rift'}, a ${String(rift.stage || 'open')} tear${spec.strays?.length && rift.stage !== 'hairline' ? ' with its strays' : ''}`,
   }, { miloSays: milosLine });
 }
@@ -3045,7 +3192,7 @@ function renderPoi(id) {
   const hour = new Date(clockNow()).getHours();
   const region = poi.region || safe(() => shellWilds.hushRegion(poi.x, poi.y)?.id, null, 'hushRegion');
   const result = poiResults.get(id) || [];
-  const view = wildtextModule.poiView(poi, content?.wilds, state, { regionId: region, night: hour >= 20 || hour < 6, fresh: result.length > 0 });
+  const view = wildtextModule.poiView(poi, content?.wilds, state, { regionId: region, night: hour >= 20 || hour < 6, fresh: result.length > 0, phase4World: Boolean(phase4?.doors), economy: content?.economy });
   return panelsModule.poiPanel({ id, type: poi.type, title: view.title, lines: view.lines, body: view.body, action: view.action, done: view.done, later: view.later, says: result[0] || '', result: result.slice(1) }, { miloSays: milosLine });
 }
 
@@ -3285,6 +3432,7 @@ function handlePhase3Action(button) {
     case 'rift-open': if (rift) openPanel(rift.id, { via: 'list' }); return true;
     case 'rift-step': if (rift) stepThrough(rift); return true;
     case 'rift-visit': if (rift) visitBright(rift); return true;
+    case 'rift-challenge': if (rift) challengeRift(rift); return true;
     case 'rift-show': if (rift) openMap({ x: rift.x, y: rift.y }, rift.id); return true;
     case 'rift-ward': if (rift) wardAction(rift, true); return true;
     case 'rift-unward': if (rift) wardAction(rift, false); return true;
@@ -3307,6 +3455,7 @@ function handlePhase3Action(button) {
     case 'rest': restAction(open); return true;
     case 'travel': travel(button.dataset.target === 'home' ? 'home' : button.dataset.target); return true;
     case 'poi-open': chestAction(open); return true;
+    case 'poi-enter-cave': enterCaveAction(open); return true;
     case 'poi-search': ruinAction(open); return true;
     case 'poi-read': noteAction(open); return true;
     case 'poi-listen': statueAction(open); return true;
@@ -3368,7 +3517,10 @@ async function stepThrough(rift) {
     riftIndex.set(rift.id, rift);
     riftUi.note = null;
     hereRift = rift;
-    const entered = await Promise.resolve(worldCall('enterElsewhere', rift));
+    // With Phase 4 the door spends its Embers first, then opens the fight-ready Elsewhere.
+    const entered = phase4?.doors
+      ? (await phase4.doors.stepThrough(rift, { standing: () => stillStanding(rift) })).ok
+      : await Promise.resolve(worldCall('enterElsewhere', rift));
     if (entered === false && areaInfo.area !== 'elsewhere') hereRift = null;
     if (areaInfo.area === 'elsewhere' && !els.panel.hidden && els.panel.dataset.place === panelId) closePanel();
   } catch (error) {
@@ -3378,6 +3530,52 @@ async function stepThrough(rift) {
   } finally {
     riftUi.busy = false;
     if (!els.panel.hidden && els.panel.dataset.place === panelId) refreshPanel();
+  }
+}
+
+// Challenge a field boss: walk out beside its rift, then the door spends the Embers and the fight starts.
+async function challengeRift(rift) {
+  if (riftUi.busy || !phase4?.doors || !Number.isFinite(rift.x)) return;
+  if (areaInfo.area !== 'vale' && areaInfo.area !== 'wilds') { riftUi.note = awayWords(); refreshPanel(); return; }
+  const panelId = els.panel.dataset.place;
+  riftUi.busy = true;
+  refreshPanel({ focus: null });
+  try {
+    if (!nearTile(rift)) {
+      const arrived = await Promise.resolve(worldCall('walkToEntity', riftEntity(rift)));
+      if (arrived === false) { riftUi.note = 'Milo couldn’t find a way to it just now.'; return; }
+    }
+    if (!stillStanding(rift)) { riftUi.note = null; return; }
+    riftIndex.set(rift.id, rift);
+    riftUi.note = null;
+    const r = await phase4.doors.challenge(rift);
+    if (r?.ok && !els.panel.hidden && els.panel.dataset.place === panelId) closePanel();
+  } catch (error) {
+    console.warn('[MILO] a challenge failed:', error.message);
+    riftUi.note = 'The challenge wouldn’t start just now.';
+  } finally {
+    riftUi.busy = false;
+    if (!els.panel.hidden && els.panel.dataset.place === panelId) refreshPanel();
+  }
+}
+
+// A cave's mouth: walk to it, then the door spends its Embers and the cave opens.
+async function enterCaveAction(id) {
+  const poi = poiInfo(id);
+  if (!poi || riftUi.busy || !phase4?.doors) return;
+  riftUi.busy = true;
+  try {
+    if (!nearTile(poi)) {
+      const arrived = await Promise.resolve(worldCall('walkToEntity', { kind: 'poi', id: poi.id || id, x: poi.x, y: poi.y, label: poi.name || 'a cave' }));
+      if (arrived === false) { poiResults.set(id, ['Milo couldn’t find a way to it just now.']); return; }
+    }
+    const r = await phase4.doors.enterCave(poi);
+    if (r?.ok && !els.panel.hidden && els.panel.dataset.place === id) closePanel();
+  } catch (error) {
+    console.warn('[MILO] a cave failed:', error.message);
+  } finally {
+    riftUi.busy = false;
+    if (!els.panel.hidden && els.panel.dataset.place === id) refreshPanel();
   }
 }
 
@@ -3457,11 +3655,21 @@ function stitchInside(rift) {
   worldCall('closeRift', rift.id, 'stitched');
   syncWildState();
   scheduleSave(150);
+  // A wild stitch pays Road XP once; the Elsewhere's gentlest stray may ask to join the regulars.
+  const paid = rift.kind === 'wild' ? phase4?.payStitch(rift) : null;
   queueBubble({
     kind: 'loot', title: 'Mended',
-    lines: [rift.kind === 'story' ? 'That’s “A Crack Past the Gate” done.' : 'The seam holds, and the strays wave you off.', found.length ? `It left ${listWords(found)}.` : ''].filter(Boolean),
+    lines: [rift.kind === 'story' ? 'That’s “A Crack Past the Gate” done.' : 'The seam holds, and the strays wave you off.', found.length ? `It left ${listWords(found)}.` : '', paid?.xp ? `Road XP +${paid.xp}.` : ''].filter(Boolean),
     duration: ALERT_MS, actions: [{ id: 'later', label: 'Nice' }],
   });
+  const invite = rift.kind === 'wild' ? phase4?.invitation(rift) : null;
+  if (invite) {
+    queueBubble({
+      kind: 'loot', title: `${invite.name} wants to stay`, lines: [invite.words].filter(Boolean), duration: 20000,
+      actions: [{ id: 'welcome', label: 'Welcome them' }, { id: 'later', label: 'Not this time' }],
+      onAction: action => { if (action === 'welcome') invite.accept(); },
+    });
+  }
   riftLoop();
   refreshPanel({ focus: 'panel-deeper' });
 }
@@ -3480,7 +3688,9 @@ async function goDeeper(rift) {
   const above = hereRift;
   hereRift = deeper;
   try {
-    const entered = await Promise.resolve(worldCall('enterElsewhere', deeper));
+    const entered = phase4?.doors
+      ? (await phase4.doors.goDeeper(rift)).ok
+      : await Promise.resolve(worldCall('enterElsewhere', deeper));
     // Refused (mid-fade, say): Milo is still in the rift above.
     if (entered === false) hereRift = areaInfo.area === 'elsewhere' ? above : null;
   } catch (error) {
@@ -3558,6 +3768,7 @@ function chestAction(id) {
   const words = wildtextModule.materialsText(found.materials);
   // A friendly mimic has its say first; either way, what was inside.
   poiDone(id, 'opened', found.materials, [found.line, words ? `Inside: ${words}.` : 'It was empty, but it’s a nice chest.']);
+  phase4?.onChest();
 }
 
 function ruinAction(id) {
@@ -3901,6 +4112,7 @@ function applySnapshot(next) {
   if (!els.panel.hidden && els.panel.dataset.place === 'watchtower') refreshPanel({ passive: true });
   // Every snapshot runs the rift loop (after launch; launch runs its own pass after the greeting).
   if (phase3 && riftLoopLive) riftLoop();
+  phase4?.emit('snapshot', snapshot);
 }
 
 bridge?.onSnapshot(applySnapshot);
@@ -3955,11 +4167,13 @@ async function boot() {
     warmWilds();
   }
 
+  const phase4Ready = startPhase4(bundle);
   const scanning = bridge
     ? withTimeout(bridge.scan().then(result => { previewSnapshot(result); return result; })
       .catch(error => { console.warn('[MILO] scan failed:', error.message); return null; }), SCAN_WAIT_MS)
     : Promise.resolve(null);
   const [first] = await Promise.all([scanning, withTimeout(worldCall('entrance'), 8000)]);
+  await phase4Ready;
   booted = true;
   const initial = pendingSnapshot && (!first || pendingSnapshot.scannedAt >= first.scannedAt) ? pendingSnapshot : first;
   pendingSnapshot = null;
@@ -3989,6 +4203,8 @@ async function boot() {
   if (launch) ringBells(launch.bell, launch.notify);
   riftLoopLive = phase3;
   scheduleSave(0);
+  // A fight that was running when MILO closed picks up on the same tick (Phase 4).
+  if (phase4) phase4.resume().catch(error => console.warn('[MILO] resuming a fight failed: ' + error.message));
   if (state.panel && panelExists(state.panel)) openPanel(state.panel, { focus: false, save: false });
 
   setInterval(() => {

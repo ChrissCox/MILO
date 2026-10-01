@@ -154,6 +154,195 @@
         const spec = specFor(genrePart.split(/[+ |]/), stage, { depth: Number(depth), tier: 3 });
         if (spec) window.__inside = world.enterElsewhere({ id: spec.id, key: null, kind: 'wild', spec, x: null, y: null, stage: spec.stage });
       }
+      // Phase 4 (CONTRACT-PHASE4.md §11): combat=<genre[+genre]>:<stage>[:room] makes a fight-ready
+      // Elsewhere (encounters.prepareElsewhere) and starts that room's fight with a synthetic company;
+      // combat=field starts a synthetic 16-actor fight round Milo in the wilds (a field boss's ground).
+      // plan=1 shows the planner's overlay, round=1 plays a round, bench=1 times world.benchmark
+      // (window.__bench). party=1 has the company follow Milo, camp=1 sits it round the fire,
+      // sky=night|dusk|rain|snow sets the sky, bridge=1 stands the Last Bridge and the Tollkeeper,
+      // skybench=1 times the sky's tint and weather on this page's own canvas (window.__skyBench).
+      // Needs the whole bundle (MILO_PREVIEW_CONTENT=1, or an init script with combat's content).
+      const phase4 = ['combat', 'party', 'camp', 'sky', 'bridge', 'skybench'].some((key) => params.has(key));
+      // After the page's own setup below has run (previewPhase4 uses its constants).
+      if (phase4) window.__phase4 = Promise.resolve().then(previewPhase4).catch((error) => { window.__errors.push(String((error && error.stack) || error)); });
+    }
+
+    // ---------- Phase 4 previews (synthetic: a made-up company, generated rifts, nothing real) ----------
+
+    const COMPANY = [
+      { id: 'milo', look: { kind: 'rig', rig: 'coat', who: 'milo', likeness: null }, name: 'Milo' },
+      { id: 'claude', look: { kind: 'rig', rig: 'robe', who: 'claude', likeness: null }, name: 'The Scribe' },
+      { id: 'codex', look: { kind: 'rig', rig: 'robe', who: 'codex', likeness: null }, name: 'The Artificer' },
+      { id: 'jev', look: { kind: 'rig', rig: 'jev', who: 'jev', likeness: null }, name: 'Jev' },
+    ];
+    const heroOf = (h, at, i) => ({ id: h.id, side: 'party', rank: 'hero', talkKind: null, look: h.look, x: at.x, y: at.y, size: 1, facing: 'right', name: h.name, integrity: 20, max: 24, buffer: 0, offline: false, sorted: null, conditions: i === 1 ? [{ id: 'brisk', n: null }] : [], heat: [20, 45, 75, 10][i], bar: null });
+    const foeOf = (u) => ({ id: u.id, side: u.side, rank: u.rank, talkKind: u.talkKind, look: u.look, x: u.post.x, y: u.post.y, size: u.size, facing: 'left', name: u.name, integrity: u.integrity, max: u.maxIntegrity, buffer: 0, offline: false, sorted: null, conditions: [], heat: 35, bar: null });
+
+    async function previewPhase4() {
+      const skyName = params.get('sky');
+      if (skyName) {
+        const { skyAt } = await import('../src/sky.js');
+        const at = { night: [23, 0], dusk: [18, 55], rain: [13, 0], snow: [13, 0] }[skyName] || [12, 0];
+        const sky = skyAt(new Date(2026, 9, 14, at[0], at[1]).getTime(), { sky: content.sky || null });
+        const weather = skyName === 'rain' ? { kind: 'rain', density: 0.004, key: 'w' } : skyName === 'snow' ? { kind: 'snow', density: 0.003, key: 'c' } : sky.weather;
+        world.setSky({ ...sky, weather });
+      }
+      if (params.get('party') === '1') world.setParty(COMPANY.slice(1).map(({ id, look, name }) => ({ id, look, name })));
+      if (params.get('camp') === '1') {
+        world.setCamp({
+          night: skyName === 'night',
+          members: COMPANY.slice(1).map(({ id, look }, i) => ({ id, look, seat: [2, 3, 0][i], pose: ['sit', 'talk', 'sleep'][i], bubble: i === 0 }))
+            .concat([{ id: 'tollkeeper', look: { kind: 'rig', rig: 'toll', who: 'tollkeeper', likeness: null }, seat: 6, pose: 'sit', bubble: false }]),
+          props: ['handcart', 'breather-tea', 'paper-lantern'],
+        });
+      }
+      if (params.get('bridge') === '1') {
+        const { lastBridge, bridgeLandmarks } = await import('../src/world/trail.js');
+        const bridge = lastBridge(world.worldgen);
+        if (bridge) {
+          world.setLandmarks(bridgeLandmarks(bridge));
+          await world.travelTo({ x: bridge.stand.x, y: bridge.stand.y + 2 });
+          window.__bridge = bridge;
+        }
+      }
+      if (params.get('skybench') === '1') window.__skyBench = await skyBench();
+      const combat = params.get('combat');
+      if (!combat) return null;
+      const { benchView } = await import('../src/world/scene-combat.js');
+      let view;
+      let overlay = null;
+      if (combat === 'field') {
+        const tile = world.miloTile();
+        ({ view, overlay } = benchView({ x: tile.x + 4, y: tile.y }, { actors: 16 }));
+      } else {
+        const [genrePart, stage = 'open', roomText = '0'] = combat.split(':');
+        const spec = specFor(genrePart.split(/[+ |]/), stage, { tier: 3 });
+        const c = content.combat || {};
+        const { prepareElsewhere } = await import('../src/combat/encounters.js');
+        const prep = prepareElsewhere(spec, { riftgen, genres: content.genres, words: content.riftgen, kind: 'wild', roadLevel: 3, partySize: 4, rules: c.rules, leads: c.leads, foes: c.foes, tuning: c.tuning || null, hooks: [] });
+        await world.enterElsewhere({ id: spec.id, key: null, kind: 'wild', spec, x: null, y: null, stage: spec.stage }, { layout: prep.layout, fight: { plan: prep.plan, encounters: prep.encounters } });
+        const rooms = prep.encounters.rooms;
+        const room = rooms[Math.min(rooms.length - 1, Number(roomText) || 0)];
+        const fight = room.fight;
+        const foes = [...fight.foes, ...(fight.leadUnit ? [fight.leadUnit] : [])];
+        const units = [...COMPANY.map((h, i) => heroOf(h, fight.arena.entry[i] || fight.arena.entry[0], i)), ...foes.map(foeOf)];
+        const telegraphs = foes.map((u, i) => ({ unitId: u.id, slot: 0, tick: 1, icon: ['bite', 'strike', 'shoot', 'cast'][i % 4], words: 'Bite Milo', targets: ['milo'], tiles: [], hidden: i === 2, falseTarget: null, adapting: null, aside: false }));
+        view = { arena: fight.arena, units, objects: fight.objects, surfaces: fight.surfaces, lights: [{ id: 'hooklight', x: units[0].x, y: units[0].y, radius: 3, rounds: null, source: 'milo' }], telegraphs };
+        // The room's idle posts, the Tale-lead object and any wanderer in the arena step aside for the combatants.
+        const r = fight.arena.rect;
+        const wanderers = world.elsewhereEntities().filter((e) => e.kind === 'stray' && !e.id.startsWith('enc:') && e.x >= r.x && e.y >= r.y && e.x < r.x + r.w && e.y < r.y + r.h).map((e) => e.id);
+        world.hideActors([`enc:${room.roomId}`, ...(room.roomId === 'lead' ? ['tale-lead'] : []), ...wanderers]);
+        overlay = planFor(view);
+        window.__room = { roomId: room.roomId, rect: r, units: units.length };
+      }
+      await world.startCombat(view);
+      if (params.get('plan') === '1') world.showOverlay(overlay);
+      window.__view = view;
+      if (params.get('round') === '1') window.__round = world.playEvents(sampleRound(view), { speed: 1 });
+      if (params.get('bench') === '1') window.__bench = world.benchmark({ frames: 200, actors: 16 });
+      return view;
+    }
+
+    // The sky's budgets (§11.4: the tint at most 0.3 ms a frame, weather at most 1 ms) in Chromium's own
+    // canvas: a night tint with 12 lights shining through and the densest rain, over the art-pixel view
+    // a 1280×820 window shows at 3×, each timed over 300 frames after 50 to warm up: as drawn (20 frames
+    // a sample, the clock being coarse), and with a one-pixel readback (the drawing done, not just
+    // queued) less the readback alone. → { tint, weather, tintFlushed, weatherFlushed, readback } ms.
+    async function skyBench() {
+      const { createSkyLayer } = await import('../src/world/scene-sky.js');
+      const make = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+      const glows = new Map();
+      const glow = (r, alpha) => {
+        const key = `${r}:${alpha}`;
+        if (!glows.has(key)) {
+          const c = make(r * 2, r * 2);
+          const g = c.getContext('2d');
+          const fill = g.createRadialGradient(r, r, 0, r, r, r);
+          fill.addColorStop(0, `rgba(255,214,150,${alpha})`);
+          fill.addColorStop(1, 'rgba(255,214,150,0)');
+          g.fillStyle = fill;
+          g.fillRect(0, 0, r * 2, r * 2);
+          glows.set(key, c);
+        }
+        return glows.get(key);
+      };
+      const sky = createSkyLayer({ makeCanvas: make, lights: () => Array.from({ length: 12 }, (_, i) => ({ x: 20 + i * 32, y: 90 + (i % 3) * 40, r: 16 + (i % 4) * 6, alpha: 0.8 })), glow });
+      sky.setSky({ tint: [40, 50, 110, 0.38], light: 0, night: true, weather: { kind: 'rain', density: 0.01, key: 'w' }, key: 'bench' });
+      const view = { x: 0, y: 0, w: Math.ceil(1280 / 3), h: Math.ceil(820 / 3) };
+      const target = make(view.w + 1, view.h + 1).getContext('2d');
+      const time = (fn, flush, batch = 1, less = 0) => {
+        const times = [];
+        for (let i = 0; i < 350; i += 1) {
+          const t0 = performance.now();
+          for (let j = 0; j < batch; j += 1) fn(i * batch + j);
+          if (flush) target.getImageData(0, 0, 1, 1);
+          if (i >= 50) times.push((performance.now() - t0) / batch - less);
+        }
+        times.sort((a, b) => a - b);
+        return { median: times[times.length >> 1], p90: times[Math.floor(times.length * 0.9)] };
+      };
+      const tint = () => sky.tint(target, view, 1000);
+      const weather = (i) => sky.above(target, () => true, 1000 + i * 33, view);
+      const readback = time(() => target.fillRect(0, 0, 1, 1), true);
+      return {
+        tint: time(tint, false, 20), weather: time(weather, false, 20), readback,
+        tintFlushed: time(tint, true, 1, readback.median), weatherFlushed: time(weather, true, 1, readback.median),
+      };
+    }
+
+    // A plausible planning overlay: Milo's reach, a path toward the first foe, an area round it.
+    function planFor(view) {
+      const { rect, cells } = view.arena;
+      const at = (x, y) => cells[(y - rect.y) * rect.w + (x - rect.x)];
+      const milo = view.units[0];
+      const foe = view.units.find((u) => u.side === 'foe') || milo;
+      const taken = new Set(view.units.map((u) => `${u.x},${u.y}`));
+      const reachable = [];
+      for (let y = rect.y; y < rect.y + rect.h; y += 1) {
+        for (let x = rect.x; x < rect.x + rect.w; x += 1) {
+          const dx = Math.abs(x - milo.x);
+          const dy = Math.abs(y - milo.y);
+          if (Math.max(dx, dy) + Math.floor(Math.min(dx, dy) / 2) <= 4 && (at(x, y) === '.' || at(x, y) === '=') && !taken.has(`${x},${y}`)) reachable.push({ x, y });
+        }
+      }
+      const path = [];
+      let p = { x: milo.x, y: milo.y };
+      for (let i = 0; i < 3; i += 1) {
+        p = { x: p.x + Math.sign(foe.x - p.x), y: p.y + Math.sign(foe.y - p.y) };
+        if (!reachable.some((t) => t.x === p.x && t.y === p.y)) break;
+        path.push(p);
+      }
+      const area = [];
+      for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) area.push({ x: foe.x + dx, y: foe.y + dy });
+      const caught = view.units.filter((u) => area.some((t) => t.x === u.x && t.y === u.y)).map((u) => u.id);
+      const cover = [];
+      for (let y = rect.y; y < rect.y + rect.h; y += 1) for (let x = rect.x; x < rect.x + rect.w; x += 1) if (at(x, y) === 'o' || at(x, y) === 'O') cover.push({ x, y, level: at(x, y) === 'O' ? 2 : 1 });
+      return { reachable, path: { tiles: path, cost: path.length, of: 5, swipes: path.slice(-1) }, areas: [{ tiles: area, kind: 'harm', caught }], threats: [{ x: milo.x, y: milo.y }], cover, telegraphs: view.telegraphs, selected: 'milo', targets: [foe.id], cursor: path[path.length - 1] || { x: milo.x, y: milo.y } };
+    }
+
+    // A round of made-up events to watch play: a stride, a Critical, a spell, a settle.
+    function sampleRound(view) {
+      const [milo, scribe] = view.units;
+      const foes = view.units.filter((u) => u.side === 'foe');
+      const f = foes[0];
+      const g = foes[1] || f;
+      const taken = new Set(view.units.map((u) => `${u.x},${u.y}`));
+      const { rect, cells } = view.arena;
+      const free = (t) => !taken.has(`${t.x},${t.y}`) && cells[(t.y - rect.y) * rect.w + (t.x - rect.x)] === '.';
+      const step = [[1, 0], [0, 1], [0, -1], [-1, 0]].map(([dx, dy]) => ({ x: milo.x + dx, y: milo.y + dy })).find(free) || { x: milo.x, y: milo.y };
+      return [
+        { t: 'tick', round: 1, tick: 1 },
+        { t: 'act', round: 1, tick: 1, unit: 'milo', action: { id: 'stride' } },
+        { t: 'move', round: 1, tick: 1, unit: 'milo', by: null, path: [step], how: 'stride' },
+        { t: 'act', round: 1, tick: 1, unit: f.id, action: { id: 'strike', target: { unit: 'milo' } } },
+        { t: 'outcome', round: 1, tick: 1, unit: f.id, target: 'milo', degree: 'crit', bars: [15, 60, 15, 10], k: 0 },
+        { t: 'damage', round: 1, tick: 1, unit: f.id, target: 'milo', amount: 9, kind: 'static', degree: 'crit', integrity: 11, max: 24 },
+        { t: 'tick', round: 1, tick: 2 },
+        { t: 'act', round: 1, tick: 2, unit: scribe.id, action: { id: 'use', ability: 'inkdarts', target: { unit: g.id } } },
+        { t: 'outcome', round: 1, tick: 2, unit: scribe.id, target: g.id, degree: 'hit', bars: [5, 80, 10, 5], k: 1 },
+        { t: 'damage', round: 1, tick: 2, unit: scribe.id, target: g.id, amount: 6, kind: 'ink', degree: 'hit', integrity: 0, max: g.max },
+        { t: 'sorted', round: 1, tick: 2, unit: g.id, how: 'settled' },
+      ];
     }
 
     function placeBubble() {

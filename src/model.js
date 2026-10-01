@@ -1,13 +1,28 @@
 // MILO state model. Pure ESM with no DOM and no fs, so the renderer and the
 // Electron main process share one definition of what a saved state looks like.
+// Phase 4: the primitives live in clean.js, and the seven new sections' cleaners in state4.js.
+import {
+  isRecord, UNSAFE_KEYS, safeCopy, toTime, clip, cleanCount, cleanInt, cleanMap, keepNewest, cleanMapNewest, cleanRecentList,
+  cleanDayKey, dayKeyStart, dayKey, dayNumber, SESSION_NAME_DAYS, withoutTitle,
+} from './clean.js';
+import {
+  STATE4_KEYS, emptyState4, normalize4, emptyTally4, cleanTally4, emptySatchel4, cleanSatchel4, emptyStory4, cleanStory4,
+  CREW_AGENTS,
+} from './state4.js';
+import { emptyBoard, cleanBoard } from './state5.js';
+
+export { toTime, clip, dayKey, dayNumber, dayStart, SESSION_NAME_DAYS, withoutTitle } from './clean.js';
+export { markFact, markFeature, tallyAnswered } from './state4.js';
 
 export const STATE_VERSION = 1;
 export const DESIGNERS = Object.freeze(['auto', 'claude', 'codex', 'kit']);
 // Phase 3: the ward-post holds one kind of signal back before it opens a rift (src/rifts.js).
 export const WARD_POSTS = Object.freeze(['nights-off', 'patient-knock', 'capacity-95']);
+// Phase 4: the HUD's two modes (Adventure is the default) and the Kindle bell.
+export const HUD_MODES = Object.freeze(['adventure', 'quiet']);
 export const DEFAULT_SETTINGS = Object.freeze({
   motion: true, notifications: true, greeting: true, designer: 'auto',
-  eveningBell: '22:00', gateBell: true, wardPost: null,
+  eveningBell: '22:00', gateBell: true, wardPost: null, hud: 'adventure', kindleBell: true,
 });
 
 // Step 2: every place except Milo's camp, the watchtower and the fogged harbor is a plot.
@@ -38,7 +53,6 @@ export const STATE_LIMITS = Object.freeze({
   glimmers: 500, felled: 2000, open: 60, warded: 200, letGo: 200, belled: 200, closedWild: 2000, visited: 300, history: 100,
 });
 const MAX_COUNT = 1e9;
-const MAX_COORD = 1e6;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EVENING_BELL = /^(\d{1,2}):(\d{2})$/;
 const CHUNK_KEY = /^-?\d{1,6},-?\d{1,6}$/;
@@ -55,18 +69,15 @@ const SIGNAL_KINDS = ['nocturne', 'knocking', 'capacity', 'built', 'story'];
 const KIND_BY_PREFIX = { night: 'nocturne', knock: 'knocking', capacity: 'capacity', built: 'built', story: 'story' };
 const ECHO_ICONS = ['moon', 'knocker', 'spark', 'star', 'crack'];
 
+// Phase 4's sections come after `story` (CONTRACT-PHASE4 §8.1); a key missing here would be
+// overwritten by its raw copy in `extras`.
 const KNOWN_KEYS = ['version', 'user', 'milo', 'lastSeenAt', 'lastGreetedDay', 'settings', 'skills', 'panel', 'plots',
-  'firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story'];
+  'firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story', ...STATE4_KEYS, 'board'];
 const PLOT_KEYS = ['status', 'suggestions', 'asked', 'idea', 'blueprint', 'designedBy', 'builtAt', 'firstBuiltAt', 'name'];
-// Keys that could reach an object's prototype if copied blindly from parsed JSON.
-const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-const DAY_KEY = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MAX_NAME = 40;
 const MAX_ID = 64;
 const MAX_TILE = 4096;
 const MAX_LEVEL = 99;
-
-const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
 // Stored blueprints are checked with the architect's validator (module E). If that module can't
 // load, blueprints are kept exactly as saved rather than dropped, so a missing file never costs
@@ -116,16 +127,6 @@ export function canonicalPlaceId(id) {
 
 export const isPlotId = (id) => typeof id === 'string' && /^plot-[a-z0-9-]{1,40}$/.test(id);
 
-/** Own enumerable fields of a record, minus prototype-reaching keys. Shallow. */
-function safeCopy(value) {
-  const out = {};
-  if (!isRecord(value)) return out;
-  for (const key of Object.keys(value)) {
-    if (!UNSAFE_KEYS.has(key)) out[key] = value[key];
-  }
-  return out;
-}
-
 function cleanName(value, fallback) {
   if (typeof value !== 'string') return fallback;
   const name = value.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME).trim();
@@ -138,18 +139,6 @@ function cleanId(value) {
   return id && id.length <= MAX_ID ? id : null;
 }
 
-/** A positive ms epoch, or null. Accepts numbers, numeric strings, ISO strings and Dates. */
-export function toTime(value) {
-  let ms = value;
-  if (value instanceof Date) ms = value.getTime();
-  else if (typeof value === 'string') {
-    const text = value.trim();
-    ms = /^\d+(\.\d+)?$/.test(text) ? Number(text) : Date.parse(text);
-  }
-  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return null;
-  return Math.round(ms);
-}
-
 function cleanTile(value) {
   if (!isRecord(value)) return null;
   const { x, y } = value;
@@ -158,17 +147,6 @@ function cleanTile(value) {
   const ty = Math.round(y);
   if (tx < 0 || ty < 0 || tx > MAX_TILE || ty > MAX_TILE) return null;
   return { x: tx, y: ty };
-}
-
-function cleanDayKey(value) {
-  if (typeof value !== 'string') return null;
-  const match = DAY_KEY.exec(value.trim());
-  if (!match) return null;
-  const [, y, m, d] = match.map(Number);
-  const date = new Date(y, m - 1, d);
-  // Rejects impossible dates such as 2026-02-31.
-  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
-  return value.trim();
 }
 
 /**
@@ -196,17 +174,8 @@ function cleanSettings(value) {
   // A missing bell rings at the default hour; an explicit null means Chris turned it off.
   out.eveningBell = Object.hasOwn(out, 'eveningBell') ? cleanEveningBell(out.eveningBell) : DEFAULT_SETTINGS.eveningBell;
   out.wardPost = WARD_POSTS.includes(out.wardPost) ? out.wardPost : null;
+  out.hud = HUD_MODES.includes(out.hud) ? out.hud : DEFAULT_SETTINGS.hud;
   return out;
-}
-
-/** Collapses whitespace and shortens to `max` with an ellipsis, never splitting a surrogate pair. */
-export function clip(value, max) {
-  if (typeof value !== 'string') return '';
-  const text = value.replace(/\s+/g, ' ').trim();
-  if (text.length <= max) return text;
-  let cut = text.slice(0, Math.max(1, max - 1));
-  if (/[\uD800-\uDBFF]$/.test(cut)) cut = cut.slice(0, -1);
-  return `${cut.trimEnd()}…`;
 }
 
 const slug = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'idea';
@@ -369,19 +338,7 @@ const clockOf = (now) => (typeof now === 'number' && Number.isFinite(now) ? now 
 // ---------------------------------------------------------------------------
 // Phase 3 cleaners. Each takes whatever was saved and returns a well-formed value, keeping
 // unknown sub-keys where a record allows them, so a newer MILO's fields survive an older one.
-
-/** A non-negative whole count, or 0. */
-function cleanCount(value, max = MAX_COUNT) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 0;
-  return Math.min(max, Math.floor(value));
-}
-
-/** A signed whole number within ±`bound`, or null. */
-function cleanInt(value, bound = MAX_COORD) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-  const n = Math.round(value);
-  return Math.abs(n) <= bound ? n : null;
-}
+// The primitives (cleanCount, cleanInt, cleanMap, keepNewest, cleanRecentList…) are clean.js's.
 
 /** { x, y } with signed whole coordinates (the wilds reach negative tiles), or null. */
 function cleanWorldTile(value) {
@@ -391,52 +348,7 @@ function cleanWorldTile(value) {
   return x === null || y === null ? null : { x, y };
 }
 
-/** Own keys of a record that pass `keyOk`, each value run through `clean`; null results are dropped. */
-function cleanMap(value, keyOk, clean) {
-  const out = {};
-  if (!isRecord(value)) return out;
-  for (const key of Object.keys(value)) {
-    if (UNSAFE_KEYS.has(key) || !keyOk(key)) continue;
-    const entry = clean(value[key], key);
-    if (entry !== null && entry !== undefined) out[key] = entry;
-  }
-  return out;
-}
-
-/** Keeps the `max` entries with the largest `score`, in their original order. */
-function keepNewest(map, max, score) {
-  const keys = Object.keys(map);
-  if (keys.length <= max) return map;
-  const kept = new Set(keys.map((key, i) => ({ key, i, s: score(map[key]) }))
-    .sort((a, b) => b.s - a.s || b.i - a.i).slice(0, max).map((entry) => entry.key));
-  const out = {};
-  for (const key of keys) if (kept.has(key)) out[key] = map[key];
-  return out;
-}
-
-/** The last `max` distinct strings that pass `ok`, oldest first (a repeat keeps its newest place). */
-function cleanRecentList(value, ok, max) {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set();
-  const out = [];
-  for (let i = value.length - 1; i >= 0 && out.length < max; i -= 1) {
-    const item = value[i];
-    if (typeof item !== 'string' || !ok(item) || seen.has(item)) continue;
-    seen.add(item);
-    out.push(item);
-  }
-  return out.reverse();
-}
-
 const isSessionId = (id) => typeof id === 'string' && id.length > 0 && id.length <= MAX_ID && !/\s/.test(id);
-
-/** Local midnight of a 'YYYY-MM-DD' day key, or null. */
-function dayKeyStart(key) {
-  const clean = cleanDayKey(key);
-  if (!clean) return null;
-  const [y, m, d] = clean.split('-').map(Number);
-  return new Date(y, m - 1, d).getTime();
-}
 
 /** The times MILO has evidence Chris had it open: skills proven, buildings built, last seen, last greeted. */
 function evidenceTimes({ skills, plots, lastSeenAt, lastGreetedDay }) {
@@ -467,8 +379,18 @@ function designsProven(plots, skills) {
   return Math.max(standing, (skills.tinkering?.level ?? 0) >= 1 ? 1 : 0);
 }
 
+/** Phase 3's counts, then Phase 4's (byCrew, answered, answeredFast, waiting, … features: state4.js). */
 export function emptyTally() {
-  return { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0 };
+  return { daysSeen: 0, lastDay: null, sessionsFinished: 0, finishedIds: [], buildingsDesigned: 0, ...emptyTally4() };
+}
+
+/** Runs a Phase 4 cleaner of an old section's fields on its own, so a throw there costs only those fields. */
+function phase4Part(clean, empty) {
+  try {
+    return clean();
+  } catch {
+    return empty();
+  }
 }
 
 /**
@@ -497,13 +419,15 @@ function cleanTally(value, { evidence, plots, skills, now }) {
     return { ...emptyTally(), daysSeen: sorted.length, lastDay: sorted.length ? sorted[sorted.length - 1] : null, buildingsDesigned: designs };
   }
   const finishedIds = cleanRecentList(value.finishedIds, isSessionId, STATE_LIMITS.finishedIds);
+  const sessionsFinished = Math.max(cleanCount(value.sessionsFinished), finishedIds.length);
   return {
     ...safeCopy(value),
     daysSeen: cleanCount(value.daysSeen),
     lastDay: sensibleLastDay(cleanDayKey(value.lastDay), now),
-    sessionsFinished: Math.max(cleanCount(value.sessionsFinished), finishedIds.length),
+    sessionsFinished,
     finishedIds,
     buildingsDesigned: Math.max(cleanCount(value.buildingsDesigned), designs),
+    ...phase4Part(() => cleanTally4(value, { finishedIds, sessionsFinished }), emptyTally4),
   };
 }
 
@@ -522,7 +446,7 @@ function cleanHearth(value) {
  * said, so the Hearth can count essences of different genres rather than different names.
  */
 export function emptySatchel() {
-  return { materials: { birch: 0, ash: 0, pine: 0 }, essences: {}, essenceGenres: {}, relics: [] };
+  return { materials: { birch: 0, ash: 0, pine: 0 }, essences: {}, essenceGenres: {}, relics: [], ...emptySatchel4() };
 }
 
 /** A relic from a rift's loot: { name, text, genre, at }, or null without a name. */
@@ -563,7 +487,7 @@ function cleanSatchel(value) {
   // A genre is kept only for an essence the satchel holds.
   const essenceGenres = cleanMap(curlyNames(source.essenceGenres, firstGenre), (key) => Object.hasOwn(essences, key), (genre) => (typeof genre === 'string' && GENRE_ID.test(genre) ? genre : null));
   const relics = Array.isArray(source.relics) ? source.relics.map(cleanRelic).filter(Boolean).slice(-STATE_LIMITS.relics) : [];
-  return { ...safeCopy(source), materials, essences, essenceGenres, relics };
+  return { ...safeCopy(source), materials, essences, essenceGenres, relics, ...phase4Part(() => cleanSatchel4(source), emptySatchel4) };
 }
 
 export const DEFAULT_WORLD_SEED = 'hushlands';
@@ -576,15 +500,15 @@ function cleanSeed(value) {
   return typeof value === 'string' && value.length <= 64 && value.trim() ? value : DEFAULT_WORLD_SEED;
 }
 
-const byTime = (limit, keyOk) => (value) => keepNewest(cleanMap(value, keyOk, toTime), limit, (t) => t);
+const byTime = (limit, keyOk) => (value) => cleanMapNewest(value, keyOk, toTime, limit, (t) => t);
 
 function cleanWilds(value, now) {
   const source = isRecord(value) ? value : {};
   const today = dayNumber(now);
-  const felled = cleanMap(source.felled, (key) => TREE_ID.test(key), (day) => {
+  const felled = cleanMapNewest(source.felled, (key) => TREE_ID.test(key), (day) => {
     const n = cleanInt(day, 1e8);
     return n !== null && n >= today ? n : null; // a stump from an earlier day has grown back
-  });
+  }, STATE_LIMITS.felled, (day) => day);
   return {
     ...safeCopy(source),
     seed: cleanSeed(source.seed),
@@ -595,7 +519,7 @@ function cleanWilds(value, now) {
     opened: byTime(STATE_LIMITS.opened, (key) => POI_ID.test(key))(source.opened),
     notes: byTime(STATE_LIMITS.notes, (key) => POI_ID.test(key))(source.notes),
     glimmers: byTime(STATE_LIMITS.glimmers, (key) => POI_ID.test(key))(source.glimmers),
-    felled: keepNewest(felled, STATE_LIMITS.felled, (day) => day),
+    felled,
   };
 }
 
@@ -701,22 +625,8 @@ function cleanWard(value, now) {
   return { ...safeCopy(value), since, until, stage: value.stage };
 }
 
-// The War Table lists closed rifts for three days (src/ui/frontier.js CLOSED_DAYS). After that, a
-// Knocking's name in the history no longer carries the title of the session it stood for.
-export const SESSION_NAME_DAYS = 3;
-const QUOTED_TITLE = /“[^”]*(?:”|$)/g;
-
-/**
- * A Knocking's name with its session's title taken out. The title is always in curly quotes
- * (rifts.js quoteTitle), even when the name was clipped: 'The Portrait of “Letters”' →
- * 'The Portrait of a waiting session'.
- */
-export function withoutTitle(name) {
-  if (typeof name !== 'string' || !name.includes('“')) return typeof name === 'string' ? name : '';
-  const out = name.replace(QUOTED_TITLE, 'a waiting session').replace(/\s+/g, ' ').trim();
-  return out.charAt(0).toUpperCase() + out.slice(1);
-}
-
+// The War Table lists closed rifts for SESSION_NAME_DAYS (clean.js); after that, a Knocking's name
+// in the history no longer carries the title of the session it stood for (clean.js withoutTitle).
 function cleanHistoryEntry(value, now) {
   if (!isRecord(value)) return null;
   const id = typeof value.id === 'string' && RIFT_ID.test(value.id) ? value.id : null;
@@ -752,15 +662,15 @@ function cleanRifts(value, now) {
   const stitched = isRecord(source.stitched) ? source.stitched : {};
   return {
     ...safeCopy(source),
-    open: keepNewest(cleanMap(source.open, isKey, cleanOpenRift), STATE_LIMITS.open, (entry) => entry.openedAt),
-    warded: keepNewest(cleanMap(source.warded, isKey, (entry) => cleanWard(entry, now)), STATE_LIMITS.warded, (entry) => entry.until),
-    letGo: keepNewest(cleanMap(source.letGo, isKey, cleanSinceAt), STATE_LIMITS.letGo, (entry) => entry.at),
-    belled: keepNewest(cleanMap(source.belled, isKey, cleanSinceAt), STATE_LIMITS.belled, (entry) => entry.at),
-    closedWild: keepNewest(cleanMap(source.closedWild, isRift, (day) => {
+    open: cleanMapNewest(source.open, isKey, cleanOpenRift, STATE_LIMITS.open, (entry) => entry.openedAt),
+    warded: cleanMapNewest(source.warded, isKey, (entry) => cleanWard(entry, now), STATE_LIMITS.warded, (entry) => entry.until),
+    letGo: cleanMapNewest(source.letGo, isKey, cleanSinceAt, STATE_LIMITS.letGo, (entry) => entry.at),
+    belled: cleanMapNewest(source.belled, isKey, cleanSinceAt, STATE_LIMITS.belled, (entry) => entry.at),
+    closedWild: cleanMapNewest(source.closedWild, isRift, (day) => {
       const n = cleanInt(day, 1e8);
       return n !== null && n >= today ? n : null; // wild rifts close with the day
-    }), STATE_LIMITS.closedWild, (day) => day),
-    visited: keepNewest(cleanMap(source.visited, isRift, toTime), STATE_LIMITS.visited, (t) => t),
+    }, STATE_LIMITS.closedWild, (day) => day),
+    visited: cleanMapNewest(source.visited, isRift, toTime, STATE_LIMITS.visited, (t) => t),
     stitched: { ...safeCopy(stitched), real: cleanCount(stitched.real), wild: cleanCount(stitched.wild), story: cleanCount(stitched.story) },
     deepest: cleanCount(source.deepest),
     history: Array.isArray(source.history) ? source.history.map((entry) => cleanHistoryEntry(entry, now)).filter(Boolean).slice(0, STATE_LIMITS.history) : [],
@@ -768,7 +678,7 @@ function cleanRifts(value, now) {
 }
 
 export function emptyStory() {
-  return { prologue: { done: {} }, letterReadAt: null, trackerHidden: false };
+  return { prologue: { done: {} }, letterReadAt: null, trackerHidden: false, ...emptyStory4() };
 }
 
 function cleanStory(value) {
@@ -779,12 +689,14 @@ function cleanStory(value) {
     prologue: { ...safeCopy(prologue), done: cleanMap(prologue.done, (key) => SLUG.test(key), toTime) },
     letterReadAt: toTime(source.letterReadAt),
     trackerHidden: source.trackerHidden === true,
+    ...phase4Part(() => cleanStory4(source), emptyStory4),
   };
 }
 
 /**
  * A fresh state. `lastSeenAt` starts null so the first launch reads as a first visit.
  * `now` is accepted for symmetry with normalizeState; a new state holds no timestamps yet.
+ * Phase 4's seven sections follow `story` (state4.js).
  */
 // eslint-disable-next-line no-unused-vars
 export function createState(now = Date.now()) {
@@ -805,6 +717,8 @@ export function createState(now = Date.now()) {
     wilds: emptyWilds(),
     rifts: emptyRifts(),
     story: emptyStory(),
+    ...emptyState4(),
+    board: emptyBoard(),
   };
 }
 
@@ -832,6 +746,7 @@ function normalize(input, now) {
   const skills = cleanSkills(source.skills);
   const plots = cleanPlots(source.plots);
   const evidence = evidenceTimes({ skills, plots, lastSeenAt, lastGreetedDay }).filter((ms) => ms <= now);
+  const tally = cleanTally(source.tally, { evidence, plots, skills, now });
 
   return {
     version: STATE_VERSION,
@@ -844,12 +759,16 @@ function normalize(input, now) {
     panel: canonicalPlaceId(cleanId(source.panel)),
     plots,
     firstSeenAt: cleanFirstSeenAt(source.firstSeenAt, evidence, lastSeenAt, now),
-    tally: cleanTally(source.tally, { evidence, plots, skills, now }),
+    tally,
     hearth: cleanHearth(source.hearth),
     satchel: cleanSatchel(source.satchel),
     wilds: cleanWilds(source.wilds, now),
     rifts: cleanRifts(source.rifts, now),
     story: cleanStory(source.story),
+    // Phase 4: each of the seven sections is cleaned on its own (a throw costs only that section).
+    ...normalize4(source, { now, tally }),
+    // Phase 5: the board of quests, cleaned on its own.
+    board: phase4Part(() => cleanBoard(source.board, { now }), emptyBoard),
     ...extras,
   };
 }
@@ -906,30 +825,7 @@ export function markSeen(state, now = Date.now()) {
   }
 }
 
-/** Local calendar day as 'YYYY-MM-DD'. Invalid input falls back to today. */
-export function dayKey(ms = Date.now()) {
-  const at = typeof ms === 'number' && Number.isFinite(ms) ? ms : (toTime(ms) ?? Date.now());
-  const date = new Date(at);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-/**
- * The local calendar day as a whole number (days since 1970-01-01 on the local calendar).
- * DST-safe: it counts calendar days, not 24-hour spans, so a 23- or 25-hour day is still one.
- * Wild rifts and felled trees use it. Invalid input falls back to today.
- */
-export function dayNumber(ms = Date.now()) {
-  const at = typeof ms === 'number' && Number.isFinite(ms) ? ms : (toTime(ms) ?? Date.now());
-  const date = new Date(at);
-  return Math.round(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY_MS);
-}
-
-/** Local midnight at the start of a dayNumber day, plus `minutes` of wall-clock time (may run past midnight). */
-export function dayStart(day, minutes = 0) {
-  const utc = new Date(Math.round(day) * DAY_MS);
-  return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate(), 0, minutes).getTime();
-}
+// dayKey, dayNumber and dayStart (the local calendar) are clean.js's, re-exported above.
 
 // ---------------------------------------------------------------------------
 // Plots. Small pure steps the renderer uses, so the rules live in one tested place.
@@ -1046,6 +942,8 @@ export function clearPlot(state, plotId) {
  * Counts crew sessions MILO watched finish, for the Stockade. A session counts once, the first
  * time it has a finished turn after `firstSeenAt` (and not after `now`). With no `firstSeenAt`
  * yet, nothing earlier than `now` counts. `sessions` is an AgentSession[] or a snapshot.
+ * Phase 4: each session counted also counts for its agent in `tally.byCrew` (the agent from
+ * `session.agent`, else the id's prefix), so `byCrew` never exceeds `sessionsFinished`.
  */
 export function tallyFinished(state, sessions, now = Date.now()) {
   if (!isRecord(state)) return state;
@@ -1055,16 +953,20 @@ export function tallyFinished(state, sessions, now = Date.now()) {
   const tally = isRecord(state.tally) ? state.tally : emptyTally();
   const known = new Set(Array.isArray(tally.finishedIds) ? tally.finishedIds : []);
   const added = [];
+  const byCrew = { ...(isRecord(tally.byCrew) ? tally.byCrew : {}) };
   for (const session of list) {
     if (!isRecord(session) || !isSessionId(session.id) || known.has(session.id)) continue;
     const completions = Array.isArray(session.completions) ? session.completions : [];
     if (!completions.some((t) => typeof t === 'number' && t > from && t <= clock)) continue;
     known.add(session.id);
     added.push(session.id);
+    const agent = typeof session.agent === 'string' && session.agent ? session.agent : session.id.split(':')[0];
+    if (CREW_AGENTS.includes(agent)) byCrew[agent] = cleanCount(byCrew[agent]) + 1;
   }
   if (!added.length) return state;
   const finishedIds = [...(Array.isArray(tally.finishedIds) ? tally.finishedIds : []), ...added].slice(-STATE_LIMITS.finishedIds);
-  return { ...state, tally: { ...tally, sessionsFinished: cleanCount(tally.sessionsFinished) + added.length, finishedIds } };
+  for (const agent of CREW_AGENTS) byCrew[agent] = cleanCount(byCrew[agent]);
+  return { ...state, tally: { ...tally, sessionsFinished: cleanCount(tally.sessionsFinished) + added.length, finishedIds, byCrew } };
 }
 
 function withSection(state, key, empty, make) {

@@ -11,7 +11,7 @@
 //   bleedAt(rifts, wx, wy, { genres })          which genre (if any) colours this world pixel (ground)
 //   bleedStrengthAt, tileStrength               the undithered strength (at a pixel, over a tile)
 //   tileDressAt, bleedDressAt, makeDresser      the genre a sprite wears, whole (walkers with hysteresis)
-//   strayActors(rift, { walkable, seed })       strays (and a gaping rift's Tale-lead) with pure positionAt(t)
+//   strayActors(rift, { walkable, seed, hooks }) strays (and a gaping rift's Tale-lead, by its shown name) with pure positionAt(t)
 //   weatherPixels(rift, { genres, t, rifts })   the genre's weather inside the bleed (none with motion off)
 //   sealArt / letGoFrame / mothArt              the seal (1.2 s) and let-go (2 s) animations, by progress
 //   leadSprite, artPixels, strayPixels          the Tale-lead's look, and RGBA for panels and previews
@@ -22,6 +22,7 @@ import { buildGenrePalette, ROLES, hexToRgb, rgbToHsl, hslToRgb } from './genres
 import { createRng, fbm, hashInts, hashString, unit } from './rng.js';
 import { composeStray } from './straygen.js';
 import { HEART } from './worldgen.js';
+import { leadDisplayName } from './leadname.js';
 
 const TILE = 16;
 const FEET = 13; // feet sit 13 px into a tile, as in the engine
@@ -247,20 +248,59 @@ const OUTFIT_GRIDS = new WeakMap(); // rows → { rows, layers } | null
  * from the genre's table) and '0' on everything else (the world's own colours), with any trim
  * swapped to its clothes key in rows, and then any coat key to its tone. For the painter: grid(rows, null, key, { layers, table2 }).
  * Cached per grid, frozen. null when the sprite has nothing to dress: draw it as it is.
+ *
+ * A fight frame (CONTRACT-PHASE4.md §7.8) passes its own `split` (the head-split row, which a padded,
+ * crouched or jumping frame moves) and `wear` (rows of '1' where clothes may be, '.' on what the
+ * person holds, so a lantern's butter glass is never dressed as coat). With either, the result is
+ * cached per grid, split and mask; the two-argument call is exactly Phase 3's.
  */
-export function outfitGrid(name, rows) {
+export function outfitGrid(name, rows, { split = null, wear = null } = {}) {
   const outfit = outfitOf(name);
   if (!outfit || !Array.isArray(rows) || !rows.length) return null;
-  if (OUTFIT_GRIDS.has(rows)) return OUTFIT_GRIDS.get(rows);
+  if (split == null && wear == null) {
+    if (OUTFIT_GRIDS.has(rows)) return OUTFIT_GRIDS.get(rows);
+    const out = dressRows(outfit, rows, outfit.from, null);
+    OUTFIT_GRIDS.set(rows, out);
+    return out;
+  }
+  const from = Number.isFinite(split) ? Math.max(0, Math.floor(split)) : outfit.from;
+  const mask = Array.isArray(wear) && wear.length === rows.length ? wear : null;
+  let entry = OUTFIT_POSED.get(rows);
+  if (!entry) {
+    entry = new Map();
+    OUTFIT_POSED.set(rows, entry);
+  }
+  const key = `${String(name || '').split('.')[0]}|${from}|${mask ? maskId(mask) : '-'}`;
+  if (entry.has(key)) return entry.get(key);
+  const out = dressRows(outfit, rows, from, mask);
+  entry.set(key, out);
+  return out;
+}
+
+const OUTFIT_POSED = new WeakMap(); // rows → Map(family|split|mask → { rows, layers } | null)
+const MASK_IDS = new WeakMap();
+let maskCount = 0;
+function maskId(mask) {
+  let id = MASK_IDS.get(mask);
+  if (!id) {
+    maskCount += 1;
+    id = maskCount;
+    MASK_IDS.set(mask, id);
+  }
+  return id;
+}
+
+function dressRows(outfit, rows, from, wear) {
   const h = rows.length;
   const w = rows[0].length;
   const cells = rows.map((row) => [...row]);
   const worn = rows.map(() => new Array(w).fill('0'));
   const trim = outfit.trim || {};
+  const wearable = (x, y) => !wear || (wear[y] && wear[y][x] === '1');
   const queue = [];
-  for (let y = outfit.from; y < h; y += 1) {
+  for (let y = from; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
-      if (!outfit.keys.includes(cells[y][x])) continue;
+      if (!outfit.keys.includes(cells[y][x]) || !wearable(x, y)) continue;
       worn[y][x] = '1';
       queue.push([x, y]);
     }
@@ -269,7 +309,7 @@ export function outfitGrid(name, rows) {
   for (let head = 0; head < queue.length; head += 1) {
     const [x, y] = queue[head];
     for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]]) {
-      if (ny < outfit.from || ny >= h || nx < 0 || nx >= w || worn[ny][nx] === '1') continue;
+      if (ny < from || ny >= h || nx < 0 || nx >= w || worn[ny][nx] === '1' || !wearable(nx, ny)) continue;
       const to = trim[cells[ny][nx]];
       if (!to) continue;
       cells[ny][nx] = to;
@@ -279,11 +319,9 @@ export function outfitGrid(name, rows) {
   }
   // The coat wears its own tones (spriteTable carries them), not the glow it shares keys with.
   if (outfit.coat) for (const [x, y] of queue) if (outfit.coat.includes(cells[y][x])) cells[y][x] = COAT_TONES[cells[y][x]];
-  const out = queue.length
+  return queue.length
     ? Object.freeze({ rows: Object.freeze(cells.map((row) => row.join(''))), layers: Object.freeze(worn.map((row) => row.join(''))) })
     : null;
-  OUTFIT_GRIDS.set(rows, out);
-  return out;
 }
 
 /**
@@ -1100,7 +1138,8 @@ export function leadSprite(spec, { words } = {}) {
   const archetype = kin?.archetype || bank?.preferred?.[0] || look.archetype;
   const bodyKey = kin?.bodyKey || bank?.bodyKeys?.[0] || look.bodyKey;
   const parts = (bank?.parts || look.parts).map((id) => ({ id, layer: 0 }));
-  return { archetype, bodyKey, sprite: composeStray({ archetype, bodyKey, parts }) };
+  // `parts` too (Phase 4), so a fight can recompose the lead posed and at 28 × 28.
+  return { archetype, bodyKey, parts, sprite: composeStray({ archetype, bodyKey, parts }) };
 }
 
 function spriteFeet(rows) {
@@ -1263,7 +1302,7 @@ function spreadHomes(candidates, count, rng, avoid = []) {
  *      home: { x, y } (tile), speed, lead?, line?, mechanic?, scale,
  *      positionAt(tMs) → { x, y (feet, world px), dir, moving } }]
  */
-export function strayActors(rift, { walkable = () => true, seed = 0, words } = {}) {
+export function strayActors(rift, { walkable = () => true, seed = 0, words, hooks = [] } = {}) {
   if (!placed(rift) || !rift.spec) return [];
   const stage = stageOf(rift.stage || rift.spec.stage);
   if (stage === 'hairline') return [];
@@ -1332,7 +1371,8 @@ export function strayActors(rift, { walkable = () => true, seed = 0, words } = {
     const facing = leadTile.x > rx ? 'left' : leadTile.x < rx ? 'right' : 'up';
     out.push({
       id: `stray:${rift.id}:lead`,
-      name: lead.name,
+      // The name it shows (Phase 4, leadname.js): never a company name, as in its Elsewhere and fight.
+      name: leadDisplayName(spec, words, { hooks }),
       temperament: TEMPERAMENTS[hashInts(spec.seed >>> 0, 'lead') % TEMPERAMENTS.length],
       genre: lead.genre,
       second: null,

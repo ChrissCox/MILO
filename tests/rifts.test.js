@@ -1522,20 +1522,23 @@ test('raiseHearth spends the materials and raises the tier when ready', () => {
   assert.equal(hearthTier(state), 2);
   assert.deepEqual(normalizeState(state, now), state, 'the raised state saves cleanly');
   // The Hold: kinds MILO can't count yet say when they arrive, and never count as met.
+  // Phase 4 changes this pin on purpose (CONTRACT-PHASE4 §13, A): Kindle counts focus sessions now.
   const hold = hearthStatus(state, FORTRESS).next;
   assert.deepEqual(hold.requirements.map((r) => [r.kind, r.have, r.met, r.future, r.note]), [
-    ['focus-sessions', 0, false, true, 'Arrives with the Notice Board and its focus timer'],
+    ['focus-sessions', 0, false, false, undefined],
     ['building-level', 0, false, true, 'Arrives with Commissions'],
     ['mystery', 0, false, true, 'Arrives later'],
   ]);
-  for (const r of hold.requirements) assertCalm(r.note, r.kind);
+  for (const r of hold.requirements.filter((req) => req.future)) assertCalm(r.note, r.kind);
+  const focused = { ...state, tally: { ...state.tally, focusSessions: 30 } };
+  assert.deepEqual(hearthStatus(focused, FORTRESS).next.requirements[0], { kind: 'focus-sessions', count: 30, have: 30, met: true, text: 'Complete 30 focus sessions', future: false }, 'thirty finished focus sessions meet it');
   assert.deepEqual(hold.materials.map((m) => [m.id, m.have, !!m.future, m.note]), [
     ['birch', 15, false, undefined], ['stone', 0, true, 'Mined in the vale once the Notice Board arrives'], ['maelstrom-glass', 0, false, undefined],
   ]);
   assert.equal(hold.ready, false);
   // Materials the wilds don't give yet aren't asked for: they're named once, as coming later.
   const holdReason = raiseHearth(state, FORTRESS, now).reason;
-  assert.equal(holdReason, 'Not yet. Still to do: complete 30 focus sessions (arrives with the Notice Board and its focus timer), prove a building’s level 1 (arrives with Commissions), something new (arrives later), 135 more birch and 1 more Maelstrom glass. Stone comes later.');
+  assert.equal(holdReason, 'Not yet. Still to do: complete 30 focus sessions (0 of 30), prove a building’s level 1 (arrives with Commissions), something new (arrives later), 135 more birch and 1 more Maelstrom glass. Stone comes later.');
   assertCalm(holdReason, 'hold reason');
   const onlyLater = { tiers: [FORTRESS.tiers[0], { ...FORTRESS.tiers[1], requirements: [], materials: { stone: 5, copperstone: 2 } }] };
   assert.equal(raiseHearth(createState(), onlyLater, now).reason, 'Not yet. Stone and copperstone come later.');

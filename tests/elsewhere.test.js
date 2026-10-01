@@ -13,6 +13,7 @@ import { basePaletteByCode, colourise, paintRegion } from '../src/world/wildsart
 import { createRng, hashInts } from '../src/world/rng.js';
 import * as fx from '../src/world/riftfx.js';
 import { buildElsewhere, paintGround } from '../src/world/elsewhere.js';
+import { leadDisplayName } from '../src/world/leadname.js';
 
 const read = (file) => JSON.parse(readFileSync(new URL(`../content/${file}`, import.meta.url), 'utf8'));
 const words = read('riftgen.json');
@@ -819,7 +820,8 @@ function checkStrays(r, walkable, where) {
   if (stage === 'gaping' && walkable(r.x + 1, r.y) && !inHeartOrRing(r.x + 1, r.y)) assert.equal(leads.length, 1, `${where}: the Tale-lead stands by a gaping tear`);
   if (stage !== 'gaping') assert.equal(leads.length, 0, `${where}: the Tale-lead comes only at gaping`);
   for (const lead of leads) {
-    assert.equal(lead.name, r.spec.taleLead.name);
+    // Phase 4: the name it shows (leadname.js), with the words and hooks it was given (none here).
+    assert.equal(lead.name, leadDisplayName(r.spec, undefined, { hooks: [] }));
     assert.equal(lead.id, `stray:${r.id}:lead`);
     assert.equal(Math.max(Math.abs(lead.home.x - r.x), Math.abs(lead.home.y - r.y)), 1, 'beside the tear');
     assert.ok(walkable(lead.home.x, lead.home.y));

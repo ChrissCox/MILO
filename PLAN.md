@@ -86,7 +86,7 @@ MILO is not a game bolted onto a dashboard, and it's not a dashboard hidden insi
 4. **Buildings.** Each app's level tree (step 2), proven feature by feature.
 5. **Story and renown.** Quest points, faction renown, titles, Glimmers (memory fragments), Small Spells, books and statues: the collector's layer.
 6. **The Hearth.** Eight tiers from the Camp to the Bright Kingdom ([`content/fortress.json`](content/fortress.json)). Each tier needs real progress (weeks with MILO, focus sessions, proven buildings, residents, story acts), plus game materials and Construction, and brings real defences. Its ward widens with each tier: 0, 12, 28, 48, 72, 100, 140 and then 200 tiles.
-7. **The Company.** Milo, the residents and the regulars share one **Road level** (1–12), earned from play and from stitching real rifts, and each named companion gains **warmth** (Stranger to Fireside) and two personal **paths** (one at level 3, the second at Friend warmth). It touches the other tracks in three named places only: the Road level to the Hearth's cap and to Warding's XP, the Wayfarers' fighting level to crew levels with no cap, and warmth to one real habit each. See [`COMBAT.md`](COMBAT.md) §2.7, §5.2 and §12.
+7. **The Company.** Milo, the residents and the regulars share one **Road level** (1–12), earned from play and from stitching real rifts, and each named companion gains **warmth** (Stranger to Fireside), which Phase 5 widens into **approval** for every named person (earned in conversation, remembered, and the only way anyone comes to camp) and two personal **paths** (one at level 3, the second at Friend warmth). It touches the other tracks in three named places only: the Road level to the Hearth's cap and to Warding's XP, the Wayfarers' fighting level to crew levels with no cap, and warmth to one real habit each. See [`COMBAT.md`](COMBAT.md) §2.7, §5.2 and §12.
 
 **Calibrating life-skill XP.** It's tuned so a steady year of a habit reaches the 70s and a 99 takes years, like mastery should. Early levels come fast; level 10 arrives within the first few days. Starting rates live in `content/xp.json`:
 
@@ -199,7 +199,7 @@ The full design is in [`RIFTS.md`](RIFTS.md), with the genre data in [`content/g
   - **Invite to stay** (after a stitch, a stray or Tale-lead can become a resident, or, from a wild rift, a regular in the company).
 - **Rules.** Every rift names its real cause in plain words, never grows past Gaping, and never harms anything. Horror genres stay cosy, and each genre can be switched off.
 - **Fusions.** When one real thing carries several signals, its rift fuses genres. A build failing at 3 a.m. is *Neon Nocturne*; a failing check nobody's looked at for weeks is a *Haunted Machine*. Three or more make a Maelstrom.
-- **Residents.** Stitched strays can stay, each bringing a real service; seven of them also join the company with a kit that echoes it, and the rest fight as guests in their own stories:
+- **Residents.** Stitched strays can stay once they like you enough (the approval system, Phase 5), each bringing a real service; seven of them also join the company with a kit that echoes it, and the rest fight as guests in their own stories:
   - Lumi the vampire keeps the night watch over overnight crew runs.
   - Sheriff Dusty keeps the deadline bounty board.
   - Sergeant Rivet holds your in-progress limit.
@@ -232,8 +232,10 @@ Spells are MILO's commands and automations, collected like Frieren's small spell
 
 - **LORE.md is canon.** It holds the style guide, cosmology, history, regions, characters, bestiary, grimoire, items, story acts, festivals and books.
 - **`content/` holds the game data:** `skills.json`, `xp.json`, `items.json`, `npcs.json`, `spells.json`, `examine.json`, `quests/*.json`, `dialogue/*.md` (a tiny script format), `books/*.md`, `regions/*.json`, `festivals.json`. Tests check that every reference resolves, every name exists in the lore index, and every string follows the voice rules.
-- **Targets for "tons of content"** by the end of Phase 9: 300+ examine lines, 60+ quests (main and side), 40+ NPCs with dialogue, 40+ spells, 200+ items, 30+ books, 12 regions, 9 story delves and 6 festivals. For rifts: 12 genres (more from the "far shelf" as content packs), 15 named fusions, 40+ strays, 13 residents, 12 Elsewheres and a dozen-plus fusion recipes.
+- **Targets for "tons of content"** by the end of Phase 9: 300+ examine lines (500+ with the running gags), 60+ quests (main and side; 25+ of them small errands for the running-gag cast), 40+ NPCs with dialogue, 40+ spells, 200+ items, 30+ books, 12 regions, 9 story delves and 6 festivals. For rifts: 12 genres (more from the "far shelf" as content packs), 15 named fusions, 40+ strays, 13 residents, 12 Elsewheres and a dozen-plus fusion recipes.
 - **`content/genres.json` already exists.** It holds each genre's role colours, weather, signals and the fusion table. `src/world/genres.js` turns role colours into full palettes. Tests will check every genre has every role and every fusion names real genres.
+- **Lore at the scale of Skyrim and the Forgotten Realms.** The goal is a world with more history, people, books and rumours than anyone finishes: every region with its own past, factions with grudges, hundreds of readable books and notes, and a living cast. That means a lot of writing, so it is spread across every phase from Phase 5 on, not saved for the end. LORE.md stays canon, and each region ships with its names, its books and its small famous people before its quests do.
+- **Funny and ironic lore is part of the voice.** Each region gets a handful of solemn experts in tiny things (LORE §15.1: "Hob, inventor of the second spoon", the Cabbage Man whose cart is always lost again). They recur across regions as signs, letters, plaques and book dedications, and each has a quest that ends in a kindness. The jokes are specific and affectionate, never mean.
 - **The Lorekeeper** (optional, opt-in, Phase 9+): the crew drafts new side tales, rumours and books from a weekly *numbers-only* summary (counts and categories, never session text), in the LORE.md voice. Chris approves each one before it enters the world.
 - **Art pipeline:** hand-authored string grids (as now), the step 2 kit for buildings, and crew-drafted sprites validated against the palette, then reviewed by eye. Genres multiply the art for free: every sprite, tile and building is drawn once in palette keys and recoloured per genre by role. Strays and genre props add on top.
 - **Music and sound (optional, off by default):** calm procedural chiptune per region via WebAudio, tracks unlocking as you explore (a RuneScape homage), and soft sounds for level-ups.
@@ -258,6 +260,13 @@ Spells are MILO's commands and automations, collected like Frieren's small spell
   - The Hearth, with the Stockade, the War Table, the Gate Bell and the first ward-post.
   - The Prologue, and a map with fog of war.
   - 500+ unit tests and 47 Electron checks.
+- **Phase 4, The Adventurer's Kit and the Company** (2026-10-01; spec `CONTRACT-PHASE4.md`):
+  - Embers, the Chronicle, Kindle and Banked Coals, the Adventure HUD, the Log and right-click menus, skills, the satchel and Examine.
+  - The fight: plan the turn, Run, degrees, heat and edge, Integrity and damage kinds, the planner, the three plays and "They learn from you" notebooks, saved after every action and resumed on the same tick.
+  - The Company: Jev, the Tollkeeper, regulars from stitches, the muster, followers in the wilds, and the camp fire by day and night.
+  - Caves, field bosses by Challenge, suggested levels, Sneak, day and night, and the first Riddle Note trail to the Last Bridge.
+  - Walking is real movement now (paths, no diagonals, steady click marker).
+  - 1,690+ unit tests and the 47 Electron checks.
 
 Each phase below ships useful features and game features together, with tests and a visual review, like steps 1 and 2. Each also raises the Hearth by the tier its features make possible.
 
@@ -288,7 +297,7 @@ Each phase below ships useful features and game features together, with tests an
   - Chunk generation stays under budget (15 ms).
   - The Stockade's requirements read from real counts.
 
-### Phase 4: The Adventurer's Kit and the Company (MILO becomes a game)
+### Phase 4 (done, 2026-10-01): The Adventurer's Kit and the Company (MILO becomes a game)
 This is the gameplay phase, with combat as its spine. It ships in slices, each with useful and game features together ([`COMBAT.md`](COMBAT.md) §17).
 - **4.0 Groundwork:**
   - Embers: the wallet, a lifetime count and a ledger, earned from signals MILO already sees.
@@ -325,6 +334,7 @@ This is the gameplay phase, with combat as its spine. It ships in slices, each w
   - By the end of the phase the muster can offer six companions (the Scribe, the Artificer, Jev, the Tollkeeper and two regulars) for three places.
 
 ### Phase 5: The Notice Board (Habitack comes home)
+- **Built so far (2026-10-02):** 5.0, the Board. The HUD's Quests tab opens it: one line adds a quest, which is sorted main or side by Habitack's rules (and corrected with a tap), tagged with the life skill it trains, and moved through To do, Doing and Done, with steps and notes. Finishing a quest pays Embers (3 main, 2 side) and Stewardship-style XP once. `src/quests.js`, `src/state5.js`, `src/ui/board-view.js`.
 - **Useful:**
   - The Town hall task board (one-prompt capture, main/side sorting, corrections, projects, notes).
   - Stale-task and scope-creep nudges.
@@ -340,14 +350,17 @@ This is the gameplay phase, with combat as its spine. It ships in slices, each w
     - Void: too vague to start.
     - Frontier: due dates.
   - Bright rifts: Summit for focus streaks, Verdant for a balanced week.
-  - The first residents: Sergeant Rivet's Dispatch Office, Pip, Sheriff Dusty's Bounty Board.
   - Seamcraft and the first essences.
   - The Blossomfield.
   - Cooking over the campfire.
   - Act I, first chapters, with Mags Quire and the Bindery.
   - Nan Bristle and Hob the carpenter.
   - The Hold's requirements start counting (focus sessions, quests finished).
-- **The company grows:** Rivet, Pip and Dusty join. Warmth, gifts, banter and campfire conversations; the first quest parts; lean-tos at the Stockade; camp jobs with output; meal boons; Gothic, Iron, Void and Frontier's other Tale-lead mechanics, tuned against real task rifts; the Tollkeeper's Act I delve becomes the first part of his quest.
+- **People and stories:**
+  - **Approval and recruiting:** anyone you meet can come to camp, but only if they like you enough. Every named NPC has an approval (the companions' warmth, widened to everyone), moved by what you do and say, the gifts you give, the quests you finish and the company you keep, shown as small quiet "Name approves / frowns" notes, never a scolding. Conversations borrow Pathfinder 2e's Influence idea, minus the dice: you learn what a person cares about and what puts them off, then pick approaches that fit, earning points toward their threshold. A choice that matters ends with a quiet "Name will remember that" and is kept as a real entry on their journal page, so later conversations, banter and quests can call back to it. A faction keeps a separate Reputation that opens its doors and shops. At high enough approval a **Come to camp** option appears in their conversation. Below it, they stay where they are, and asking too early just gets a polite no and a hint about what they care about. Recruits settle in at camp with a bedroll, a spot at the fire and (where it fits) their real service. Nobody is a reward or a collectible: they're people with their own lives, and some will never leave them. Rivet, Pip, Dusty and the rest are people you can meet, not the starting cast. See LORE §9 for the approval rules.
+  - **Side quests and the running gags:** the quest journal gets its first side quests, written in LORE §15's tradition. Each region's small famous people (LORE §15.1) appear with an errand, a callback and a kindness, and the first ones arrive in the Hushlands already seen: the Cabbage Man's cart on the north road, a plaque for the middle of the road, the second spoon. At least one side quest per region, funny and with a real payoff, and every quest ships with its Examine lines, a book or note, and a reason to come back.
+  - Quests, side quests and every NPC keep to the terse-copy rule: short labels, with the detail in hover text and the journal.
+- **The company grows:** Approval, gifts, banter and campfire conversations; the first quest parts; lean-tos at the Stockade; camp jobs with output; meal boons; Gothic, Iron, Void and Frontier's other Tale-lead mechanics, tuned against real task rifts; the Tollkeeper's Act I delve becomes the first part of his quest.
 - **Animation:** wave A3 starts and runs through Phase 9: each resident's overlays as they join, then Whisper and the team-up duets (about 200 hand-drawn frames).
 - **Moved to Phase 4:** the 50/15 focus timer (Kindle and Banked Coals) now arrives in slice 4.0, beside the Chronicle, because the company's rests and the focus pause need it.
 
@@ -461,19 +474,21 @@ This is the gameplay phase, with combat as its spine. It ships in slices, each w
 ### Housekeeping (slots in wherever it's needed)
 A packaged Windows build and installer, starting in the tray with background watch (the Night Watch Lantern), phone pings (opt-in), backups and export (Carve a Waystone), and updates.
 
-## 14. Open questions for Chris
+## 14. Questions, settled
 
-1. **Adventure mode by default?** The plan says yes, with Quiet mode one click away and focus auto-dimming.
-2. **Ember gating.** Is "active play costs Embers, Embers come from real work" the right amount of discipline, or should rests simply be free play?
-3. **How much of Habitack's combat to keep.** [`COMBAT.md`](COMBAT.md) proposes retiring it into Warding and the Company when the board comes home in Phase 5, rather than keeping it as a small side game (COMBAT.md §18 Q9). Is that right?
-4. **Life-skill tagging.** Tasks are auto-tagged into Artifice, Scholarship and the rest by rules like Habitack's classifier, and you can correct them. Are any life areas missing (fitness, social, money)?
-5. **Sound.** Should procedural music and sounds stay off by default?
-6. **Rift genres.** Are these the right twelve, and which "far shelf" genres (space opera, pirate, post-apocalyptic, steampunk, dark fairy tale, samurai, heist and more) should come first?
-7. **How spooky?** Gothic and Void are cosy-spooky by default, with a "gentle rifts" setting to soften them further. Is that the right default?
-8. **Your world's seed.** The plan makes one seed at first run and shows it in Settings, so your Hushlands are yours and stay the same. Should you be able to reroll it before Act I, and should there be a way to visit someone else's seed?
-9. **The frontier's reach.** Real rifts open about 10 tiles beyond the ward when urgent and about 40 when not. Is that the right spread, and should the Gate Bell (one desktop note when a rift reaches the walls) be on by default?
-10. **The Hearth cap.** Should the Hearth tier cap the company's Road level (the Stockade 5, the Hold 7 and so on), or should play alone decide how far the party grows? Either way it never touches the Wayfarers.
-11. **Likenesses.** When Claude or Codex is really working, a Clay Likeness or a Slate Double goes out in their place. Does that feel right, or should a working Wayfarer simply stay home?
-12. **Kindle early.** Is it all right to bring the focus timer into Phase 4, so a finished session gives a party that's out a Breather?
+Chris asked Claude to settle these on 2026-09-29. Each is a default, and any of them can change later.
 
-The rest of the combat questions are in [`COMBAT.md`](COMBAT.md) §18: strong Wayfarers, diagonals and flanking, walking out together, warmth from real habits, the order of arrival and Jev's count.
+1. **Adventure mode is the default.** Quiet mode is one click away, and a focus session dims the world by itself.
+2. **Embers stay the gate.** Active play costs Embers, and only real work earns them. The camp, the vale, talking, the muster, fights inside an outing and *Try again* cost nothing, so a rest is never empty.
+3. **Habitack's combat retires** into Warding and the Company when the board comes home in Phase 5, rather than staying a side game ([`COMBAT.md`](COMBAT.md) §18 Q9).
+4. **Life-skill tagging** works by rules like Habitack's classifier, with a one-click correction. No new life areas (fitness, social, money) for now: MILO sees no signals for them, and a skill with no real signal would be busywork. Skills are data, so adding one later is cheap.
+5. **Sound is off by default,** with one switch in Settings.
+6. **The twelve genres stand.** When the far shelf opens in Phase 10, steampunk, pirate and space opera come first, because they mix best with the twelve already there.
+7. **Cosy-spooky stays the default** for Gothic and Void, with the gentle-rifts setting to soften them further.
+8. **One world seed,** made at first run and shown in Settings. It can be rerolled only until the Prologue ends, before any of the world is yours. There's no visiting another seed: that would mean sharing data between PCs, which MILO doesn't do.
+9. **The frontier's reach stays** at about 10 tiles beyond the ward when urgent and about 40 when not, and the Gate Bell stays on by default: it's the only desktop note, and it's calm.
+10. **The Hearth caps the Road level** (the Stockade 5, the Hold 7 and so on). XP past the cap is kept, and the cap never touches the Wayfarers.
+11. **Likenesses stay.** When Claude or Codex is really working, a Clay Likeness or a Slate Double goes out with identical stats and the same notebook.
+12. **Kindle comes early,** in Phase 4's slice 4.0, so a finished focus session gives a party that's out a Breather.
+
+The combat questions are settled in [`COMBAT.md`](COMBAT.md) §18.

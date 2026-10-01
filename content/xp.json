@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "about": "Where Chris’s skills get their XP in Phase 4 (CONTRACT-PHASE4.md §4.21; PLAN.md §4; COMBAT.md §5.2, §6). Every other skill shows level 1 and a line on where it comes from (content/skills.json). Warding gets the same amount as the Road XP of every fight, bow and stitch, so it has no row here. spell-circle is per circle of the spell cast; wild-stitch-depth is per depth of the stitched rift, on top of wild-stitch. perDay counts how many times a day the source pays.",
+  "sources": [
+    { "id": "focus-session", "skill": "focus", "xp": 1000, "text": "A Kindle focus session finished" },
+    { "id": "rest-honoured", "skill": "hearthkeeping", "xp": 400, "text": "An honoured rest" },
+    { "id": "crew-session", "skill": "command", "xp": 100, "text": "A crew session watched to the end" },
+    { "id": "answered-fast", "skill": "command", "xp": 100, "text": "A needs-you answered within 15 minutes" },
+    { "id": "building-designed", "skill": "artifice", "xp": 1000, "text": "A building designed for the first time" },
+    { "id": "spell-knack", "skill": "spellcraft", "xp": 5, "text": "A knack in a fight" },
+    { "id": "spell-circle", "skill": "spellcraft", "xp": 40, "text": "A spell in a fight, for each of its circles" },
+    { "id": "chunk-charted", "skill": "cartography", "xp": 40, "text": "A new chunk of the wilds charted" },
+    { "id": "lantern-lit", "skill": "wayfaring", "xp": 150, "text": "A lantern lit for the first time" },
+    { "id": "lantern-travel", "skill": "wayfaring", "xp": 25, "text": "A lantern travel", "perDay": 10 },
+    { "id": "log-chopped", "skill": "woodcutting", "xp": 25, "text": "A log chopped" },
+    { "id": "wild-stitch", "skill": "seamcraft", "xp": 300, "text": "A wild rift stitched" },
+    { "id": "wild-stitch-depth", "skill": "seamcraft", "xp": 30, "text": "Each depth of a wild rift stitched" },
+    { "id": "real-stitch", "skill": "seamcraft", "xp": 500, "text": "A real rift stitched" },
+    { "id": "quest-main", "skill": "stewardship", "xp": 300, "text": "A main quest finished" },
+    { "id": "quest-side", "skill": "stewardship", "xp": 150, "text": "A side quest finished" }
+  ]
+}

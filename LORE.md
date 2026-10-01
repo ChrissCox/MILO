@@ -397,6 +397,30 @@ The Company's rules, callings and camp life are in [`COMBAT.md`](COMBAT.md) §2.
 
 ---
 
+### 9.1 Approval and coming to camp
+
+Anyone with a name is a person first. Whether they ever come to camp is up to them, and plenty never will.
+
+- **Approval** runs from *Wary* through *Neutral*, *Warm* and *Fond* to *Devoted*, and it is the same scale the companions' warmth already uses. Everyone starts Neutral or Wary, by temperament.
+- **What moves it:** what you say and choose in conversation, gifts they actually like, quests you finish for them, jokes that land (or don't), and who is standing beside you. Each person cares about something specific (Hob about spoons, the Cabbage Man about his cabbages), and Examine and gossip hint at it.
+- **How it shows:** a small quiet note ("Hob approves", "Wendell frowns") and a line in the Log. Never a bar of shame, and approval only ever drifts back toward Neutral if you ignore someone, never below it.
+- **Coming to camp:** at *Warm* a person will talk about it; at *Fond* a **Come to camp** option opens in their conversation. Asking too early gets a polite no and a hint. They bring a bedroll, a seat at the fire, and where it fits their real service. Some will never come (Sir Mossback has the pond), and that is allowed to be the joke.
+- **Not everyone has to be a fighter.** A recruit can be a camp resident only, a field-skill helper, or a full companion with a calling, depending on who they are.
+- **Borrowed from Pathfinder 2e's Influence and Reputation subsystems** (the dice are left out, since MILO has none):
+  - **Discover first.** Before you can steer a conversation you have to learn the person: their *motivations* (what they care about, which make a line land) and their *hang-ups* (what puts them off, which makes it cost you). Each is found by Examine, gossip, a gift, or just paying attention, and the journal keeps a page for them. Nobody starts with their file filled in.
+  - **Points against a threshold.** Each conversation choice is an *approach* (a kind word, a joke, a favour, a plain truth, a shared craft). One that fits a motivation earns Influence; one that fits twice over earns double; a hang-up costs a point. Each person has a threshold: a hermit needs more than a cheerful innkeeper, and the more they have to lose by leaving, the higher it is.
+  - **Resistances.** Some approaches simply don't work on someone ("flattery slides off him"), and you learn that by trying, with no penalty beyond a shrug. The same approach twice in a row weakens (people notice a routine), so a conversation rewards variety.
+  - **A conversation, not a grind.** Influence happens inside one unhurried visit (about three to six choices), and what you've earned carries forward as approval. Walk away and nothing is lost.
+  - **Fit, not luck.** Where Pathfinder rolls, MILO reads the fit between the choice and the person, so the same words land the same way every time. The variety comes from the people, not from chance.
+  - **"___ will remember that."** A choice that matters leaves a quiet note beside the approval one: "Hob will remember that." It is the game telling you the moment was kept, not a score.
+    - *What gets remembered:* a choice that costs or gives something real (a secret kept, a promise made, a gift that meant something, a quarrel, a kindness at a bad time). Small talk never does.
+    - *It is real, not decoration.* Each memory is a named entry on the person's page in the journal, in their own words ("You said the second spoon was a real invention."). Later conversations, banter at the fire, their quests, their parting words and what they say about you to others all read from those entries, so a callback never has to be invented on the spot.
+    - *Rare on purpose.* A person can only be moved to say it a few times in a visit, and a full file is capped (older small memories fade first, big ones stay), so it keeps its weight.
+    - *Never a trap.* A memory can be awkward, but it is never cruel and never permanent: coming back, apologising or doing something kind adds a newer memory beside the old one, and they will say so ("Wendell will remember that you came back.").
+    - *Also for companions.* The camp's company and the Wayfarers use the same note, so the fire's conversations can reach back to the road.
+  - **Reputation is separate.** Factions (the Tide Market, the Gallery, the Bindery, the Ivory College) keep a standing with you in the same spirit as Pathfinder's Reputation: earned by deeds for the whole group, it opens their doors and shops, and it does not decide whether any one person comes to camp. A person can like you while their faction is cool, and the other way round.
+- **Hard limits:** camp room is finite (the Hearth's tier decides how many beds), and nobody is ever forced to leave. Sending someone back to their post is gentle, and they remember you kindly.
+
 ## 10. Bestiary
 
 ### Strays (real problems, arriving from other stories)
@@ -720,6 +744,30 @@ New chapters come with seasons, regions and the Lorekeeper. The world never ends
   - *The Echo Galleries.*
   - *A Sapling for a Thousand Years:* plant one of Oriel's trees.
 - **The Unfinished Statues** (spans the world): twelve statues of Tamsin, each missing one thing. Craft the missing piece, place it at her feet rather than on the statue, and receive a Glimmer.
+
+### 15.1 The Hushlands' small famous people (running gags)
+
+A Skyrim-sized world needs a lot of people who are sure they matter. Every region gets a handful. Each one is a named, solemn expert in one tiny thing, treated by the world as a landmark. They are never mocked, and the joke is that the Hushlands takes them completely seriously.
+
+**The formula:** a plain first name, the thing, and a claim of authority. Short, specific, deadpan. Their quests are small errands with a real payoff, and they come back later with a new, slightly bigger problem. Players should be able to say "oh, it's *him* again".
+
+- *Hob Pennywhistle, inventor of the second spoon.* The first spoon was already there. He disputes this.
+- *Gorrin Teague, the Cabbage Man.* His cabbages keep getting lost, crushed or hurled by the plot, and he finds out each time with a heartfelt "my cabbages". Wherever the Long Road goes, the cart is already there, and it is never the same cart. (A tribute to a beloved cartoon bit, in our own voice: no name or line is borrowed.)
+- *Dame Ottoline Frack, discoverer of the Tuesday.* Nobody asked. The calendar has since been argued with.
+- *Wendell, who found the middle of the road.* There is a plaque. It is slightly off-centre, which he says proves it.
+- *Pim Alder, the last man to hear the Hush clear its throat.* Has been telling everyone since.
+- *Nan Greaves, official witness.* She was there. She doesn't say for what.
+- *The Honourable Mr Bracken, three-time winner of second place.* Wants a rematch with someone who no longer enters.
+- *Little Fenwick, keeper of the world's smallest lighthouse.* It stands in a puddle; ships do come.
+- *Ferris Dunn, who invented the knot that comes undone.* On purpose, he says.
+- *Old Tobin Quill, author of the sequel to a book that doesn't exist.* People keep asking for the first one.
+
+**Rules for writing them:**
+- One gag per person, played straight, then one *kindness* that surprises. The punchline is affection.
+- They recur: a name is seen on a sign in one region, met in another, and mentioned in a letter in a third. Callbacks pay off across regions and across phases.
+- Lines that sound like a title card ("*John Hallowell, inventor of the hinge*") are encouraged, as are shop signs, grave markers, plaques, book dedications and Examine lines.
+- Real jokes come from specificity. "Inventor of the thing" is a template; "inventor of the second spoon" is a person.
+- Nothing mean. Nobody is punished for being silly, least of all Chris.
 
 ---
 

@@ -7,6 +7,8 @@
 import { buildElsewhere } from './elsewhere.js';
 import { tearArt, tearFrameAt, sealArt, spriteTable, genreIndex, ANIMATION_MS } from './riftfx.js';
 import { SPRITES } from './sprites.js';
+import { PROPS4 } from './props4.js';
+import { composeStray, restFeet } from './straygen.js';
 
 const TILE = 16;
 const FEET = 13;
@@ -81,13 +83,27 @@ export function scenePath(walkable, w, h, from, to) {
 /**
  * createElsewhereScene({ rift, genres, words, riftgen, painter, makeCanvas, base, art, visited })
  * → the scene the engine draws while Milo is inside `rift`.
+ * Phase 4 (CONTRACT-PHASE4.md §11.3–§11.4) adds, each optional, with Phase 3's scene without them:
+ *   layout, fight   the arena pass's layout and { plan, encounters } (encounters.prepareElsewhere or
+ *                   prepareCave): props and the hearth-nook drawn from PROPS4, and the encounter posts,
+ *                   where each room's foes idle (never wandering) as actors 'enc:<roomId>:<unitId>'
+ *   kind            'cave': a cave (a CaveSpec as rift.spec), no seam and no Tale-lead
+ *   hooks           the lead names leads.json keeps (leadDisplayName)
+ *   anims           content.combat.anims, for the posts' idle poses
+ *   hidden(id)      actors the engine has hidden: strays by id, 'tale-lead', 'prop:x,y', a chest by its
+ *                   'loot:<n>' id (a cave's Mimic stands in for it in its fight), and posts by
+ *                   'enc:<roomId>' (a whole room) or their own id. Hidden actors leave draws, hits
+ *                   and entity lists.
  */
-export function createElsewhereScene({ rift, genres, words = null, riftgen, painter, makeCanvas, base, art, visited = false }) {
+export function createElsewhereScene({ rift, genres, words = null, riftgen, painter, makeCanvas, base, art, visited = false, layout: given = null, fight = null, kind: sceneKind = null, hooks = [], anims = null, hidden = () => false }) {
   const spec = rift.spec;
   const index = genreIndex(genres);
-  const layout = riftgen.layout(spec);
-  const kind = rift.kind === 'real' || rift.kind === 'story' || rift.kind === 'wild' ? rift.kind : null;
-  const scene = buildElsewhere(spec, layout, { genres, kind, words });
+  const layout = given || riftgen.layout(spec);
+  const kind = sceneKind === 'cave' ? 'cave' : rift.kind === 'real' || rift.kind === 'story' || rift.kind === 'wild' ? rift.kind : null;
+  const scene = buildElsewhere(spec, layout, { genres, kind, words, hooks, ...(fight ? { fight } : {}) });
+  const isHidden = (id) => {
+    try { return !!hidden(id); } catch { return false; }
+  };
   const { w, h, width, height } = scene;
 
   // The ground, in the genres' own colours (a patchwork in a fusion).
@@ -122,7 +138,9 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
       return p;
     }
     const name = o.kind === 'foliage' ? o.sprite : o.sprite;
-    const rows = SPRITES[name] ? SPRITES[name][0] : null;
+    // A fight-ready scene's props and hearth-nook are PROPS4 art (Phase 4), kept out of SPRITES.
+    const prop = !SPRITES[name] && PROPS4[name] ? PROPS4[name] : null;
+    const rows = SPRITES[name] ? SPRITES[name][0] : prop ? prop.frames[0] : null;
     if (!rows) return null;
     p.name = name;
     p.baseX = (o.x + 0.5) * TILE + (o.dx || 0);
@@ -131,6 +149,11 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
     p.sh = rows.length;
     p.sx = Math.round(p.baseX - p.sw / 2);
     p.sy = Math.round(p.baseY - p.sh);
+    if (prop) {
+      p.rows = rows;
+      p.sx = Math.round(p.baseX - prop.feet[0]);
+      p.sy = Math.round(p.baseY - 1 - prop.feet[1]);
+    }
     p.phase = hashId(o.id) * 1.3;
     return p;
   }).filter(Boolean);
@@ -141,10 +164,12 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
     return 0;
   }
 
+  const rowsOf = (p, t) => p.rows || art.gridFor(p.name, frameOf(p, t));
   function objectCanvas(p, t) {
-    const rows = art.gridFor(p.name, frameOf(p, t));
+    const rows = rowsOf(p, t);
     if (p.native) return { rows, canvas: null };
     const genre = genreAt(p.baseX, p.baseY - 1);
+    if (p.rows) return { rows, canvas: genre ? painter.grid(rows, tableFor(genre), genre) : painter.grid(rows, null, 'base', { tag: p.kind }) };
     return { rows, canvas: genre ? painter.grid(rows, tableFor(genre), genre) : null };
   }
 
@@ -203,6 +228,7 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
         continue;
       }
       if (p.kind === 'tale-lead') {
+        if (isHidden(p.id)) continue;
         const c = leadCanvas(p);
         const scale = p.scale || 2;
         const fw = p.sprite.rows[0].length * scale;
@@ -214,7 +240,7 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
         drawables.push({ y: p.feetY, x: p.feetX, draw: () => target.drawImage(c, sx, sy, fw, fh) });
         continue;
       }
-      if (!visible(p.sx, p.sy, p.sw, p.sh + 8)) continue;
+      if (!visible(p.sx, p.sy, p.sw, p.sh + 8) || ((p.scenery || p.kind === 'loot') && isHidden(p.id))) continue;
       const sh = OBJECT_SHADOWS[p.kind];
       if (sh && !(p.kind === 'foliage' && p.name === 'reeds')) shadow(p.baseX, p.baseY, sh[0], sh[1], sh[2]);
       const frame = frameOf(p, t);
@@ -222,11 +248,68 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
       drawables.push({ y: p.baseY, x: p.baseX, draw: c ? () => target.drawImage(c, p.sx, p.sy) : () => art.drawSprite(target, p.name, frame, p.sx, p.sy) });
     }
     for (const s of scene.strays) {
+      if (isHidden(s.id)) continue;
       const pose = strayPose(s, t);
       if (!visible(pose.sx, pose.sy, pose.w, pose.h)) continue;
       shadow(pose.x, pose.y, s.hover ? 6 : 10, s.hover ? 2 : 3, 0);
       drawables.push({ y: pose.y, x: pose.x, draw: () => target.drawImage(pose.canvas, pose.sx, pose.sy) });
     }
+    for (const post of postsShown()) {
+      const pose = postPose(post, t);
+      if (!pose || !visible(pose.sx, pose.sy, pose.w, pose.h)) continue;
+      shadow(post.feetX, post.feetY, post.scale === 2 ? 20 : 10, post.scale === 2 ? 5 : 3, 0);
+      drawables.push({ y: post.feetY, x: post.feetX, draw: () => (post.scale === 2 ? target.drawImage(pose.canvas, pose.sx, pose.sy, pose.w, pose.h) : target.drawImage(pose.canvas, pose.sx, pose.sy)) });
+    }
+  }
+
+  // ---------- encounter posts (Phase 4): each fight room's foes idling where the fight will seat them ----------
+
+  const posts = [];
+  for (const room of Array.isArray(scene.encounters) ? scene.encounters : []) {
+    const units = [...(room.fight?.foes || []), ...(room.fight?.leadUnit ? [room.fight.leadUnit] : [])];
+    for (const post of room.posts || []) {
+      // The lead's own post is the Tale-lead object already standing there.
+      if (post.unitId === 'lead') continue;
+      const unit = units.find((u) => u.id === post.unitId);
+      if (!unit || !unit.look) continue;
+      const size = unit.size === 2 ? 2 : 1;
+      const feetX = post.x * TILE + (size === 2 ? 16 : 8);
+      const feetY = (post.y + size - 1) * TILE + FEET;
+      posts.push({
+        id: `enc:${room.roomId}:${post.unitId}`, room: room.roomId, unit, x: post.x, y: post.y, size, feetX, feetY,
+        scale: unit.look.scale === 2 || size === 2 ? 2 : 1, mirror: post.x > scene.spawn.x, phase: hashId(`${room.roomId}:${post.unitId}`),
+      });
+    }
+  }
+  const postsShown = () => posts.filter((p) => !isHidden(`enc:${p.room}`) && !isHidden(p.id));
+  function postPose(post, t) {
+    const look = post.unit.look;
+    let rows;
+    let feet;
+    let canvas;
+    if (look.kind === 'sprite' && SPRITES[look.name]) {
+      rows = SPRITES[look.name][0];
+      feet = [rows[0].length >> 1, rows.length - 1];
+      canvas = painter.grid(rows, null, 'base', { tag: 'enc' });
+    } else if (look.kind === 'stray') {
+      const pose = anims?.poses?.[look.archetype]?.idle || null;
+      const frames = pose?.frames?.length || 1;
+      const frame = t === null || !pose ? 0 : Math.floor(((t + post.phase) * (pose.fps || 8)) / 1000) % frames;
+      const sprite = composeStray({ archetype: look.archetype, bodyKey: look.bodyKey || 'r', parts: look.parts || [], eyeKey: look.eyeKey ?? null, pose, poseName: pose ? 'idle' : null, frame, size: 28 });
+      if (!post.feet) post.feet = restFeet({ archetype: look.archetype, bodyKey: look.bodyKey || 'r', parts: look.parts || [], size: 28 });
+      rows = sprite.rows;
+      feet = post.feet;
+      const g0 = (look.genres || [])[0] || genreAt(post.feetX, post.feetY - 1);
+      const g1 = (look.genres || [])[1] || g0;
+      canvas = painter.grid(rows, tableFor(g0), `${g0 || 'base'}|${g1 || 'base'}`, { mirror: post.mirror, layers: sprite.layers, table2: tableFor(g1), tag: 'enc' });
+    } else return null;
+    const w = rows[0].length;
+    const fx = post.mirror && look.kind === 'stray' ? w - 1 - feet[0] : feet[0];
+    return { canvas, rows, sx: Math.round(post.feetX - fx * post.scale), sy: Math.round(post.feetY - feet[1] * post.scale), w: w * post.scale, h: rows.length * post.scale };
+  }
+  function postEntity(post) {
+    const near = [[0, post.size], [-1, 0], [post.size, 0], [0, -1]].map(([dx, dy]) => ({ x: post.x + dx, y: post.y + dy })).find((tile) => scene.walkable(tile.x, tile.y));
+    return { kind: 'stray', id: post.id, x: post.x, y: post.y, label: post.unit.name, riftId: spec.id, room: post.room, post: true, approach: near || { x: post.x, y: post.y } };
   }
 
   // ---------- entities ----------
@@ -245,21 +328,31 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
     const near = [[0, 0], [0, 1], [-1, 0], [1, 0], [0, -1]].map(([dx, dy]) => ({ x: x + dx, y: y + dy })).find((tile) => scene.walkable(tile.x, tile.y));
     return { kind: 'stray', id: s.id, x, y, label: s.council ? `${s.name} · the council` : s.name, riftId: spec.id, approach: near || { x, y } };
   }
-  const clickable = () => objects.filter((p) => !p.scenery && !(p.kind === 'stitch' && (sealed || sealing)));
+  const clickable = () => objects.filter((p) => !p.scenery && !(p.kind === 'stitch' && (sealed || sealing)) && !((p.kind === 'tale-lead' || p.kind === 'loot') && isHidden(p.id)));
 
   function entities(rect, t) {
     const inside = (x, y) => x >= rect.x0 && x <= rect.x1 && y >= rect.y0 && y <= rect.y1;
     const out = clickable().filter((p) => inside(p.x, p.y)).map(objectEntity);
     for (const s of scene.strays) {
+      if (isHidden(s.id)) continue;
       const e = strayEntity(s, t);
       if (inside(e.x, e.y)) out.push(e);
     }
+    for (const post of postsShown()) if (inside(post.x, post.y)) out.push(postEntity(post));
     return out;
   }
 
   function hit(ax, ay, t, opaque) {
     const hits = [];
+    for (const post of postsShown()) {
+      const pose = postPose(post, t);
+      if (!pose || ax < pose.sx - 1 || ay < pose.sy - 1 || ax >= pose.sx + pose.w + 1 || ay >= pose.sy + pose.h + 1) continue;
+      const px = Math.floor((ax - pose.sx) / post.scale);
+      const w = pose.rows[0].length;
+      if (opaque(pose.rows, post.mirror && post.unit.look.kind === 'stray' ? w - 1 - px : px, Math.floor((ay - pose.sy) / post.scale))) hits.push({ y: post.feetY + 0.1, e: () => postEntity(post) });
+    }
     for (const s of scene.strays) {
+      if (isHidden(s.id)) continue;
       const pose = strayPose(s, t);
       if (ax < pose.sx - 1 || ay < pose.sy - 1 || ax >= pose.sx + pose.w + 1 || ay >= pose.sy + pose.h + 1) continue;
       const px = Math.floor(ax - pose.sx);
@@ -282,7 +375,7 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
         continue;
       }
       if (ax < p.sx || ay < p.sy || ax >= p.sx + p.sw || ay >= p.sy + p.sh) continue;
-      if (opaque(art.gridFor(p.name, frameOf(p, null)), Math.floor(ax - p.sx), Math.floor(ay - p.sy))) hits.push({ y: p.baseY, e: () => objectEntity(p) });
+      if (opaque(rowsOf(p, null), Math.floor(ax - p.sx), Math.floor(ay - p.sy))) hits.push({ y: p.baseY, e: () => objectEntity(p) });
     }
     if (!hits.length) return null;
     hits.sort((a, b) => b.y - a.y);
@@ -304,12 +397,15 @@ export function createElsewhereScene({ rift, genres, words = null, riftgen, pain
   function entityById(id, t) {
     const p = clickable().find((o) => o.id === id);
     if (p) return objectEntity(p);
-    const s = scene.strays.find((it) => it.id === id);
+    const post = postsShown().find((it) => it.id === id);
+    if (post) return postEntity(post);
+    const s = scene.strays.find((it) => it.id === id && !isHidden(it.id));
     return s ? strayEntity(s, t) : null;
   }
 
   return {
     riftId: spec.id,
+    cave: kind === 'cave',
     name: spec.name,
     depth: spec.depth || 1,
     tier: spec.tier || 1,
