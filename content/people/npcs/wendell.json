@@ -1,0 +1,97 @@
+{
+  "id": "wendell",
+  "name": "Wendell",
+  "title": "who found the middle of the road",
+  "where": { "x": 33, "y": -6 },
+  "dye": { "m": "S", "b": "s", "u": "e", "U": "E", "Y": "N", "r": "c", "R": "C", "Q": "C" },
+  "threshold": 5,
+  "likes": { "truth": 2, "craft": 1 },
+  "dislikes": ["joke"],
+  "resists": ["favour"],
+  "examine": [
+    "Wendell stands in the exact middle of the road. Traffic goes round him. Nobody has complained.",
+    "He carries a ball of string and a very small notebook. Both are full.",
+    "There is a chalk cross at his feet. By his reckoning, it is the middle."
+  ],
+  "meet": [
+    "Good morning. Don’t move. You’re four feet left of the middle of the road, which is the correct amount.",
+    "I’m Wendell. I found the middle. It was here the whole time."
+  ],
+  "hello": {
+    "wary": ["You again. You’re standing at the edge. That’s fine. Somebody has to."],
+    "neutral": ["Good morning. You’re a little left of centre. I’m not going to say anything."],
+    "warm": ["There you are. I kept your place in the middle. Nobody used it."],
+    "fond": ["My favourite traveller. I can move the middle if you’d like. It’s a small road."]
+  },
+  "tired": ["I’ve spoken more today than the road has. Come back tomorrow."],
+  "finished": ["I’ve nothing further to measure. You may stand here. Many do."],
+  "topics": [
+    {
+      "id": "plaque",
+      "say": [
+        "You’ll have seen the plaque outside the Town hall. It says the hall stands in the exact middle of the road. I wrote it. It took a month. The month was not exact."
+      ],
+      "options": [
+        { "approach": "truth", "text": "It’s a little off-centre.", "reply": ["Yes. By a hand’s breadth. Thank you."], "remember": "said-it-aloud" },
+        { "approach": "kind", "text": "It’s a lovely plaque.", "reply": ["Thank you. The spelling took a week."] },
+        { "approach": "joke", "text": "Who moved the road?", "reply": ["Roads don’t move. I wrote that down, and then I looked into it."] },
+        { "approach": "craft", "text": "What did you measure with?", "reply": ["String, a stick, and a tortoise. The tortoise did most of the walking."] }
+      ]
+    },
+    {
+      "id": "middle",
+      "needs": 1,
+      "say": [
+        "I’ve begun to wonder whether the middle is a place or an idea. I’ve stood on it for a year. It hasn’t said."
+      ],
+      "options": [
+        { "approach": "truth", "text": "It’s wherever the most feet go.", "reply": ["That contradicts the tortoise. You’re right, though."], "remember": "the-feet-answer" },
+        { "approach": "craft", "text": "Stand still and let the road tell you.", "reply": ["I have. It said nothing. I respect that."] },
+        { "approach": "kind", "text": "You’ll find it.", "reply": ["That is the kindest thing anyone has said to me. I don’t believe it."] },
+        { "approach": "favour", "text": "Shall I hold the other end of the string?", "reply": ["No. Your hand would shake. The string has to stay still."] }
+      ]
+    },
+    {
+      "id": "string",
+      "needs": 3,
+      "say": [
+        "I’ve measured the road eleven times. I have eleven middles. I’m keeping all of them, in case the road has moods."
+      ],
+      "options": [
+        { "approach": "craft", "text": "Average them.", "reply": ["Yes. All right."] },
+        { "approach": "truth", "text": "The road gets wider at the bend.", "reply": ["Yes. It does. I’ve been avoiding the bend."], "remember": "the-bend" },
+        { "approach": "joke", "text": "Maybe the middle is shy.", "reply": ["It would explain a great deal."] },
+        { "approach": "kind", "text": "Eleven is a lot of care.", "reply": ["Eleven. Yes. It’s a lot. Anyway."] }
+      ]
+    },
+    {
+      "id": "apology",
+      "needs": 4,
+      "say": [
+        "I think I owe the road an apology. I put a plaque on it without asking. I didn’t ask the plaque either."
+      ],
+      "options": [
+        { "approach": "truth", "text": "Roads don’t mind. But the plaque could say “near the middle”.", "reply": ["“Near the middle.”", "I can live with that correction. Nobody has offered me one."], "remember": "near-the-middle" },
+        { "approach": "craft", "text": "I’ll help you re-letter it.", "reply": ["I’ll bring the brush.", "I would like to say something here. I’ve decided not to."], "remember": "re-lettered-the-plaque" },
+        { "approach": "kind", "text": "I’m sure the road forgives you.", "reply": ["It hasn’t said so. But thank you."] }
+      ]
+    }
+  ],
+  "memories": {
+    "said-it-aloud": "You told him the plaque is a little off-centre. He had known for a month.",
+    "the-feet-answer": "You said the middle is wherever the most feet go. He has added it to the notebook, on page nine.",
+    "the-bend": "You pointed out that the road widens at the bend. He had been avoiding the bend.",
+    "near-the-middle": "You suggested the plaque say “near the middle”. He has written it down.",
+    "re-lettered-the-plaque": "You offered to help re-letter the plaque. He hasn’t forgotten, and hasn’t said so."
+  },
+  "camp": {
+    "early": ["I’d be glad of the company. I haven’t found your middle yet. Tell me something true first."],
+    "ask": [
+      "Your camp. Is it in the middle of anything?",
+      "I ask because I could mark it out in straight lines. It would take a week. I would need the week."
+    ],
+    "yes": ["Then I’ll bring the string. The tortoise has the road for now."],
+    "full": ["Your camp has no free bed. I’ll wait here. I’m used to waiting in the middle of things."],
+    "role": "Keeps the camp’s lines straight."
+  }
+}

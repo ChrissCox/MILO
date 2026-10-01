@@ -211,7 +211,9 @@ const fallbackModel = {
         strayMemory: {}, firstLeadMet: false, teachDay: null, seenScenes: {},
       },
       expedition: null,
-      board: { quests: [], projects: [], thoughts: [], seq: 0 },
+      board: { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null },
+      people: {},
+      camplife: { gather: null, last: null, cooked: {} },
     };
   },
   normalizeState(input, at = Date.now()) {
@@ -226,6 +228,8 @@ const fallbackModel = {
     // An expedition is null or a record, copied as saved: a section merge would turn null into {}.
     merged.expedition = isPlainObject(value.expedition) ? value.expedition : null;
     merged.board = { ...base.board, ...record(value.board) };
+    merged.people = record(value.people);
+    merged.camplife = { ...base.camplife, ...record(value.camplife) };
     return merged;
   },
 };

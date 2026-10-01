@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   addQuest, updateQuest, setStatus, finishQuest, deleteQuest, classifyQuest, skillFor, addStep, toggleStep, removeStep,
   addProject, completeProject, deleteProject, addThought, thoughtToQuest, boardView, boardOf, projectProgress, QUEST_PAY,
+  letGo, bringBack, keepQuest, staleQuests, nudgeView, shouldNudge, markNudged, NUDGE,
 } from '../src/quests.js';
 import { cleanBoard, emptyBoard, BOARD_LIMITS } from '../src/state5.js';
 import { createState, normalizeState } from '../src/model.js';
@@ -162,4 +163,59 @@ test('the cleaner repairs anything and keeps to its limits', () => {
   const odd = cleanBoard({ quests: [{ title: 'ok', status: 'bogus', kind: 'huge', skill: 'nope', projectId: 'p-9' }] }, { now: NOW }).quests[0];
   assert.deepEqual([odd.status, odd.kind, odd.skill, odd.projectId], ['todo', 'side', 'stewardship', null]);
   assert.equal(cleanBoard(JSON.parse('{"__proto__":{"x":1},"quests":[]}')).x, undefined);
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+
+test('letting a quest go is gentle: it leaves the board, pays nothing, and can come back', () => {
+  const { state: start, quest } = add(fresh(), 'Sort the garage');
+  let state = letGo(start, quest.id, NOW + 1000);
+  assert.equal(boardOf(state).quests[0].status, 'let-go');
+  assert.equal(state.embers.lifetime, 0);
+  const view = boardView(state);
+  assert.deepEqual([view.todo.length, view.letGoCount, view.counts.open], [0, 1, 0]);
+  state = bringBack(state, quest.id, NOW + 2000);
+  assert.equal(boardOf(state).quests[0].status, 'todo');
+  assert.equal(boardView(state).counts.open, 1);
+});
+
+test('a quest that has waited a while is nudged, and Keep starts its clock again', () => {
+  const { state, quest } = add(fresh(), 'Call the bank');
+  assert.deepEqual(staleQuests(state, NOW + 13 * DAY), []);
+  assert.equal(staleQuests(state, NOW + 14 * DAY).length, 1);
+  assert.deepEqual(nudgeView(state, NOW + 14 * DAY).stale, [quest.id]);
+  const kept = keepQuest(state, quest.id, NOW + 14 * DAY);
+  assert.deepEqual(staleQuests(kept, NOW + 20 * DAY), []);
+  assert.equal(staleQuests(kept, NOW + 28 * DAY).length, 1);
+});
+
+test('a quest in progress waits a week; done and let-go quests never nudge', () => {
+  const a = add(fresh(), 'Write the report');
+  let state = setStatus(a.state, a.quest.id, 'doing', NOW);
+  assert.equal(staleQuests(state, NOW + 6 * DAY).length, 0);
+  assert.equal(staleQuests(state, NOW + NUDGE.doingDays * DAY).length, 1);
+  assert.equal(staleQuests(letGo(state, a.quest.id, NOW + DAY), NOW + 90 * DAY).length, 0);
+  state = finishQuest(state, a.quest.id, NOW + DAY).state;
+  assert.equal(staleQuests(state, NOW + 90 * DAY).length, 0);
+});
+
+test('too much in progress at once is noticed', () => {
+  let state = fresh();
+  for (let i = 0; i < 6; i += 1) {
+    const r = add(state, `Task ${i}`, NOW + i);
+    state = setStatus(r.state, r.quest.id, 'doing', NOW + i);
+  }
+  assert.equal(nudgeView(state, NOW + 10).crowded, true);
+  assert.equal(nudgeView(fresh(), NOW).crowded, false);
+});
+
+test('Milo says it once a day at most', () => {
+  const { state } = add(fresh(), 'Call the bank');
+  const later = NOW + 15 * DAY;
+  assert.equal(shouldNudge(state, later), true);
+  const said = markNudged(state, later);
+  assert.equal(shouldNudge(said, later + 1000), false);
+  assert.equal(shouldNudge(said, later + DAY), true);
+  assert.equal(shouldNudge(fresh(), later), false, 'nothing is stale on an empty board');
+  assert.equal(normalizeState(JSON.parse(JSON.stringify(said)), later).board.nudgedDay, boardOf(said).nudgedDay);
 });

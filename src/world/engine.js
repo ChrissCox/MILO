@@ -3193,6 +3193,7 @@ export function createWorld(canvas, {
     endCombat,
     setSky: (value) => { if (sky) { sky.setSky(value); requestDraw(); } },
     setLandmarks: (list) => { if (W) W.setLandmarks(list); },
+    setBlossoms: (list) => { if (W) W.setBlossoms(list); },
     setCamp: (view) => { if (camp) { camp.setCamp(view); requestDraw(); } },
     enterCave,
     screenOfTile,

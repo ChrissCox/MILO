@@ -250,11 +250,35 @@ function applyOp(state, op, data, fw, fh, tone = null) {
   return { rows, prop, anchors, split, neck };
 }
 
+// People the content adds (src/people.js): a rig's recolour for a `who` the rig doesn't know. The coat
+// rig is Milo's chibi, so a townsperson is Milo in other colours. Registered once at start-up.
+const EXTRA_LOOKS = new Map();
+const LOOK_WHO = /^[a-z][a-z0-9-]{0,39}$/;
+
+/**
+ * Teaches a rig a new person: `keys` maps the rig's palette keys to other palette keys (hair m → S).
+ * Anything that isn't a palette key is dropped. false for an unknown rig, a bad id, or a person the
+ * rig already has; frames made for the id before are forgotten.
+ */
+export function registerLook(rigId, who, keys) {
+  const data = DATA[rigId];
+  if (!data || typeof who !== 'string' || !LOOK_WHO.test(who) || data.looks?.[who] || !keys || typeof keys !== 'object') return false;
+  const clean = {};
+  for (const [from, to] of Object.entries(keys)) {
+    if (from.length === 1 && typeof to === 'string' && to.length === 1 && PALETTE[from] && PALETTE[to]) clean[from] = to;
+  }
+  EXTRA_LOOKS.set(`${rigId}|${who}`, freeze(clean));
+  for (const cache of [CLIP_CACHE, EXPLORE_CACHE]) {
+    for (const key of [...cache.keys()]) if (key.startsWith(`${rigId}|${who}|`)) cache.delete(key);
+  }
+  return true;
+}
+
 /** A rig's placeholders to palette keys for this person, then a likeness recolour (none for null). */
 function toneRows(rows, rigId, who, likeness) {
   const data = DATA[rigId];
   let out = rows;
-  const keys = data.looks?.[who] || data.looks?.[data.defaultWho] || null;
+  const keys = data.looks?.[who] || EXTRA_LOOKS.get(`${rigId}|${who}`) || data.looks?.[data.defaultWho] || null;
   if (keys) out = recolor(out, keys);
   if (data.placeholders) out = recolor(out, data.placeholders);
   const table = likeness ? LIKENESS[likeness] : null;
@@ -449,7 +473,7 @@ function rigOf(look) {
 
 function whoOf(rigId, look) {
   const data = DATA[rigId];
-  return data.looks && data.looks[look.who] ? look.who : data.defaultWho;
+  return (data.looks && data.looks[look.who]) || EXTRA_LOOKS.has(`${rigId}|${look.who}`) ? look.who : data.defaultWho;
 }
 
 const CLIP_CACHE = new Map();
@@ -525,7 +549,7 @@ export function exploreFrames(look, dir = 'down') {
   if (explore) {
     const side = d === 'left' ? 'right' : d;
     const list = explore[side] || explore.down;
-    const keys = data.looks?.[who] || null;
+    const keys = data.looks?.[who] || EXTRA_LOOKS.get(`${rigId}|${who}`) || null;
     const table = likeness ? LIKENESS[likeness] : null;
     const family = table ? null : (data.family === 'who' ? FAMILY[who] || null : data.family || null);
     // The feet row is the stand frame's lowest drawn row: the bottom row for everyone but Jev, whose

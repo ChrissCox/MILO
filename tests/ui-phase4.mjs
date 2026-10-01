@@ -127,7 +127,118 @@ try {
       await kit.poll(async () => (await page.evaluate(() => window.milo.loadState())).board?.quests?.[0]?.paid === true, 'the quest to be saved as paid');
       await page.keyboard.press('Escape');
     });
+    await check('the Town hall opens the Board, and a pocket thought becomes a quest in a project', async () => {
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-place="townhall"]').click();
+      await kit.poll(async () => (await page.locator('#panel-title').textContent()).trim() === 'Town hall', 'the Town hall panel');
+      await page.locator('#panel [data-action="board-tab"][data-tab="projects"]').click();
+      await page.locator('#panel [data-form="board-project"] input').fill('Garden');
+      await page.locator('#panel [data-form="board-project"] input').press('Enter');
+      await page.locator('#panel .project', { hasText: 'Garden' }).waitFor({ timeout: 10_000 });
+      await page.locator('#panel [data-action="board-tab"][data-tab="pocket"]').click();
+      await page.locator('#panel [data-form="board-thought"] input').fill('Garden: buy soil');
+      await page.locator('#panel [data-form="board-thought"] input').press('Enter');
+      await page.locator('#panel [data-action="board-thought-quest"]').click();
+      const row = page.locator('#panel .quest', { hasText: 'buy soil' });
+      await row.waitFor({ timeout: 10_000 });
+      assert.match(await row.textContent(), /Garden/, 'it was filed under the project');
+      await page.keyboard.press('Escape');
+    });
     await noErrors(kit, 'hud');
+    await kit.close();
+  }
+
+  // ---- A task rift ----------------------------------------------------------------------------
+  {
+    const old = Date.now() - 20 * 86_400_000;
+    const kit = await launchWith('taskrift', (s) => {
+      s.embers = { balance: 0, lifetime: 0 };
+      s.board = {
+        quests: [{ id: 'q-1', title: 'Call the bank', kind: 'side', manual: false, status: 'todo', notes: '', skill: 'stewardship', skillManual: false, projectId: null, createdAt: old, startedAt: null, completedAt: null, touchedAt: old, due: null, dueManual: false, paid: false, steps: [] }],
+        projects: [], thoughts: [], seq: 1, nudgedDay: '2099-01-01',
+      };
+    });
+    const page = kit.window;
+    const rifts = async () => (await page.evaluate(() => window.milo.loadState())).rifts;
+    await check('a quest that has waited a while opens a Gothic rift, and keeping it seals the rift once', async () => {
+      await kit.poll(async () => (await rifts()).open?.['stale:board'], 'the Gothic rift to open', 30_000);
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-place="townhall"]').click();
+      await page.locator('#panel [data-quest="q-1"] [data-action="board-keep"]').waitFor({ timeout: 20_000 });
+      await page.locator('#panel [data-quest="q-1"] [data-action="board-keep"]').click();
+      await kit.poll(async () => !(await rifts()).open?.['stale:board'] && (await rifts()).stitched?.real === 1, 'the rift to seal and count once', 20_000);
+      assert.equal((await page.evaluate(() => window.milo.loadState())).embers.lifetime, 5, 'the seal paid its 5 Embers');
+    });
+    await noErrors(kit, 'taskrift');
+    await kit.close();
+  }
+
+  // ---- Camp life: what Milo gathers, and the fire ----------------------------------------------
+  {
+    const now = Date.now();
+    const kit = await launchWith('camplife', (s) => {
+      s.kindle = { phase: 'focus', startedAt: now - 51 * 60_000, focusEndsAt: now - 60_000, restStartedAt: null, restEndsAt: null, earned: false, paid: { focus: null, rest: null } };
+      s.camplife = { gather: 'foraging', last: null, cooked: {} };
+      s.satchel = { ...s.satchel, materials: { ...s.satchel.materials, berries: 3 } }; // enough for one cordial whatever Milo finds
+    });
+    const page = kit.window;
+    await check('a focus session that ends while Milo forages brings the haul home once, and the fire cooks it', async () => {
+      await kit.poll(async () => (await page.evaluate(() => window.milo.loadState())).camplife?.last, 'the haul to be saved');
+      const st = await page.evaluate(() => window.milo.loadState());
+      const brought = (st.satchel.materials.berries || 0) - 3 + (st.satchel.materials.herbs || 0); // minus the three seeded berries
+      assert.ok(brought >= 3 && brought <= 5, `3 to 5 things came home: ${brought}`);
+      assert.equal(st.xp.skills.foraging, 250);
+      assert.match(await page.locator('#bubble').textContent(), /Milo foraged and brought back/);
+      await kit.dismissBubbles(500);
+      await page.locator('#hud button', { hasText: /^Satchel$/ }).click();
+      await page.locator('#panel .satchel-gathered').waitFor({ timeout: 10_000 });
+      await page.keyboard.press('Escape');
+      // the fire, from the camp
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-place="camp"]').click();
+      await page.locator('#panel [data-panel="fire"]').waitFor({ timeout: 20_000 });
+      await page.locator('#panel [data-panel="fire"]').click();
+      await page.locator('#panel .fire-view').waitFor({ timeout: 10_000 });
+      const cook = page.locator('#panel .fire-recipe[data-can="true"] [data-action="fire-cook"]').first();
+      await cook.waitFor({ timeout: 10_000 });
+      await cook.click();
+      await kit.poll(async () => (await page.evaluate(() => window.milo.loadState())).xp.skills.cooking === 120, 'Cooking to train');
+    });
+    await noErrors(kit, 'camplife');
+    await kit.close();
+  }
+
+  // ---- A person on the road --------------------------------------------------------------------
+  {
+    const now = Date.now();
+    const kit = await launchWith('people', (s) => {
+      s.people = { wendell: { points: 4, met: now - 86_400_000, seen: now - 86_400_000, done: ['plaque', 'middle', 'string'], turn: { day: '2000-01-01', n: 0, last: null }, found: { likes: ['truth', 'craft'], dislikes: [], resists: [] }, memories: [], camp: null } };
+    });
+    const page = kit.window;
+    await check('Wendell stands on the north road, is won over with the truth, will remember that, and comes to camp', async () => {
+      await outTheNorthGate(kit);
+      await kit.dismissBubbles(1500);
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-entity="landmark:npc-wendell"]').click();
+      await page.locator('#panel .person-view').waitFor({ timeout: 30_000 });
+      assert.equal((await page.locator('#panel-title').textContent()).trim(), 'Wendell');
+      await page.locator('#panel [data-action="person-camp"]').click();
+      assert.match(await page.locator('#panel .person-talk').textContent(), /Tell me something true first/, 'too early: a polite no with a hint');
+      await page.locator('#panel [data-action="person-go"]').click();
+      await page.locator('#panel [data-action="person-pick"][data-approach="truth"]').click();
+      const notes = (await page.locator('#panel .person-note').allTextContents()).join(' | ');
+      assert.match(notes, /Wendell approves/);
+      assert.match(notes, /Wendell will remember that/);
+      assert.match(notes, /fond of you now/);
+      await page.locator('#panel [data-action="person-next"]').click();
+      await page.locator('#panel [data-action="person-camp"]').click();
+      assert.match(await page.locator('#panel .person-talk').textContent(), /I’ll bring the string/);
+      await kit.poll(async () => (await page.evaluate(() => window.milo.loadState())).people?.wendell?.camp, 'Wendell to be saved as living at camp');
+      await page.keyboard.press('Escape');
+      await kit.openPlacesList();
+      assert.equal(await page.locator('#place-list [data-entity="landmark:npc-wendell"]').count(), 0, 'he left the road');
+    });
+    await noErrors(kit, 'people');
     await kit.close();
   }
 

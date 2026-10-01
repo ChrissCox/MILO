@@ -9,7 +9,7 @@ import {
   STATE4_KEYS, emptyState4, normalize4, emptyTally4, cleanTally4, emptySatchel4, cleanSatchel4, emptyStory4, cleanStory4,
   CREW_AGENTS,
 } from './state4.js';
-import { emptyBoard, cleanBoard } from './state5.js';
+import { emptyBoard, cleanBoard, emptyPeople, cleanPeople, emptyCamplife, cleanCamplife } from './state5.js';
 
 export { toTime, clip, dayKey, dayNumber, dayStart, SESSION_NAME_DAYS, withoutTitle } from './clean.js';
 export { markFact, markFeature, tallyAnswered } from './state4.js';
@@ -60,19 +60,19 @@ const LANTERN_ID = /^lantern:-?\d{1,7},-?\d{1,7}$/;
 const POI_ID = /^poi:[a-z]{2,16}:-?\d{1,7},-?\d{1,7}$/;
 const TREE_ID = /^tree:-?\d{1,7},-?\d{1,7}$/;
 const RIFT_ID = /^rift:[0-9a-z]{1,13}$/;
-const RIFT_KEY = /^(night|knock|capacity|built|story):\S{1,150}$/;
+const RIFT_KEY = /^(night|knock|capacity|built|story|stale|crowded|vague|due):\S{1,150}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const GENRE_ID = /^[a-z][a-z-]{1,23}$/;
 const SIGNAL_ID = /^[a-z][a-z0-9-]{1,39}$/;
 const AGENT_ID = /^[a-z][a-z0-9-]{0,19}$/;
-const SIGNAL_KINDS = ['nocturne', 'knocking', 'capacity', 'built', 'story'];
-const KIND_BY_PREFIX = { night: 'nocturne', knock: 'knocking', capacity: 'capacity', built: 'built', story: 'story' };
+const SIGNAL_KINDS = ['nocturne', 'knocking', 'capacity', 'built', 'story', 'stale', 'crowded', 'vague', 'due'];
+const KIND_BY_PREFIX = { night: 'nocturne', knock: 'knocking', capacity: 'capacity', built: 'built', story: 'story', stale: 'stale', crowded: 'crowded', vague: 'vague', due: 'due' };
 const ECHO_ICONS = ['moon', 'knocker', 'spark', 'star', 'crack'];
 
 // Phase 4's sections come after `story` (CONTRACT-PHASE4 §8.1); a key missing here would be
 // overwritten by its raw copy in `extras`.
 const KNOWN_KEYS = ['version', 'user', 'milo', 'lastSeenAt', 'lastGreetedDay', 'settings', 'skills', 'panel', 'plots',
-  'firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story', ...STATE4_KEYS, 'board'];
+  'firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story', ...STATE4_KEYS, 'board', 'people', 'camplife'];
 const PLOT_KEYS = ['status', 'suggestions', 'asked', 'idea', 'blueprint', 'designedBy', 'builtAt', 'firstBuiltAt', 'name'];
 const MAX_NAME = 40;
 const MAX_ID = 64;
@@ -719,6 +719,8 @@ export function createState(now = Date.now()) {
     story: emptyStory(),
     ...emptyState4(),
     board: emptyBoard(),
+    people: emptyPeople(),
+    camplife: emptyCamplife(),
   };
 }
 
@@ -769,6 +771,8 @@ function normalize(input, now) {
     ...normalize4(source, { now, tally }),
     // Phase 5: the board of quests, cleaned on its own.
     board: phase4Part(() => cleanBoard(source.board, { now }), emptyBoard),
+    people: phase4Part(() => cleanPeople(source.people, { now }), emptyPeople),
+    camplife: phase4Part(() => cleanCamplife(source.camplife), emptyCamplife),
     ...extras,
   };
 }

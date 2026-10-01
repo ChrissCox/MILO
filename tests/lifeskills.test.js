@@ -14,6 +14,7 @@ import {
 import { SKILL_IDS as STATE_SKILL_IDS, STATE4_LIMITS } from '../src/state4.js';
 import { kindleStart, kindleTick } from '../src/kindle.js';
 import { QUEST_SKILLS } from '../src/state5.js';
+import { GATHER_SKILLS } from '../src/camplife.js';
 import { chartChunks } from '../src/embers.js';
 import { assertCalm, assertCosy, assertOwnWords, assertName, loreIndex, normaliseName, strings } from './calm.js';
 
@@ -276,7 +277,7 @@ test('content/skills.json: the 24 skills in LORE §12’s order, LORE §21’s n
     assertCosy(text, path);
   }
   // Every skill with a Phase 4 source says so; the rest say where XP will come from.
-  const sources = new Set([...xpFile.sources.map((s) => s.skill), ...QUEST_SKILLS]); // quests train the life skills they are tagged with
+  const sources = new Set([...xpFile.sources.map((s) => s.skill), ...QUEST_SKILLS, ...GATHER_SKILLS]); // quests train the life skills they are tagged with
   for (const skill of skillsFile.skills) {
     if (sources.has(skill.id) || ['warding', 'command', 'artifice'].includes(skill.id)) assert.match(skill.phase4, /^Rises from/, skill.id);
     else assert.match(skill.phase4, /^Comes with /, skill.id);

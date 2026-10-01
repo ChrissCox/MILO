@@ -1084,7 +1084,8 @@ function renderCompanyLinks() {
   const sheet = id => `<button type="button" class="px-btn" data-action="phase4-open" data-panel="company:${esc(id)}" data-focus-key="company-${esc(id)}">${esc(names[id] || state.party?.roster?.[id]?.name || id)}</button>`;
   return '<section class="company-links"><h3>The company</h3>'
     + '<div class="notebook-actions"><button type="button" class="px-btn primary" data-action="phase4-open" data-panel="muster" data-focus-key="company-muster">Setting out</button>'
-    + '<button type="button" class="px-btn" data-action="phase4-open" data-panel="company:milo" data-focus-key="company-milo">Milo’s sheet</button></div>'
+    + '<button type="button" class="px-btn" data-action="phase4-open" data-panel="company:milo" data-focus-key="company-milo">Milo’s sheet</button>'
+    + '<button type="button" class="px-btn" data-action="phase4-open" data-panel="fire" data-focus-key="company-fire">The fire</button></div>'
     + (roster.length ? `<div class="notebook-actions">${roster.slice(0, 6).map(sheet).join('')}</div>` : '')
     + '</section>';
 }
@@ -2336,6 +2337,9 @@ async function startPhase4(bundle) {
     });
     // When a fight ends, the bubbles it held come out one by one.
     phase4?.shell.on('combat', message => { if (!message?.live && !bubbleCurrent) setTimeout(nextBubble, 600); });
+    // The task rifts rest on the Board, so a change to it asks the rift loop for a fresh look.
+    let lastBoard = state.board;
+    phase4?.shell.on('state', () => { if (state.board !== lastBoard) { lastBoard = state.board; queueRiftLoop(); } });
   } catch (error) {
     console.warn('[MILO] Phase 4 did not start: ' + error.message);
     phase4 = null;

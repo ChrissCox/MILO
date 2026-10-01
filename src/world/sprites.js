@@ -716,6 +716,32 @@ const WINDOW = grid(`
 `);
 const CABIN = stamp(stamp(stamp(sym(CABIN_HALF), CHIMNEY, 34, 1), DOOR, 8, 27), WINDOW, 28, 24);
 
+// The Town hall: the cabin's shape with a slate roof, a little bell tower and the quest board where
+// the window was.
+const NOTICE = grid(`
+  oooooooooooo
+  obbbbbbbbbbo
+  obccbuubkkbo
+  obccbuubkkbo
+  obbbbbbbbbbo
+  obkkbccbuubo
+  obkkbccbuubo
+  obbbbbbbbbbo
+  oooooooooooo
+  .om......mo.
+  .om......mo.
+  .oo......oo.
+`);
+const BELL_TOWER = grid(`
+  ...oooo...
+  ..oUUUUo..
+  ..oUuYUo..
+  ..oUUYUo..
+  .oooooooo.
+  .oEEEEEEo.
+`);
+const TOWN_HALL = stamp(stamp(recolor(stamp(sym(CABIN_HALF), DOOR, 8, 27), { r: 'e', R: 'E' }), NOTICE, 28, 26), BELL_TOWER, 19, 1);
+
 const CAMPFIRE_BASE = grid(`
   ................
   ................
@@ -2372,6 +2398,7 @@ export const SPRITES = {
   reeds: [REEDS, shiftRows(REEDS, 1, 0, 3)],
   tent: [TENT],
   cabin: [CABIN],
+  townhall: [TOWN_HALL],
   campfire: CAMPFIRE,
   'log.bench': [LOG_BENCH],
   woodpile: [WOODPILE],

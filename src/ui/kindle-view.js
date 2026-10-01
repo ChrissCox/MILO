@@ -10,6 +10,7 @@ import { kindleStart, bankedCoals, kindleStop, kindleTick, kindleView, nextAlarm
 import { dayView } from '../chronicle.js';
 import { walletView, economyOf } from '../embers.js';
 import { ratesOf, commas } from '../lifeskills.js';
+import { ACTIVITIES, ACTIVITY_IDS, chooseGather, haulWords } from '../camplife.js';
 import { esc } from './panels.js';
 
 export const id = 'kindle';
@@ -79,6 +80,8 @@ export function kindlePanelView(state, now, { confirming = null, bell = true, co
     confirming: confirming === 'stop' || confirming === 'start' ? confirming : null,
     words: view.words,
     pay: kindlePay(content),
+    gather: isRecord(state?.camplife) && ACTIVITY_IDS.includes(state.camplife.gather) ? state.camplife.gather : null,
+    haul: haulWords(state),
   };
 }
 
@@ -132,6 +135,9 @@ export function buildKindle(view) {
   else html += `<div class="ask-actions">${button('kindle-start', 'Kindle the lantern', 'kindle-start', { primary: true })}${button('kindle-rest', 'Bank the coals', 'kindle-rest')}</div>`;
   html += '</section>';
   if (phase === 'idle') html += `<p class="setting-hint kindle-note">${esc(payNote(v.pay))}</p>`;
+  html += '<section class="settings kindle-gather" data-group="gather"><div class="setting"><div><p class="setting-name" id="kindle-gather-name">While you focus</p>'
+    + `<p class="setting-hint" title="The haul comes home when the session is done.">${esc(v.haul || '')}</p></div>`
+    + `<select class="px-select" data-action="kindle-gather" aria-labelledby="kindle-gather-name" data-focus-key="kindle-gather"><option value="">Nothing</option>${ACTIVITY_IDS.map((a) => `<option value="${a}"${v.gather === a ? ' selected' : ''}>${esc(ACTIVITIES[a].label)}</option>`).join('')}</select></div></section>`;
   const today = isRecord(v.today) ? v.today : {};
   const focus = Math.max(0, Math.floor(Number(today.focus) || 0));
   const rests = Math.max(0, Math.floor(Number(today.rests) || 0));
@@ -180,15 +186,15 @@ const embersWords = (n) => (n > 0 ? ` ${plural(n, 'Ember', 'Embers')} for that.`
  * step gave up first: a session stopped early, or an honoured rest cut short.
  * → [{ kind: 'bell' | 'note', title, lines, duration }]
  */
-export function phaseBubbles(events, { paid = 0, verb = 'tick', lost = null } = {}) {
+export function phaseBubbles(events, { paid = 0, verb = 'tick', lost = null, haul = '' } = {}) {
   const list = Array.isArray(events) ? events : [];
   const has = (t) => list.some((e) => isRecord(e) && e.t === t);
   const out = [];
   const n = Math.max(0, Math.floor(Number(paid) || 0));
   if (has('focus-done') && has('rest-done')) {
-    out.push({ kind: 'bell', title: 'The focus session and the rest are done', lines: [`Both finished while you were away.${embersWords(n)}`], duration: 9000 });
+    out.push({ kind: 'bell', title: 'The focus session and the rest are done', lines: [`Both finished while you were away.${embersWords(n)}`, ...(haul ? [haul] : [])], duration: 9000 });
   } else if (has('focus-done')) {
-    out.push({ kind: 'bell', title: 'The focus session is done', lines: [`Rest for fifteen minutes. The coals are banked.${embersWords(n)}`], duration: 9000 });
+    out.push({ kind: 'bell', title: 'The focus session is done', lines: [`Rest for fifteen minutes. The coals are banked.${embersWords(n)}`, ...(haul ? [haul] : [])], duration: 9000 });
   } else if (has('rest-done')) {
     out.push({ kind: 'bell', title: 'The rest is over', lines: [`Kindle the lantern again when you’re ready.${embersWords(n)}`], duration: 9000 });
   }
@@ -229,7 +235,8 @@ export function kindleStep(state, verb, now, content = null) {
     const view = kindleView(next, now);
     words = view.phase === 'idle' ? 'The lantern isn’t lit.' : `The lantern’s already ${view.phase === 'focus' ? 'lit' : 'banked'}. ${view.words}`;
   }
-  return { state: next, events, bubbles: phaseBubbles(events, { paid, verb, lost }), features: stepFeatures(events), paid, lost, words };
+  const hauled = next !== state && next.camplife?.last && next.camplife.last.session !== state.camplife?.last?.session ? haulWords(next) : '';
+  return { state: next, events, bubbles: phaseBubbles(events, { paid, verb, lost, haul: hauled }), features: stepFeatures(events), paid, lost, words };
 }
 
 // The mounted module, for runKindle (the command bar calls the same function the buttons do).
@@ -367,6 +374,12 @@ export function mount(shell) {
           shell.refreshPanel({ focus: 'kindle-start' });
           return true;
         case 'kindle-keep': confirming = null; shell.refreshPanel({ focus: phase === 'focus' ? 'kindle-stop' : 'kindle-start' }); return true;
+        case 'kindle-gather': {
+          const next = chooseGather(shell.state, btn.value || null);
+          if (next !== shell.state) shell.set(next, { save: 300 });
+          shell.refreshPanel({ focus: 'kindle-gather' });
+          return true;
+        }
         case 'kindle-bell':
           if (shell.settings && typeof shell.settings.set === 'function') shell.settings.set('kindleBell', !bell());
           shell.refreshPanel({ focus: 'kindle-bell' });

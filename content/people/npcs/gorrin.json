@@ -1,0 +1,95 @@
+{
+  "id": "gorrin",
+  "name": "Gorrin Teague",
+  "title": "the Cabbage Man",
+  "where": { "x": 34, "y": -9 },
+  "dye": { "m": "B", "b": "b", "u": "l", "U": "L", "Y": "M", "r": "q", "R": "l", "Q": "L" },
+  "threshold": 6,
+  "likes": { "kind": 2, "favour": 1 },
+  "dislikes": ["truth"],
+  "resists": ["craft"],
+  "examine": [
+    "Gorrin Teague sells cabbages from a handcart. The cart is never the same cart twice. Nobody has remarked on it.",
+    "He counts his cabbages out loud, twice, and is never pleased with either number.",
+    "Behind him on the road is a trail of cabbage leaves. He says it helps him find his way back."
+  ],
+  "meet": [
+    "Good morning. The cabbages were on the cart. The cart was on the road. I had assumed the road was on my side.",
+    "Gorrin Teague. Cabbages. Some days a cart."
+  ],
+  "hello": {
+    "wary": ["Cabbages? No. Then I can’t help you."],
+    "neutral": ["Morning. Mind the leaves. They’re most of the second load."],
+    "warm": ["Good. You’re here. I kept you a cabbage. It’s only mostly squashed."],
+    "fond": ["You came back. People don’t, as a rule. They’ve seen the cart."]
+  },
+  "tired": ["I’ve talked a great deal. Come back tomorrow. I expect to have lost something new by then."],
+  "finished": ["That’s everything. Except the cabbages. There are always the cabbages."],
+  "topics": [
+    {
+      "id": "cart",
+      "say": [
+        "It was a good cart. Two wheels, most of a bench, and no brakes. Then the hill. Then the hill again."
+      ],
+      "options": [
+        { "approach": "kind", "text": "Oh no. Are you all right?", "reply": ["Nobody asks that. They ask after the cabbages."], "remember": "asked-after-him" },
+        { "approach": "favour", "text": "I’ll watch the cart while you look.", "reply": ["Do. Watch it closely. It has been known to leave."] },
+        { "approach": "truth", "text": "That cart is mostly splinters.", "reply": ["Yes."] },
+        { "approach": "joke", "text": "Cabbage got your tongue?", "reply": ["It got the cart first."] }
+      ]
+    },
+    {
+      "id": "count",
+      "needs": 1,
+      "say": [
+        "I lost four hundred and eleven cabbages this year. I count them. Somebody should."
+      ],
+      "options": [
+        { "approach": "kind", "text": "That’s a lot to carry.", "reply": ["It is. Thank you. Most people say it’s a lot to lose."] },
+        { "approach": "favour", "text": "I’ll count the next batch with you.", "reply": ["Eleven.", "Eleven is my lucky number. It hasn’t been lucky yet."], "remember": "counted-together" },
+        { "approach": "craft", "text": "Have you tried a stronger cart?", "reply": ["I don’t grow cabbages, they just kinda show up."] },
+        { "approach": "truth", "text": "You lose them because you drive downhill.", "reply": ["It’s a very hilly road."] }
+      ]
+    },
+    {
+      "id": "sunday",
+      "needs": 3,
+      "say": [
+        "Every Sunday I think, this week the cabbages arrive. Every Sunday they arrive in a different way."
+      ],
+      "options": [
+        { "approach": "kind", "text": "What are they like when they arrive?", "reply": ["Round, mostly. Sometimes they roll.", "I plan around the rolling."], "remember": "asked-about-the-arrivals" },
+        { "approach": "favour", "text": "Let me carry the next load.", "reply": ["You’re lighter than the cart. You also don’t roll."] },
+        { "approach": "joke", "text": "What do you call a lost cabbage? A head of state.", "reply": ["Is that a real thing? It sounds real. I’ll put it on the cart."] }
+      ]
+    },
+    {
+      "id": "honest",
+      "needs": 5,
+      "say": [
+        "I’ll tell you a secret. I like selling cabbages. Someone hands me a coin and gets a cabbage. Nothing else is involved. I find it restful."
+      ],
+      "options": [
+        { "approach": "kind", "text": "It’s an honest trade.", "reply": ["Yes. That’s the one."], "remember": "honest-trade" },
+        { "approach": "favour", "text": "I’ll buy a cabbage.", "reply": ["Take two. They’re from the good batch. The good batch stayed on the cart."] },
+        { "approach": "joke", "text": "Nobody was ever fooled by a cabbage.", "reply": ["Not once. Even the ones that looked like lettuce confessed."] }
+      ]
+    }
+  ],
+  "memories": {
+    "asked-after-him": "You asked if he was all right before you asked about the cabbages. He is still thinking about it.",
+    "counted-together": "You offered to count the next batch with him. Eleven is his lucky number. It hasn’t been lucky yet.",
+    "asked-about-the-arrivals": "You asked what the cabbages are like when they arrive. He had not been asked before.",
+    "honest-trade": "You called selling cabbages an honest trade. He has written it on the cart."
+  },
+  "camp": {
+    "early": ["A camp. I only have cabbages to bring. Ask me when we know each other better. Or when I’ve sold some."],
+    "ask": [
+      "A camp. With a fire. I could keep a cabbage patch.",
+      "I’d bring the cart if it behaved. It won’t, but I’d bring it."
+    ],
+    "yes": ["Then it’s settled. I’ll bring the cabbages. I’ll bring most of them."],
+    "full": ["There’s no bed free. I sleep badly on a cabbage in any case. Send word when there’s room."],
+    "role": "Tends a cabbage patch by the fire."
+  }
+}

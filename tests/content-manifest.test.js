@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
 const manifest = require('../electron/content.cjs');
 const { loadContent, CONTENT_DIR, LIMITS, PHASE3_KEYS } = manifest;
 
-const ORDER = ['genres', 'riftgen', 'fortress', 'wilds', 'story', 'skills', 'xp', 'economy', 'spells', 'examine', 'trails', 'sky', 'combat', 'party', 'camp'];
+const ORDER = ['genres', 'riftgen', 'fortress', 'wilds', 'story', 'skills', 'xp', 'economy', 'spells', 'examine', 'trails', 'sky', 'combat', 'party', 'camp', 'people'];
 
 // Main's reader before Phase 4 (electron/main.cjs at 0b8f5ae, readContentFile), word for word
 // but for the report.

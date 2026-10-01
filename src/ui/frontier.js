@@ -274,7 +274,7 @@ export function stageTag(rift) {
 }
 
 // What kind of real thing a rift stands for, in the words of its cause (never a genre's name).
-const REAL_KIND_TAGS = Object.freeze({ nocturne: 'Late night', knocking: 'Waiting on you', capacity: 'Crew capacity', built: 'New building' });
+const REAL_KIND_TAGS = Object.freeze({ nocturne: 'Late night', knocking: 'Waiting on you', capacity: 'Crew capacity', built: 'New building', stale: 'Waiting quests', crowded: 'Too much at once', vague: 'Too vague', due: 'Due soon' });
 
 /** The small outlined tag beside a rift's stage: 'Waiting on you', 'The Prologue', 'Wild'. */
 export function kindTag(rift) {
@@ -493,6 +493,10 @@ function openedLine(rift) {
     case 'knocking': return rift.subject ? `A rift has opened over ${rift.subject}, which is waiting on you.` : 'A rift has opened over a session that’s waiting on you.';
     case 'capacity': return 'A rift has opened over Codex’s allowance.';
     case 'nocturne': return 'A rift opened past your evening bell.';
+    case 'stale': return 'A rift has opened over the quests that have waited a while.';
+    case 'crowded': return 'A rift has opened over too much in progress.';
+    case 'vague': return 'A rift has opened over a quest too vague to start.';
+    case 'due': return 'A rift has opened over a deadline.';
     default: return 'A rift has opened on the frontier.';
   }
 }

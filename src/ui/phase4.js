@@ -106,6 +106,8 @@ async function load(path) {
 export async function setupPhase4(env) {
   const doc = globalThis.document;
   const bundle = env.bundle;
+  // The Riddle Note trails: declared first, because a Kindle step at start-up can reach trailEvent.
+  const trails = bundle?.trails || null;
   const content4 = await load('../content4.js');
   if (!content4 || !isRecord(bundle)) return null;
   const problem = content4.phase4Problem(bundle);
@@ -114,10 +116,10 @@ export async function setupPhase4(env) {
   const fights = !problem?.combat && !problem?.party;
   if (!groundwork && !fights) return null;
 
-  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod] = await Promise.all([
+  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod, questMod, peopleMod, blossomMod] = await Promise.all([
     load('../state4.js'), load('../embers.js'), load('../lifeskills.js'), load('../party.js'),
     load('./fight.js'), load('./expedition.js'), load('./combat-hud.js'), load('./frontier.js'),
-    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'),
+    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'), load('../quests.js'), load('../people.js'), load('../world/blossoms.js'),
   ]);
 
   const bus = createBus();
@@ -214,7 +216,7 @@ export async function setupPhase4(env) {
   const names = {};
   const modules = [
     ['wallet', './wallet.js'], ['chronicle', './chronicle-view.js'], ['kindle', './kindle-view.js'], ['skills', './skills-view.js'],
-    ['trail', './trail-view.js'], ['board', './board-view.js'], ['satchel', './satchel-view.js'], ['examine', './examine.js'], ['hud', './hud.js'], ['log', './log.js'],
+    ['trail', './trail-view.js'], ['board', './board-view.js'], ['people', './people-view.js'], ['fire', './fire-view.js'], ['satchel', './satchel-view.js'], ['examine', './examine.js'], ['hud', './hud.js'], ['log', './log.js'],
     ['menus', './menus.js'], ['muster', './muster.js'], ['camp', './camp-view.js'], ['company', './company-view.js'],
     ['notebook', './notebook-view.js'], ['levelup', './levelup.js'], ['dialogue', './dialogue.js'],
   ];
@@ -233,6 +235,8 @@ export async function setupPhase4(env) {
     mount('skills', names.skills);
     mount('trail', names.trail);
     mount('board', names.board);
+    mount('people', names.people);
+    mount('fire', names.fire);
     mount('satchel', names.satchel);
     mount('examine', names.examine);
     mount('hud', names.hud);
@@ -292,7 +296,6 @@ export async function setupPhase4(env) {
   doc?.documentElement?.classList.add('phase4');
 
   // ---- the Riddle Note trail and the Last Bridge ----
-  const trails = bundle.trails || null;
   // The Last Bridge is found once the world's worldgen stands (it isn't made before that).
   let bridgeMade = null;
   const getBridge = () => {
@@ -332,6 +335,10 @@ export async function setupPhase4(env) {
   // The Last Bridge or the Tollkeeper, clicked: his riddles once the trail is solved, else a look.
   function landmarkClick(entity) {
     try {
+      if (entity?.landmark === 'npc' || /^landmark:npc-/.test(String(entity?.id || ''))) {
+        const pid = String(entity.id).replace(/^landmark:npc-/, '');
+        if (/^[a-z][a-z0-9-]{1,39}$/.test(pid)) { env.openPanel(`person:${pid}`); return true; }
+      }
       if (entity?.id === 'landmark:tollkeeper' && trailMod?.trailView && trails) {
         if (trailMod.trailView(env.getState(), trails, env.clockNow()).atBridge) { env.openPanel('talk:tollkeeper-riddles'); return true; }
       }
@@ -342,6 +349,8 @@ export async function setupPhase4(env) {
 
   // ---- the world, kept in step with the state: sky, landmarks, followers and the camp ----
   let lastJoined = null;
+  let lastLandSig = '';
+  let lastBlossoms = -1;
   let lastVisit = null;
   // Going out by a gate lands Milo a few tiles beyond it, so a gate is visited within four of its edge.
   const nearGate = (step) => {
@@ -358,9 +367,22 @@ export async function setupPhase4(env) {
       const now = env.clockNow();
       const joined = Boolean(state?.party?.roster?.tollkeeper);
       const bridge = getBridge();
-      if (bridge && trailMod?.bridgeLandmarks && (force || joined !== lastJoined || lastJoined === null)) {
+      // The Last Bridge, the Tollkeeper, and the people standing out in the world (those not yet at camp).
+      const standing = peopleMod?.standing ? peopleMod.standing(state, bundle) : [];
+      const landSig = `${joined}|${bridge ? 1 : 0}|${standing.map((p) => p.id).join(',')}`;
+      if (force || landSig !== lastLandSig) {
+        lastLandSig = landSig;
         lastJoined = joined;
-        env.worldCall('setLandmarks', trailMod.bridgeLandmarks(bridge, { joined }));
+        env.worldCall('setLandmarks', [
+          ...(bridge && trailMod?.bridgeLandmarks ? trailMod.bridgeLandmarks(bridge, { joined }) : []),
+          ...standing.map((p) => ({ id: `landmark:npc-${p.id}`, kind: 'npc', x: p.x, y: p.y, label: p.name, look: { who: p.id } })),
+        ]);
+      }
+      // The Blossomfield: a flower for every quest finished.
+      const finished = (state?.board?.quests || []).filter((q) => q?.status === 'done').length;
+      if (blossomMod?.blossomsFor && (force || finished !== lastBlossoms)) {
+        lastBlossoms = finished;
+        env.worldCall('setBlossoms', blossomMod.blossomsFor(finished));
       }
       if (skyMod?.skyAt && bundle.sky) {
         const sky = skyMod.skyAt(now, { seed: state?.wilds?.seed || 'hushlands', sky: bundle.sky });
@@ -372,7 +394,7 @@ export async function setupPhase4(env) {
       if (!rules) return;
       const area = env.getArea?.()?.area || 'vale';
       const day = campMod.campDay(state, now, { content: bundle, snapshot: env.getSnapshot?.() ?? null });
-      const sig = JSON.stringify([state?.party?.chosen, Object.keys(state?.party?.roster || {}), (state?.party?.regulars || []).map((r) => r.id), state?.party?.formation, day.part, state?.expedition?.inside === true, area === 'vale', day.places.map((p) => p.where + p.pose)]);
+      const sig = JSON.stringify([state?.party?.chosen, Object.keys(state?.party?.roster || {}), (state?.party?.regulars || []).map((r) => r.id), state?.party?.formation, day.part, state?.expedition?.inside === true, area === 'vale', day.places.map((p) => p.where + p.pose), (peopleMod?.residents?.(state, bundle) || []).map((r) => r.id)]);
       if (!force && sig === lastSig) return;
       lastSig = sig;
       const specOf = (id) => party.heroSpec(state, id, { content: bundle, rules, abilities: combat.abilities, snapshot: env.getSnapshot?.() ?? null, now });
@@ -390,6 +412,13 @@ export async function setupPhase4(env) {
         const spec = specOf(p.id);
         if (!spec) continue;
         members.push({ id: p.id, look: spec.look, seat, pose: p.pose, bubble: false });
+        seat += 1;
+      }
+      // The people who came to camp sit by the fire too, and sleep when the camp does.
+      const pose = day.part === 'asleep' ? 'sleep' : day.part === 'evening' || day.part === 'night' ? 'talk' : 'sit';
+      for (const r of peopleMod?.residents?.(state, bundle) || []) {
+        if (seat >= 8) break;
+        members.push({ id: r.id, look: r.look, seat, pose, bubble: false });
         seat += 1;
       }
       env.worldCall('setCamp', { night: ['evening', 'night', 'asleep'].includes(day.part), members, props: [] });
@@ -425,6 +454,23 @@ export async function setupPhase4(env) {
       rules: expeditionMod?.combatOf?.(bundle)?.rules ?? null,
     })
     : null;
+
+  // ---- a gentle word about quests that have waited a while: once a day at most, never mid-fight ----
+  function nudgeQuests() {
+    try {
+      const now = env.clockNow();
+      if (!questMod?.shouldNudge || fight?.live?.() || !questMod.shouldNudge(env.getState(), now)) return;
+      const n = questMod.staleQuests(env.getState(), now).length;
+      shell.set(questMod.markNudged(env.getState(), now), { save: 400 });
+      env.queueBubble({
+        kind: 'note', title: n === 1 ? 'A quest has waited a while' : `${n} quests have waited a while`, lines: [], duration: 12000,
+        place: 'townhall', actions: [{ id: 'show', label: 'Look' }, { id: 'later', label: 'Later' }],
+      });
+    } catch (error) { console.error('[MILO] the quest nudge', error); }
+  }
+  const nudgeTimer = setTimeout(nudgeQuests, 20000);
+  let nudgeTicks = 0;
+  offs.push(bus.on('second', () => { nudgeTicks += 1; if (nudgeTicks % 600 === 0) nudgeQuests(); }));
 
   // ---- a second's tick, while the window is visible ----
   const tick = setInterval(() => {
@@ -500,6 +546,7 @@ export async function setupPhase4(env) {
     resume: () => (doors?.resume ? doors.resume() : Promise.resolve({ resumed: false })),
     dispose() {
       clearInterval(tick);
+      clearTimeout(nudgeTimer);
       for (const off of offs) if (typeof off === 'function') off();
       for (const { handle } of handles) { try { handle.dispose?.(); } catch (error) { console.error(error); } }
       try { doors?.dispose?.(); } catch (error) { console.error(error); }

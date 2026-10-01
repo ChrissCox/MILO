@@ -160,10 +160,10 @@ test('battleBytes is the UTF-8 length of the JSON', () => {
 test('the seven sections come after story, in order, in createState and normalizeState', () => {
   assert.deepEqual([...STATE4_KEYS], ['embers', 'xp', 'kindle', 'chronicle', 'road', 'party', 'expedition']);
   const keys = Object.keys(createState(NOW));
-  assert.deepEqual(keys.slice(keys.indexOf('story') + 1), [...STATE4_KEYS, 'board']);
+  assert.deepEqual(keys.slice(keys.indexOf('story') + 1), [...STATE4_KEYS, 'board', 'people', 'camplife']);
   const saved = norm({ future: 1, story: {}, party: {} });
   const savedKeys = Object.keys(saved);
-  assert.deepEqual(savedKeys.slice(savedKeys.indexOf('story') + 1), [...STATE4_KEYS, 'board', 'future'], 'unknown top-level keys still come last');
+  assert.deepEqual(savedKeys.slice(savedKeys.indexOf('story') + 1), [...STATE4_KEYS, 'board', 'people', 'camplife', 'future'], 'unknown top-level keys still come last');
   assert.deepEqual(normalize4(undefined, { now: NOW }), emptyState4());
   const fresh = createState(NOW);
   for (const key of STATE4_KEYS) assert.deepEqual(fresh[key], emptyState4()[key], key);

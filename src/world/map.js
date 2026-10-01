@@ -68,6 +68,16 @@ export const PLACES = [
     area: { x: 28, y: 3, w: 8, h: 8 },
   },
   {
+    id: 'townhall',
+    kind: 'townhall',
+    name: 'Town hall',
+    blurb: 'Where the quests are posted.',
+    built: true,
+    fogged: false,
+    door: { x: 38, y: 12 },
+    area: { x: 36, y: 9, w: 6, h: 4 },
+  },
+  {
     id: 'plot-meadow',
     kind: 'plot',
     name: 'Long meadow',
@@ -330,6 +340,9 @@ add('barrel', 37, 18, { place: 'camp', dx: 4, dy: -3 });
 
 // Watchtower
 add('tower', 30, 8, { w: 3, h: 2, place: 'watchtower' });
+
+// Town hall: on the upper road, with the quest board at its door
+add('townhall', 37, 10, { w: 3, h: 2, place: 'townhall' });
 
 // Plots: nothing stands on them until something is built (the engine draws each one from
 // its state). Milo and the crew stay out; a plot is visited at its gate.

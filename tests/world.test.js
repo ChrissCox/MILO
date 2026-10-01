@@ -12,7 +12,7 @@ import { buildElsewhere } from '../src/world/elsewhere.js';
 import { manualClock, fakeDom, flush, drive, testSpec } from './fakedom.js';
 
 const PLOTS = { 'plot-meadow': 'Long meadow', 'plot-rise': 'Sunny rise', 'plot-birch': 'Birch hollow', 'plot-pond': 'Pondside plot', 'plot-orchard': 'Old orchard' };
-const PLACE_IDS = ['camp', 'watchtower', ...Object.keys(PLOTS), 'harbor'];
+const PLACE_IDS = ['camp', 'watchtower', 'townhall', ...Object.keys(PLOTS), 'harbor'];
 const camp = placeById('camp');
 
 function inArea(place, x, y) {
@@ -59,7 +59,7 @@ test('places match the contract', () => {
     assert.ok(!/!/.test(place.blurb + place.name), 'calm copy has no exclamation marks');
     assert.equal(typeof place.built, 'boolean');
     assert.equal(typeof place.fogged, 'boolean');
-    assert.ok(['camp', 'watchtower', 'plot', 'fog'].includes(place.kind), `${place.id} has a kind`);
+    assert.ok(['camp', 'watchtower', 'townhall', 'plot', 'fog'].includes(place.kind), `${place.id} has a kind`);
     assert.ok(inArea(place, place.door.x, place.door.y), `${place.id} door sits inside its area`);
     assert.equal(placeAt(place.door.x, place.door.y), place.id);
     assert.equal(placeById(place.id), place);

@@ -105,6 +105,8 @@ function echoSpot(place) {
   if (!p) return null;
   // Up the ladder, clear of Milo's head when he stands at the door.
   if (place === 'watchtower') return { x: p.door.x * TILE + 8, y: p.door.y * TILE - 26, tile: p.door };
+  // Above the Town hall's roof, beside the bell.
+  if (place === 'townhall') return { x: p.door.x * TILE + 8, y: p.door.y * TILE - 50, tile: p.door };
   // A plot: by its signpost, just inside the gate.
   const gate = MAP.plots?.[place]?.gate;
   if (gate && gate.side === 'right') return { x: p.door.x * TILE - 10, y: p.door.y * TILE - 16, tile: p.door };
@@ -721,6 +723,7 @@ export function createWildsScene({
     }
     rifts.collect(drawables, target, visible, t, shadow);
     collectLandmarks(drawables, target, visible, shadow);
+    collectBlossoms(drawables, target, visible);
   }
 
   // ---------- landmarks (Phase 4): the Last Bridge and the Tollkeeper at its stand ----------
@@ -730,14 +733,15 @@ export function createWildsScene({
     landmarks = [];
     for (const l of Array.isArray(list) ? list : []) {
       if (!l || typeof l.id !== 'string' || !Number.isInteger(l.x) || !Number.isInteger(l.y) || landmarks.some((o) => o.id === l.id)) continue;
-      const mark = { id: l.id, kind: l.kind === 'tollkeeper' ? 'tollkeeper' : 'last-bridge', x: l.x, y: l.y, dir: l.dir === 'v' ? 'v' : 'h', label: typeof l.label === 'string' ? l.label : '', dry: !!l.dry };
+      const mark = { id: l.id, kind: l.kind === 'tollkeeper' ? 'tollkeeper' : l.kind === 'npc' ? 'npc' : 'last-bridge', x: l.x, y: l.y, dir: l.dir === 'v' ? 'v' : 'h', label: typeof l.label === 'string' ? l.label : '', dry: !!l.dry };
+      if (mark.kind === 'npc') mark.look = { kind: 'rig', rig: 'coat', who: String(l.look?.who || '') };
       mark.deck = Array.isArray(l.deck) && l.deck.length ? l.deck.map((t) => ({ x: t.x, y: t.y })) : [{ x: l.x, y: l.y }];
       if (mark.kind === 'last-bridge') {
         const art2 = lastBridgeRows(mark.deck.length, mark.dir);
         const first = mark.deck[0];
         mark.art = { rows: art2.frames[0], sx: first.x * TILE - art2.span[0], sy: first.y * TILE - art2.span[1], w: art2.w, h: art2.h };
       } else {
-        const frame = exploreFrames({ kind: 'rig', rig: 'toll', who: 'tollkeeper' }, 'down')[0];
+        const frame = exploreFrames(mark.kind === 'npc' ? mark.look : { kind: 'rig', rig: 'toll', who: 'tollkeeper' }, 'down')[0];
         const fx = mark.x * TILE + 8;
         const fy = mark.y * TILE + FEET;
         mark.art = frame ? { rows: frame.rows, sx: Math.round(fx - frame.feet[0]), sy: Math.round(fy - frame.feet[1]), w: frame.w, h: frame.h, feetY: fy, feetX: fx } : null;
@@ -745,6 +749,33 @@ export function createWildsScene({
       landmarks.push(mark);
     }
     onReady();
+  }
+  // ---------- the Blossomfield (Phase 5.4): a flower for every quest finished ----------
+
+  const FLOWERS = ['flower.pink', 'flower.butter', 'flower.lavender', 'flower.cream'];
+  let blossoms = [];
+  function setBlossoms(list) {
+    blossoms = [];
+    for (const b of Array.isArray(list) ? list.slice(0, 200) : []) {
+      if (!b || !Number.isInteger(b.x) || !Number.isInteger(b.y)) continue;
+      const kind = FLOWERS.includes(b.kind) ? b.kind : FLOWERS[0];
+      const rows = SPRITES[kind]?.[0];
+      if (!rows) continue;
+      const jx = Number.isFinite(b.jx) ? Math.max(0, Math.min(8, b.jx)) : 4;
+      const jy = Number.isFinite(b.jy) ? Math.max(0, Math.min(8, b.jy)) : 4;
+      // Each finished quest blooms as three flowers of one kind, so the field reads as a field.
+      for (const [dx, dy] of [[0, 0], [5, 3], [2, 6]]) blossoms.push({ kind, rows, x: b.x * TILE + ((jx + dx) % 10), y: b.y * TILE + ((jy + dy) % 10) });
+    }
+    onReady();
+  }
+  function collectBlossoms(drawables, target, visible) {
+    for (const f of blossoms) {
+      const w = f.rows[0].length;
+      const h = f.rows.length;
+      if (!visible(f.x, f.y, w, h)) continue;
+      const canvas = painter.grid(f.rows, null, 'base', { tag: f.kind });
+      drawables.push({ y: f.y + h, x: f.x, draw: () => target.drawImage(canvas, f.x, f.y) });
+    }
   }
   const landmarksShown = () => landmarks.filter((l) => l.art && !hiddenId(l.id));
   function collectLandmarks(drawables, target, visible, shadow) {
@@ -1101,7 +1132,7 @@ export function createWildsScene({
     nearestWalkable: (tile, r) => navMilo.nearestWalkable(tile, r),
     approachFor,
     // state from the shell
-    setWildState, setRifts, closeRift, setEchoes, raiseReveal, setLandmarks,
+    setWildState, setRifts, closeRift, setEchoes, raiseReveal, setLandmarks, setBlossoms,
     get tier() { return wildState.tier; },
     get day() { return wildState.day; },
     // drawing

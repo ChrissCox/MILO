@@ -11,6 +11,7 @@
 //     combat: { rules, callings, spells, leads, foes, anims, tuning },       // content/combat/<name>.json
 //     party: { companions: { [id]: object }, regulars, teamups, banter },   // companions/*.json by file name
 //     camp: { scenes, talks: { [id]: string } },                  // content/camp/talks/*.md as raw text
+//     people: { npcs: { [id]: object } },                         // content/people/npcs/*.json (Phase 5)
 //   }
 //
 // A JSON file must parse to a plain object; anything else is null. A missing file is null, and a
@@ -35,6 +36,7 @@ const GROUPS = Object.freeze({
   combat: Object.freeze({ files: Object.freeze(['rules', 'callings', 'spells', 'leads', 'foes', 'anims', 'tuning']) }),
   party: Object.freeze({ dirs: Object.freeze({ companions: 'json' }), files: Object.freeze(['regulars', 'teamups', 'banter']) }),
   camp: Object.freeze({ files: Object.freeze(['scenes']), dirs: Object.freeze({ talks: 'md' }) }),
+  people: Object.freeze({ files: Object.freeze([]), dirs: Object.freeze({ npcs: 'json' }) }),
 });
 
 const BOM = /^﻿/;
@@ -155,6 +157,7 @@ function orderGroup(group, value) {
     combat: ['rules', 'callings', 'spells', 'leads', 'foes', 'anims', 'tuning'],
     party: ['companions', 'regulars', 'teamups', 'banter'],
     camp: ['scenes', 'talks'],
+    people: ['npcs'],
   }[group];
   return Object.fromEntries(order.map(key => [key, key in value ? value[key] : null]));
 }

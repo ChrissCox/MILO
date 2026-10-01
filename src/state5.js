@@ -2,20 +2,20 @@
 // thoughts that Habitack's notice board becomes. Cleaners here are total (never throw on any input)
 // and keep to the limits below, like state4.js; model.js runs them on their own so a throw costs
 // only this section.
-import { isRecord, safeCopy, clip, cleanCount, toTime } from './clean.js';
+import { isRecord, safeCopy, clip, cleanCount, toTime, cleanDayKey } from './clean.js';
 
 export const BOARD_LIMITS = Object.freeze({
   quests: 200, projects: 30, thoughts: 50, steps: 30, title: 200, notes: 2000, projectTitle: 120, thoughtText: 1000, stepTitle: 200,
 });
 export const QUEST_KINDS = Object.freeze(['main', 'side']);
-export const QUEST_STATUSES = Object.freeze(['todo', 'doing', 'done']);
+export const QUEST_STATUSES = Object.freeze(['todo', 'doing', 'done', 'let-go']);
 /** The life skills a quest can be tagged with (a subset of state4.SKILL_IDS). */
 export const QUEST_SKILLS = Object.freeze(['stewardship', 'scholarship', 'scribing', 'illumination', 'artifice', 'cooking', 'gardening', 'construction']);
 
 const ID = /^[a-z]{1,3}-[0-9a-z]{1,12}$/;
 
 export function emptyBoard() {
-  return { quests: [], projects: [], thoughts: [], seq: 0 };
+  return { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null };
 }
 
 const text = (value, max) => (typeof value === 'string' ? clip(value.replace(/\s+/g, ' ').trim(), max) : '');
@@ -61,6 +61,9 @@ function cleanQuest(value, now) {
     createdAt,
     startedAt: status === 'todo' ? null : toTime(value.startedAt),
     completedAt: status === 'done' ? (toTime(value.completedAt) ?? Math.round(now)) : null,
+    touchedAt: toTime(value.touchedAt) ?? createdAt,
+    due: toTime(value.due),
+    dueManual: value.dueManual === true,
     paid: value.paid === true,
     steps: uniqueIds(steps, 's', new Set()),
   };
@@ -89,6 +92,86 @@ function cleanThought(value, now) {
   return { ...safeCopy(value), id: typeof value.id === 'string' ? value.id : '', text: body, createdAt: toTime(value.createdAt) ?? Math.round(now) };
 }
 
+// ---------------------------------------------------------------------------
+// People (PLAN.md Phase 5.1): how every named person in the Hushlands feels about Chris. One entry
+// per person, keyed by their id in content/people/npcs. `points` are approval (never below -2);
+// `found` is what Chris has learned of them by trying; `memories` are the moments they keep.
+
+export const PEOPLE_LIMITS = Object.freeze({ people: 200, done: 60, memories: 12, found: 8, points: 400 });
+/** What Chris can lead a conversation with. */
+export const APPROACHES = Object.freeze(['kind', 'joke', 'favour', 'truth', 'craft']);
+const NPC_ID = /^[a-z][a-z0-9-]{1,39}$/;
+const SLUG = /^[a-z][a-z0-9-]{0,39}$/;
+
+export function emptyPeople() {
+  return {};
+}
+
+const slugs = (list, max) => [...new Set((Array.isArray(list) ? list : []).filter((id) => typeof id === 'string' && SLUG.test(id)))].slice(-max);
+const approaches = (list) => [...new Set((Array.isArray(list) ? list : []).filter((a) => APPROACHES.includes(a)))].slice(0, PEOPLE_LIMITS.found);
+
+function cleanPerson(value, now) {
+  if (!isRecord(value)) return null;
+  const turn = isRecord(value.turn) ? value.turn : {};
+  const found = isRecord(value.found) ? value.found : {};
+  const memories = [];
+  for (const m of Array.isArray(value.memories) ? value.memories : []) {
+    if (isRecord(m) && typeof m.id === 'string' && SLUG.test(m.id) && !memories.some((x) => x.id === m.id)) memories.push({ id: m.id, at: toTime(m.at) ?? Math.round(now) });
+  }
+  const points = Number.isFinite(value.points) ? Math.max(-2, Math.min(PEOPLE_LIMITS.points, Math.round(value.points))) : 0;
+  return {
+    ...safeCopy(value),
+    points,
+    met: toTime(value.met),
+    seen: toTime(value.seen),
+    done: slugs(value.done, PEOPLE_LIMITS.done),
+    turn: { day: cleanDayKey(turn.day), n: cleanCount(turn.n, 20), last: APPROACHES.includes(turn.last) ? turn.last : null },
+    found: { likes: approaches(found.likes), dislikes: approaches(found.dislikes), resists: approaches(found.resists) },
+    memories: memories.slice(-PEOPLE_LIMITS.memories),
+    camp: toTime(value.camp),
+  };
+}
+
+/** Any input → a valid people map (ids that aren't a person's id are dropped; newest-seen win past the limit). */
+export function cleanPeople(value, { now = Date.now() } = {}) {
+  const out = {};
+  const entries = [];
+  if (isRecord(value)) {
+    for (const [id, entry] of Object.entries(value)) {
+      if (!NPC_ID.test(id)) continue;
+      const clean = cleanPerson(entry, now);
+      if (clean) entries.push([id, clean]);
+    }
+  }
+  entries.sort((a, b) => (b[1].seen ?? 0) - (a[1].seen ?? 0));
+  for (const [id, entry] of entries.slice(0, PEOPLE_LIMITS.people)) out[id] = entry;
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Camp life (PLAN.md Phase 5.4): what Milo gathers while you focus, and what has been cooked.
+
+export const GATHER_IDS = Object.freeze(['woodcutting', 'fishing', 'foraging', 'mining']);
+export const ITEM_IDS = Object.freeze(['birch', 'ash', 'pine', 'minnow', 'trout', 'berries', 'herbs', 'stone', 'copper']);
+export const RECIPE_IDS = Object.freeze(['cordial', 'brew', 'minnow-supper', 'trout-stew']);
+
+export function emptyCamplife() {
+  return { gather: null, last: null, cooked: {} };
+}
+
+/** Any input → a valid camplife section: { gather, last: { session, at, activity, items } | null, cooked }. */
+export function cleanCamplife(value) {
+  const src = isRecord(value) ? value : {};
+  const lastSrc = isRecord(src.last) && GATHER_IDS.includes(src.last.activity) ? src.last : null;
+  const items = {};
+  if (lastSrc && isRecord(lastSrc.items)) for (const id of ITEM_IDS) { const n = cleanCount(lastSrc.items[id], 99); if (n) items[id] = n; }
+  const session = lastSrc ? toTime(lastSrc.session) : null;
+  const at = lastSrc ? toTime(lastSrc.at) : null;
+  const cooked = {};
+  if (isRecord(src.cooked)) for (const id of RECIPE_IDS) { const n = cleanCount(src.cooked[id], 1e6); if (n) cooked[id] = n; }
+  return { gather: GATHER_IDS.includes(src.gather) ? src.gather : null, last: session && at ? { session, at, activity: lastSrc.activity, items } : null, cooked };
+}
+
 /** Any input → a valid board. Newest entries win when a list is over its limit. */
 export function cleanBoard(value, { now = Date.now() } = {}) {
   const source = isRecord(value) ? value : {};
@@ -101,5 +184,5 @@ export function cleanBoard(value, { now = Date.now() } = {}) {
   const thoughts = uniqueIds(keep(source.thoughts, cleanThought, BOARD_LIMITS.thoughts), 't', seen.t);
   // `seq` only ever grows, so an id is never reused after its quest is deleted.
   const highest = [...quests, ...projects, ...thoughts].reduce((m, e) => Math.max(m, parseInt(e.id.slice(e.id.indexOf('-') + 1), 36) || 0), 0);
-  return { ...safeCopy(source), quests, projects, thoughts, seq: Math.max(cleanCount(source.seq), highest) };
+  return { ...safeCopy(source), quests, projects, thoughts, seq: Math.max(cleanCount(source.seq), highest), nudgedDay: cleanDayKey(source.nudgedDay) };
 }

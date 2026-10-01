@@ -2,6 +2,7 @@
 // Satchel tab), read-only: Marks, the party's tonics, and Phase 3's materials, essences and relics
 // (through panels.satchelSection, so they read as they do in the Hearth's panel).
 import { esc, satchelSection } from './panels.js';
+import { GATHERED, ITEM_NAMES } from '../camplife.js';
 
 export const id = 'satchel';
 export const PANEL = 'satchel';
@@ -42,6 +43,7 @@ export function satchelView(state, content = null) {
   const genres = isRecord(satchel.essenceGenres) ? satchel.essenceGenres : {};
   return {
     marks: whole(satchel.marks),
+    gathered: GATHERED.map((id) => ({ id, name: ITEM_NAMES[id], qty: whole((isRecord(satchel.materials) ? satchel.materials : {})[id]) })).filter((g) => g.qty > 0),
     tonics: TONICS.map((tonic) => {
       const item = itemOf(content, tonic.item);
       return { id: tonic.id, name: typeof item?.name === 'string' ? item.name : tonic.name, qty: whole(tonics[tonic.id]), text: typeof item?.text === 'string' ? item.text : '' };
@@ -67,6 +69,8 @@ export function buildSatchel(view) {
     html += `<p class="quiet-note">${esc(COPY.noTonics)}</p>`;
   }
   html += '</section>';
+  const gathered = Array.isArray(v.gathered) ? v.gathered.filter(isRecord) : [];
+  if (gathered.length) html += `<section class="group satchel-gathered" data-group="gathered"><h3>Gathered</h3><ul class="defence-list">${gathered.map((g) => `<li data-gathered="${esc(g.id)}"><strong>${esc(g.name)}</strong> <span class="qty">× ${esc(whole(g.qty))}</span></li>`).join('')}</ul></section>`;
   html += satchelSection(isRecord(v.satchel) ? v.satchel : {});
   return `${html}</div>`;
 }

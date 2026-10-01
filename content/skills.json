@@ -130,7 +130,7 @@
       "mantle": "Mantle of the Line",
       "resources": ["minnow", "brook trout", "harbour mackerel", "glass eel", "moon carp", "tide salmon", "starfin", "hushray"],
       "unlocks": [],
-      "phase4": "Comes with the Notice Board."
+      "phase4": "Rises from what Milo gathers while you focus."
     },
     {
       "id": "foraging", "name": "Foraging", "family": "gathering",
@@ -139,7 +139,7 @@
       "mantle": "Mantle of the Hedgerow",
       "resources": ["hearthberry", "mossmint", "whispercap", "madder and woad", "fen lily", "snowmint", "sunthistle", "lanternbloom"],
       "unlocks": [],
-      "phase4": "Comes with the Notice Board."
+      "phase4": "Rises from what Milo gathers while you focus."
     },
     {
       "id": "mining", "name": "Mining", "family": "gathering",
@@ -148,7 +148,7 @@
       "mantle": "Mantle of the Deep",
       "resources": ["copperstone", "ironroot", "cinderite", "silverstone", "tidesteel", "starsilver", "hushglass", "emberheart"],
       "unlocks": [],
-      "phase4": "Comes with the Notice Board."
+      "phase4": "Rises from what Milo gathers while you focus."
     },
     {
       "id": "gardening", "name": "Gardening", "family": "gathering",
@@ -165,7 +165,7 @@
       "risesFrom": "Cooking at the campfire.",
       "mantle": "Mantle of the Hearth-pot",
       "unlocks": [],
-      "phase4": "Rises from the quests you finish."
+      "phase4": "Rises from the quests you finish and what you cook at the fire."
     },
     {
       "id": "smithing", "name": "Smithing", "family": "making",

@@ -6,6 +6,7 @@
 // The loop the shell runs:  deriveSignals → buildRealRifts → reconcileRifts.
 import { dayKey, dayNumber, dayStart, toTime, clip, cleanLoot, cleanEveningBell, buildingName, emptyRifts, emptySatchel, STATE_LIMITS } from './model.js';
 import { prologueStatus, markStory, STORY_RIFT_KEY } from './story.js';
+import { taskFacts } from './quests.js';
 
 export { dayNumber };
 
@@ -500,6 +501,71 @@ function builtSignals(state, now) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Task rifts (PLAN.md Phase 5.3): the Board's own trouble, one rift of each kind at most, found from
+// the state alone. Their causes never name a quest. A rift keeps the `since` it opened with while its
+// trouble lasts, so one episode seals once however many quests it was about.
+
+function taskSignals(state, now) {
+  const facts = taskFacts(state, now);
+  const open = mapOf(riftsOf(state), 'open');
+  const since = (key) => {
+    const entry = open[key];
+    return isRecord(entry) && finite(entry.since) && entry.since <= now ? entry.since : now;
+  };
+  const many = (n, one, other) => (n === 1 ? one : other(n));
+  const out = [];
+
+  const stale = facts.stale;
+  if (stale.length) {
+    const days = (now - Math.max(stale[0].touchedAt, stale[0].createdAt)) / DAY;
+    out.push(signal({
+      key: 'stale:board', kind: 'stale', signals: ['task-stale'], subject: 'the quest board',
+      urgency: 0.3 + Math.min(0.3, 0.1 * (stale.length - 1)) + Math.min(0.2, Math.max(0, days - 14) / 150),
+      cause: many(stale.length, 'A quest has waited a while.', (n) => `${n} quests have waited a while.`),
+      stitch: many(stale.length, 'Start it, keep it or let it go at the Town hall.', () => 'Start them, keep them or let them go at the Town hall.'),
+      since: since('stale:board'), echo: { place: 'townhall', icon: 'knocker' },
+    }));
+  }
+
+  const crowded = facts.crowded;
+  if (crowded.length) {
+    out.push(signal({
+      key: 'crowded:board', kind: 'crowded', signals: ['too-much-in-progress'], subject: 'the quest board',
+      urgency: Math.min(0.7, 0.3 + 0.08 * (crowded.length - 5)),
+      cause: `${crowded.length} quests have been in progress for a day.`,
+      stitch: 'Finish one, or put some back at the Town hall.',
+      since: since('crowded:board'), echo: { place: 'townhall', icon: 'spark' },
+    }));
+  }
+
+  const vague = facts.vague;
+  if (vague.length) {
+    out.push(signal({
+      key: 'vague:board', kind: 'vague', signals: ['task-too-vague'], subject: 'the quest board',
+      urgency: Math.min(0.5, 0.3 + 0.05 * (vague.length - 1)),
+      cause: many(vague.length, 'A quest is too vague to start.', (n) => `${n} quests are too vague to start.`),
+      stitch: many(vague.length, 'Add a step or two at the Town hall, or let it go.', () => 'Add a step or two to each at the Town hall, or let some go.'),
+      since: since('vague:board'), echo: { place: 'townhall', icon: 'crack' },
+    }));
+  }
+
+  const due = facts.due;
+  if (due.length) {
+    const left = due[0].due - now;
+    const overdue = left < 0;
+    const today = !overdue && left <= DAY;
+    out.push(signal({
+      key: 'due:board', kind: 'due', signals: overdue ? ['deadline-today', 'overdue'] : today ? ['deadline-today'] : ['deadline-near'], subject: 'the quest board',
+      urgency: Math.min(0.95, (overdue ? 0.85 : today ? 0.7 : 0.5) + 0.05 * (due.length - 1)),
+      cause: due.length > 1 ? `${due.length} quests are due within two days.` : overdue ? 'A quest is overdue.' : today ? 'A quest is due today.' : 'A quest is due within two days.',
+      stitch: 'Finish it, or move its date at the Town hall.',
+      since: since('due:board'), echo: { place: 'townhall', icon: 'spark' },
+    }));
+  }
+  return out;
+}
+
 function storySignal(state, story, now, hasSessions) {
   const status = prologueStatus(state, story, { hasSessions });
   if (status.current !== 'first-crack') return null;
@@ -604,6 +670,7 @@ export function deriveSignals({ snapshot = null, state = null, now = Date.now(),
     out.push(...carriedSignals(s, clock));
   }
   out.push(...builtSignals(s, clock));
+  out.push(...taskSignals(s, clock));
   const crack = storySignal(s, story, clock, hasSessions);
   if (crack) out.push(crack);
   return out.sort(bySignalOrder);
@@ -748,7 +815,7 @@ const incomplete = (list) => {
 
 function validSignal(sig) {
   return isRecord(sig) && typeof sig.key === 'string' && sig.key && Array.isArray(sig.signals) && sig.signals.length
-    && finite(sig.urgency) && finite(sig.since) && ['nocturne', 'knocking', 'capacity', 'built', 'story'].includes(sig.kind);
+    && finite(sig.urgency) && finite(sig.since) && ['nocturne', 'knocking', 'capacity', 'built', 'story', 'stale', 'crowded', 'vague', 'due'].includes(sig.kind);
 }
 
 /**
@@ -1345,6 +1412,10 @@ export function sealedSummary(sealed) {
   if (only.realKind === 'knocking' && subject) which = `the rift over ${subject}`;
   else if (only.realKind === 'nocturne' && subject) which = `the rift from ${subject}`;
   else if (only.realKind === 'capacity') which = 'the Codex capacity rift';
+  else if (only.realKind === 'stale') which = 'the rift over the waiting quests';
+  else if (only.realKind === 'crowded') which = 'the rift of too much at once';
+  else if (only.realKind === 'vague') which = 'the rift over the vague quests';
+  else if (only.realKind === 'due') which = 'the deadline rift';
   else if (only.kind === 'story') which = 'the crack past the north gate';
   return `While you were away, ${which} sealed itself.`;
 }

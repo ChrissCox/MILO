@@ -25,7 +25,7 @@ const finite = (value) => typeof value === 'number' && Number.isFinite(value);
 export const CAMP_KINDS = Object.freeze(['camp', 'campfire', 'hook', 'tent', 'cabin', 'bench', 'stump', 'workbench', 'woodpile',
   'bedroll', 'handcart', 'tea', 'paper-lantern']);
 /** The vale's other place kinds (examine.json `vale`). */
-export const VALE_KINDS = Object.freeze(['watchtower', 'plot', 'building', 'gate', 'war-table', 'bell', 'fog', 'pond', 'well', 'statue']);
+export const VALE_KINDS = Object.freeze(['watchtower', 'townhall', 'plot', 'building', 'gate', 'war-table', 'bell', 'fog', 'pond', 'well', 'statue']);
 /** Company members with lines of their own; a regular (`reg-…`) reads `company.regular`. */
 export const COMPANY_IDS = Object.freeze(['milo', 'claude', 'codex', 'ollama', 'jev', 'whisper', 'tollkeeper']);
 /** Stray archetypes (examine.json `creatures`). */

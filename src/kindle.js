@@ -10,6 +10,7 @@ import { emptyKindle } from './state4.js';
 import { earn, economyOf } from './embers.js';
 import { addXp, ratesOf } from './lifeskills.js';
 import { note } from './chronicle.js';
+import { payHaul } from './camplife.js';
 
 export const FOCUS_MS = 50 * 60 * 1000;
 export const REST_MS = 15 * 60 * 1000;
@@ -57,6 +58,8 @@ export function kindleTick(state, now, { economy = null, xp = null } = {}) {
         const rate = xpRates['focus-session'];
         next = addXp(next, rate.skill, rate.xp, at, { source: 'focus-session', text: `focus session ${span(k.startedAt, at)}` }).state;
         next = note(bump(next, 'focusSessions'), at, { focus: 1 });
+        // Whatever Milo was gathering while you focused comes home with the session, once.
+        next = payHaul(next, k.startedAt, at).state;
       }
     }
     k = { ...k, phase: 'rest', restStartedAt: at, restEndsAt: at + REST_MS, earned: true, paid: { ...k.paid, focus: k.startedAt } };

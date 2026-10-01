@@ -1,0 +1,95 @@
+{
+  "id": "jonas",
+  "name": "Jonas Pennywhistle",
+  "title": "inventor of the second spoon",
+  "where": { "x": 31, "y": -12 },
+  "dye": { "m": "u", "b": "p", "u": "v", "U": "V", "Y": "V", "r": "s", "R": "S", "Q": "z" },
+  "threshold": 6,
+  "likes": { "craft": 2, "joke": 1 },
+  "dislikes": ["truth"],
+  "resists": ["kind"],
+  "examine": [
+    "Jonas Pennywhistle holds a spoon in each hand and has not been seen to eat. The second is always more polished.",
+    "A neat sign on his satchel reads ALSO. Nobody has asked him what it means.",
+    "He stops to look at every spoon he passes, and every ladle. He seems to disapprove of the ladles."
+  ],
+  "meet": [
+    "You’ll have noticed the spoon in my left hand, and the spoon in my right.",
+    "Jonas Pennywhistle. I invented the second one."
+  ],
+  "hello": {
+    "wary": ["A spoon is a serious matter. Two is a serious matter twice."],
+    "neutral": ["Welcome back. Mind the satchel. There is a soup in it somewhere."],
+    "warm": ["Ah. A friend. I was about to be right about something. Stay."],
+    "fond": ["Just the person. I’ve been saving the best spoon for you, which is to say, the second."]
+  },
+  "tired": ["I’ve nothing left but spoons, and I’ve said everything about those. I won’t say it again today."],
+  "finished": ["That’s the lot. I could say it again. I would say it exactly the same."],
+  "topics": [
+    {
+      "id": "second",
+      "say": [
+        "The first spoon is a fine spoon. Nobody disputes that. But what do you do with it when your hands are full? You pick up the second. I invented that."
+      ],
+      "options": [
+        { "approach": "craft", "text": "How is the second spoon different from the first?", "reply": ["It’s second.", "People expect more. There isn’t more."], "remember": "asked-about-the-second" },
+        { "approach": "joke", "text": "Does it get to be first on Tuesdays?", "reply": ["You have understood the entire problem."] },
+        { "approach": "truth", "text": "I think the first spoon already had a second.", "reply": ["There was a fork. That doesn’t count."] },
+        { "approach": "kind", "text": "That’s brilliant.", "reply": ["I know."] }
+      ]
+    },
+    {
+      "id": "patent",
+      "needs": 1,
+      "say": [
+        "I filed for the second spoon. The clerk asked, second to what? I said, the first. He said, then it’s a spoon. I said, a second spoon. We were there until dusk."
+      ],
+      "options": [
+        { "approach": "craft", "text": "Did you file the drawings?", "reply": ["Four. And a sketch of a soup."] },
+        { "approach": "joke", "text": "Did he stamp it “also”?", "reply": ["“ALSO”. Yes. It’s on the form. I have it framed."], "remember": "stamped-also" },
+        { "approach": "truth", "text": "Clerks are right more often than inventors.", "reply": ["That is a very general claim."] },
+        { "approach": "favour", "text": "I’ll carry your portfolio.", "reply": ["You’re kind. You would drop the spoons."] }
+      ]
+    },
+    {
+      "id": "third",
+      "needs": 3,
+      "say": [
+        "People ask about a third spoon. I tell them not to be greedy."
+      ],
+      "options": [
+        { "approach": "craft", "text": "What if the third is a ladle?", "reply": ["A ladle is a large spoon. I had never thought of it."], "remember": "suggested-the-ladle" },
+        { "approach": "joke", "text": "Third time lucky?", "reply": ["Luck doesn’t live in a spoon. Third time, though."] },
+        { "approach": "truth", "text": "Nobody asked for the second.", "reply": ["Somebody had to not ask for it first."] }
+      ]
+    },
+    {
+      "id": "soup",
+      "needs": 5,
+      "say": [
+        "I would like to test the second spoon on a soup hot enough to deserve it. Do you know of one?"
+      ],
+      "options": [
+        { "approach": "craft", "text": "Camp stew. Tomorrow.", "reply": ["It’s a date. I will write it on the spoon."], "remember": "promised-soup" },
+        { "approach": "joke", "text": "Make it a cold soup.", "reply": ["Gazpacho. I had forgotten gazpacho."] },
+        { "approach": "kind", "text": "You deserve a good soup.", "reply": ["That doesn’t help the soup. But thank you."] }
+      ]
+    }
+  ],
+  "memories": {
+    "asked-about-the-second": "You asked how the second spoon is different from the first. His answer was “it’s second”. He considers the matter closed.",
+    "stamped-also": "You guessed the clerk stamped “ALSO” on the form. He had.",
+    "suggested-the-ladle": "You suggested the third spoon might be a ladle. He has gone quiet and thoughtful.",
+    "promised-soup": "You promised him a camp stew to test the second spoon on. He wrote it on the spoon."
+  },
+  "camp": {
+    "early": ["A camp is a lot to ask of a man with two spoons. Give me a reason to put one down."],
+    "ask": [
+      "Your camp has a fire. And a pot. And more than one pair of hands.",
+      "That is everything the second spoon requires."
+    ],
+    "yes": ["Very well. I’ll bring both spoons. One will be good company."],
+    "full": ["Every bed is taken. I won’t sleep on a spoon. Send word when there is room."],
+    "role": "Tests every soup with the second spoon."
+  }
+}

@@ -575,7 +575,7 @@ try {
     const listed = await page.locator('#place-list [data-place]').evaluateAll(nodes => nodes.map(node => [node.dataset.place, node.dataset.kind]));
     assert.deepEqual(listed.filter(([, kind]) => kind === 'plot').map(([id]) => id), PLOTS);
     // Phase 3 adds the Hearth to the vale's places (and the War Table once the Stockade stands).
-    assert.deepEqual(listed.filter(([, kind]) => kind !== 'plot').map(([id]) => id).sort(), ['camp', 'harbor', 'hearth', 'watchtower']);
+    assert.deepEqual(listed.filter(([, kind]) => kind !== 'plot').map(([id]) => id).sort(), ['camp', 'harbor', 'hearth', 'townhall', 'watchtower']);
     for (const id of PLOTS) {
       await openPlace(id);
       await plotView(id, 'empty').waitFor();
