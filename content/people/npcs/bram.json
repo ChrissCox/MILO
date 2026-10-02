@@ -1,0 +1,189 @@
+{
+  "id": "bram",
+  "name": "Bram Tolliver",
+  "title": "innkeeper of Gamewright’s Rest",
+  "where": {
+    "x": -59,
+    "y": 91
+  },
+  "why": "Beside the stone that marks Gamewright’s Rest, in the Dicing Downs. The inn is behind him. So far it is a table, a sign and a set of rules.",
+  "dye": {
+    "m": "R",
+    "b": "r",
+    "u": "b",
+    "U": "B",
+    "Y": "m",
+    "r": "e",
+    "R": "E",
+    "Q": "N"
+  },
+  "threshold": 4,
+  "likes": {
+    "joke": 2,
+    "craft": 1
+  },
+  "dislikes": ["truth"],
+  "resists": ["favour"],
+  "examine": ["Bram Tolliver keeps Gamewright’s Rest. He loves a game more than he loves winning one.", "He has laid a board on an upturned barrel. Both sides are set up. He has been playing himself and losing.", "The inn’s sign says ROOMS. There is a second, smaller sign beneath it. It says SOON."],
+  "meet": ["Welcome to Gamewright’s Rest. Sit down, sit down. There’s only the one chair, so we’ll take turns. Your move.", "Bram Tolliver. Innkeeper. The inn’s the table. The rest is planned. I’ve drawn it on a napkin."],
+  "hello": {
+    "wary": ["Back, are you? I’ll deal you in. You can scowl and play. Plenty do."],
+    "neutral": ["There you are. I’ve kept the board as you left it. I only moved one piece. Two."],
+    "warm": ["My favourite opponent. I’ve invented a rule since you were last here. It’s terrible. You’ll love it."],
+    "fond": ["Sit, sit. I’ve been saving a game for you. I’ve already lost it twice, to get the feel."]
+  },
+  "tired": ["That’s last orders. There aren’t any orders. But I say it, and it sounds right."],
+  "finished": ["We’ve played every game I know. I’ll have to make one up. Give me till tomorrow and a napkin."],
+  "topics": [
+    {
+      "id": "inn",
+      "say": ["An inn wants a fire, a bed and a game. I started with the game. I may have started at the wrong end. The game’s very good, though."],
+      "options": [
+        {
+          "approach": "joke",
+          "text": "Where do guests sleep?",
+          "reply": ["On the board, last night. A traveller. He woke up with a rook in his ear and said he’d never slept better."],
+          "remember": "asked-where-guests-sleep"
+        },
+        {
+          "approach": "craft",
+          "text": "What game is it?",
+          "reply": ["It’s got dice, tiles, a bell and a forfeit. I’ve cut the bell. It was upsetting the dice."]
+        },
+        {
+          "approach": "truth",
+          "text": "This isn’t an inn yet.",
+          "reply": ["It’s got a sign."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll help you build the rest.",
+          "reply": ["Would you? No. You’d finish it. Then where would I be? Indoors."]
+        }
+      ]
+    },
+    {
+      "id": "winning",
+      "needs": 1,
+      "say": ["I’ve never much cared for winning. It ends the game. I had a man in here win in four moves. Dreadful evening. We just sat there."],
+      "options": [
+        {
+          "approach": "joke",
+          "text": "I’ll try to lose slowly.",
+          "reply": ["That’s all I ask of anyone. Your move. Take your time. Take mine as well."],
+          "remember": "promised-to-lose-slowly"
+        },
+        {
+          "approach": "craft",
+          "text": "How do you keep a game going?",
+          "reply": ["A good rule gives the loser something to do. A bad rule gives the winner a speech."]
+        },
+        {
+          "approach": "kind",
+          "text": "That’s a generous way to play.",
+          "reply": ["It’s a greedy way. I want all the turns. I’ve just learned to share them."]
+        }
+      ]
+    },
+    {
+      "id": "maud",
+      "needs": 3,
+      "say": ["Maud draws monsters at my table. Never buys a drink. Leaves the drawings. I’ve papered the wall I haven’t got with them."],
+      "options": [
+        {
+          "approach": "joke",
+          "text": "Any of them house-trained?",
+          "reply": ["The small one with the hat. It’s been no trouble. It’s a drawing."],
+          "remember": "asked-about-the-monsters"
+        },
+        {
+          "approach": "craft",
+          "text": "What makes a good monster?",
+          "reply": ["Maud says it should want something. Mine wants a second chair. I sympathise."]
+        },
+        {
+          "approach": "truth",
+          "text": "She should pay for the table.",
+          "reply": ["She pays in monsters. I’m not out of pocket. I’m out of wall."]
+        }
+      ]
+    }
+  ],
+  "memories": {
+    "asked-where-guests-sleep": "You asked where his guests sleep. On the board, last night. The traveller woke with a rook in his ear.",
+    "promised-to-lose-slowly": "You promised to lose slowly. It is all he asks of anyone.",
+    "asked-about-the-monsters": "You asked if Maud’s monsters were house-trained. The small one with the hat has been no trouble."
+  },
+  "camp": {
+    "never": ["Come to your camp? And leave the Rest? Who’d keep the board warm? No, no. An innkeeper stays in. That’s the in part.", "Come back with a hobby and an evening. I’ll have a game ready. Your move."],
+    "role": "Stays at Gamewright’s Rest, with a game set up."
+  },
+  "sheet": {
+    "wants": {
+      "now": "Somebody to play who is in no hurry to win.",
+      "really": "An inn full of people who stayed one more turn.",
+      "worry": "A game that ends early and a table gone quiet."
+    },
+    "favourites": {
+      "food": "whatever is on the table that isn’t a playing piece",
+      "weather": "a wet evening, good for staying in",
+      "place": "his side of the board",
+      "topic": "a rule he has just invented",
+      "person": "Maud, who never buys a drink"
+    },
+    "aversions": ["a quick win", "being told the inn isn’t one yet"],
+    "temperament": "Warm, fussy and delighted to lose.",
+    "strangers": "Deals them in.",
+    "friends": "Saves them a game he has already lost twice.",
+    "opensUp": "A joke, or a question about a rule.",
+    "goesQuiet": "A plain fact about the inn."
+  },
+  "voice": {
+    "rhythm": "Bustling. Says a thing twice, then corrects the number.",
+    "maxWords": 24,
+    "words": ["game", "rule"],
+    "never": ["boring", "pointless"],
+    "tic": "Your move",
+    "hello": "Tells you to sit, twice.",
+    "goodbye": "Calls last orders.",
+    "pleased": "Says you’ll love it, of something terrible.",
+    "putOut": "Says it has a sign."
+  },
+  "gifts": {
+    "loves": ["berries"],
+    "likes": ["trout", "birch"],
+    "replies": {
+      "birch": ["Birch. That’s a second chair, that is. Half of one. I’ll start with the legs."],
+      "ash": ["Ash. I could turn that into pawns. Tall ones. Imposing pawns."],
+      "pine": ["Pine. For the fire I’m going to have. I’ll put it where the hearth’s drawn."],
+      "minnow": ["A minnow. That’s a bar snack. I’ll put it out. Somebody always eats the bar snack."],
+      "trout": ["A trout. That’s a dinner. An inn that’s served a dinner is an inn. You’ve made me legal."],
+      "berries": ["Berries. Oh, perfect. I’m short of counters. And I can eat the ones I capture."],
+      "herbs": ["Herbs. For the stew I mean to offer. It’s on the menu. The menu’s on the napkin."],
+      "stone": ["A stone. That’s a piece. I don’t know which game. I’ll invent one that needs it."],
+      "copper": ["Copper. I’ll make a coin for the forfeit box. The box is also planned."]
+    }
+  },
+  "day": {
+    "morning": "Morning. Nobody plays in the morning. I set the board anyway. It likes to be ready.",
+    "afternoon": "Afternoon. I’m playing myself. I’m ahead. I’m also behind. It’s very tense.",
+    "evening": "Evening. This is the hour for it. Sit down, sit down. I’ll light the lamp I haven’t got.",
+    "night": "I sleep under the table. It’s the only roof on the premises. Mind the pieces.",
+    "rain": "Rain. Good. Nobody leaves an inn in the rain. Nobody’s here, but they wouldn’t leave."
+  },
+  "thinks": {
+    "jonas": ["A fellow with two spoons came by. I asked which was the playing spoon. He hadn’t considered it. He’s considering it now."],
+    "pip": ["The little starry one took my rulebook and gave me back eleven small rules. It plays better. I’m furious."],
+    "dusty": ["The sheriff lost four hands and tipped the hat each time. Best loser I’ve had. I offered a room. Then I remembered."]
+  },
+  "recalls": {
+    "asked-where-guests-sleep": ["I’ve had another guest on the board. A bishop in the collar this time. No complaints."],
+    "promised-to-lose-slowly": ["You said you’d lose slowly. I’ve told the others. I’ve told the board."],
+    "asked-about-the-monsters": ["The one with the hat has a friend now. Maud was in. It’s got a smaller hat."]
+  },
+  "arc": {
+    "want": "An unhurried opponent.",
+    "complication": "An inn that is still only a table.",
+    "kindness": "Someone sits down and promises to lose slowly."
+  }
+}

@@ -112,6 +112,83 @@
     ],
     "yes": ["Then I’ll bring the string. The tortoise has the road for now."],
     "full": ["Your camp has no free bed. I’ll wait here. I’m used to waiting in the middle of things."],
-    "role": "Keeps the camp’s lines straight."
+    "role": "Keeps the camp’s lines straight.",
+    "leaves": "Chalk lines round the fire. They wear off."
+  },
+  "sheet": {
+    "wants": {
+      "now": "Someone to stand at the other end of the string.",
+      "next": "To measure the road from side to side.",
+      "really": "To be told the middle was worth finding.",
+      "worry": "That the road moved while he was measuring it."
+    },
+    "favourites": {
+      "food": "plain bread, cut evenly",
+      "weather": "a still day",
+      "place": "the middle of anything",
+      "topic": "measurements",
+      "person": "the tortoise"
+    },
+    "aversions": ["being rounded off", "jokes about the road"],
+    "temperament": "Exact, patient and mild.",
+    "strangers": "Tells them where they are standing.",
+    "friends": "Keeps their place in the middle.",
+    "opensUp": "Being corrected, plainly.",
+    "goesQuiet": "Being laughed at."
+  },
+  "voice": {
+    "rhythm": "Short flat statements. A fact, then a smaller fact.",
+    "maxWords": 18,
+    "words": ["middle", "string"],
+    "never": ["roughly", "somewhere"],
+    "tic": "wrote that down",
+    "hello": "Says where you are standing.",
+    "goodbye": "Says he will be here.",
+    "pleased": "Says thank you and stops.",
+    "putOut": "States a fact about roads."
+  },
+  "gifts": {
+    "loves": ["stone"],
+    "likes": ["ash"],
+    "replies": {
+      "birch": ["A birch log. It’s rounder at one end. I’ll note which."],
+      "ash": ["Ash. It’s straight. I can measure with straight."],
+      "pine": ["Pine. It smells of a forest. The forest is not on the road."],
+      "minnow": ["A fish. I’ve nowhere to put it. I’ll hold it."],
+      "trout": ["A larger fish. Thank you. The problem is the same."],
+      "berries": ["Berries. I’ll eat them from the left."],
+      "herbs": ["Herbs. I don’t know which ones. I’ll look into it."],
+      "stone": ["A stone. It can mark a middle. I have eleven to mark."],
+      "copper": ["Copper. It’s heavier than it looks. I wrote that down."]
+    }
+  },
+  "day": {
+    "morning": "The road is quiet before nine. I measure then. Nothing has moved.",
+    "afternoon": "Carts come through after noon. They go round me. I’ve stopped waving.",
+    "evening": "The light is going. The middle is harder to see. It’s still here.",
+    "night": "I sleep standing. The tortoise keeps watch. It’s slower at it than I am.",
+    "rain": "It’s raining on both halves of the road. I checked."
+  },
+  "thinks": {
+    "gorrin": ["The cabbage man. His cart has passed me four times. It was alone twice."],
+    "jonas": ["A man with two spoons. He asked which was the middle one. I haven’t slept well since."],
+    "mags": ["She counts things. So do I. We nodded once. It was enough."]
+  },
+  "recalls": {
+    "said-it-aloud": ["You told me the plaque was off. I’ve looked at it every day since."],
+    "the-bend": ["I went to the bend. It was wider. You were right about the bend."],
+    "near-the-middle": ["“Near the middle.” I say it most mornings now."],
+    "stood-at-both-ends": ["The road still has two ends. I wrote that down."]
+  },
+  "helloAfter": {
+    "wary": ["You stood at both ends. I haven’t forgotten. Stand where you want."],
+    "neutral": ["Good morning. The road has two ends now. I’ve started on the sides."],
+    "warm": ["There you are. I’m measuring across today. It’s shorter that way."],
+    "fond": ["My favourite traveller. The road is measured. I’m thinking about the sky."]
+  },
+  "arc": {
+    "want": "The other end of the string held.",
+    "complication": "Eleven middles, and a plaque he knows is wrong.",
+    "kindness": "Someone says near the middle is enough."
   }
 }

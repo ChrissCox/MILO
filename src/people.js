@@ -30,7 +30,7 @@ export const levelWord = (level) => LEVEL_WORDS[level] || '';
 const entryOf = (state, id) => (isRecord(state?.people) && isRecord(state.people[id]) ? state.people[id] : null);
 const blank = () => ({
   points: 0, met: null, seen: null, done: [], turn: { day: null, n: 0, last: null },
-  found: { likes: [], dislikes: [], resists: [] }, memories: [], camp: null,
+  found: { likes: [], dislikes: [], resists: [], gifts: [] }, gift: null, memories: [], camp: null,
 });
 const withPerson = (state, id, person) => ({ ...state, people: { ...(isRecord(state?.people) ? state.people : {}), [id]: person } });
 
@@ -102,7 +102,10 @@ export function personView(state, person, now, { beds = BEDS[0], residents = nul
   const turn = turnToday(e, now);
   const topic = nextTopic(person, state, now);
   const tired = turn.n >= DAY_TURNS && Boolean(topic);
-  const hello = isRecord(person.hello) ? person.hello[level] || person.hello.neutral : null;
+  // Once the thing they asked for is done, their talk moves on (`helloAfter`).
+  const moved = isRecord(person.helloAfter) && isRecord(person.errand) && finite(e.errand?.done);
+  const greetings = moved ? person.helloAfter : person.hello;
+  const hello = isRecord(greetings) ? greetings[level] || greetings.neutral || person.hello?.[level] || person.hello?.neutral : null;
   const lived = residents ?? Object.values(isRecord(state?.people) ? state.people : {}).filter((p) => isRecord(p) && p.camp).length;
   let camp;
   if (e.camp) camp = { state: 'in' };
@@ -142,7 +145,7 @@ export function choose(state, person, topicId, optionIndex, now) {
   let delta = fit.delta;
   if (delta > 0 && turn.last === option.approach) delta = Math.max(0, delta - 1);
   const points = Math.max(FLOOR, Math.min(PEOPLE_LIMITS.points, pointsBefore + delta));
-  const found = { likes: [...before.found.likes], dislikes: [...before.found.dislikes], resists: [...before.found.resists] };
+  const found = { ...before.found, likes: [...before.found.likes], dislikes: [...before.found.dislikes], resists: [...before.found.resists] };
   const learn = (list) => { if (!list.includes(option.approach)) list.push(option.approach); };
   if (fit.kind === 'likes') learn(found.likes);
   else if (fit.kind === 'dislikes') learn(found.dislikes);
@@ -207,8 +210,28 @@ export function residents(state, content) {
     .map(({ p }) => ({ id: p.id, name: p.name, look: { kind: 'rig', rig: 'coat', who: p.id, likeness: null }, role: p.camp?.role || '' }));
 }
 
-/** Some people arrive with the story: `after` names the Act I chapter that brings them. */
-export const hasArrived = (state, person) => typeof person.after !== 'string' || chapterDone(state, person.after);
+const MENDED = Object.freeze(['sealed', 'stitched']);
+/** Whether a rift of a genre has ever been mended (sealed or stitched; one let go doesn't count). */
+export function riftMended(state, genre) {
+  const history = Array.isArray(state?.rifts?.history) ? state.rifts.history : [];
+  return history.some((h) => isRecord(h) && MENDED.includes(h.how) && Array.isArray(h.genres) && h.genres.includes(genre));
+}
+
+/**
+ * Some people arrive later. `after` says what brings them: an Act I chapter's id; { genre } for
+ * someone who steps out of a mended rift of that genre and stays; { built: n } once that many
+ * buildings have been designed. Whoever has been met has arrived, whatever happens to the history.
+ */
+export function hasArrived(state, person) {
+  const after = person?.after;
+  if (after === undefined || after === null) return true;
+  if (entryOf(state, person.id)?.met) return true;
+  if (typeof after === 'string') return chapterDone(state, after);
+  if (!isRecord(after)) return true;
+  if (typeof after.genre === 'string') return riftMended(state, after.genre);
+  if (Number.isInteger(after.built)) return cleanCount(state?.tally?.buildingsDesigned) >= after.built;
+  return true;
+}
 
 /** The people standing out in the world (not at camp yet): [{ id, name, title, x, y, look }]. */
 export function standing(state, content) {

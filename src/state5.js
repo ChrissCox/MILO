@@ -133,7 +133,8 @@ function cleanPerson(value, now) {
     seen: toTime(value.seen),
     done: slugs(value.done, PEOPLE_LIMITS.done),
     turn: { day: cleanDayKey(turn.day), n: cleanCount(turn.n, 20), last: APPROACHES.includes(turn.last) ? turn.last : null },
-    found: { likes: approaches(found.likes), dislikes: approaches(found.dislikes), resists: approaches(found.resists) },
+    found: { likes: approaches(found.likes), dislikes: approaches(found.dislikes), resists: approaches(found.resists), gifts: slugs(found.gifts, 16) },
+    gift: cleanDayKey(value.gift),
     memories: memories.slice(-PEOPLE_LIMITS.memories),
     camp: toTime(value.camp),
     errand: cleanErrand(value.errand),
@@ -164,10 +165,13 @@ export const ITEM_IDS = Object.freeze(['birch', 'ash', 'pine', 'minnow', 'trout'
 export const RECIPE_IDS = Object.freeze(['cordial', 'brew', 'minnow-supper', 'trout-stew']);
 
 export function emptyCamplife() {
-  return { gather: null, last: null, cooked: {} };
+  return { gather: null, last: null, cooked: {}, places: {} };
 }
 
-/** Any input → a valid camplife section: { gather, last: { session, at, activity, items } | null, cooked }. */
+const PLACE_ID = /^(?:poi:hamlet|camp:lantern):-?\d{1,7},-?\d{1,7}$/;
+const MAX_PLACES = 200;
+
+/** Any input → a valid camplife section: { gather, last: { session, at, activity, items } | null, cooked, places: { [hamlet id]: { days, last } } }. */
 export function cleanCamplife(value) {
   const src = isRecord(value) ? value : {};
   const lastSrc = isRecord(src.last) && GATHER_IDS.includes(src.last.activity) ? src.last : null;
@@ -177,7 +181,15 @@ export function cleanCamplife(value) {
   const at = lastSrc ? toTime(lastSrc.at) : null;
   const cooked = {};
   if (isRecord(src.cooked)) for (const id of RECIPE_IDS) { const n = cleanCount(src.cooked[id], 1e6); if (n) cooked[id] = n; }
-  return { gather: GATHER_IDS.includes(src.gather) ? src.gather : null, last: session && at ? { session, at, activity: lastSrc.activity, items } : null, cooked };
+  // The hamlets Milo has been to (welcome.js): how many different days, and the last one.
+  const places = {};
+  if (isRecord(src.places)) {
+    for (const [id, entry] of Object.entries(src.places).slice(-MAX_PLACES)) {
+      const last = isRecord(entry) ? cleanDayKey(entry.last) : null;
+      if (PLACE_ID.test(id) && last) places[id] = { days: Math.max(1, cleanCount(entry.days, 99999)), last };
+    }
+  }
+  return { gather: GATHER_IDS.includes(src.gather) ? src.gather : null, last: session && at ? { session, at, activity: lastSrc.activity, items } : null, cooked, places };
 }
 
 /** Any input → a valid board. Newest entries win when a list is over its limit. */

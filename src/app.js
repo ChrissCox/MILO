@@ -2146,6 +2146,8 @@ function renderPlaces() {
       + dashboards.map(placeButton).join('');
   } else {
     html = placeEntries().map(placeButton).join('');
+    // The people who live in the vale itself.
+    html += (phase4?.valePeople?.() || []).map(person => `<li><button type="button" data-entity="${esc(person.id)}" data-kind="landmark">${esc(person.title)}${person.note ? ` <span class="place-note">${esc(startName(person.note))}</span>` : ''}</button></li>`).join('');
     // The gates out to the wilds, so they can be reached without seeing the map.
     if (phase3) {
       html += frontierModule.gateEntries(anchors, worldgenModule.GATES).map(gate => `<li><button type="button" data-entity="${esc(gate.id)}" data-kind="gate">${esc(gate.title)} <span class="place-note">${esc(gate.note)}</span></button></li>`).join('');
@@ -3207,6 +3209,12 @@ function renderPoi(id) {
   const view = wildtextModule.poiView(poi, content?.wilds, state, { regionId: region, night: hour >= 20 || hour < 6, fresh: result.length > 0, phase4World: Boolean(phase4?.doors), economy: content?.economy });
   const age = poi.type === 'hamlet' ? phase4?.hamletAge?.(poi) : '';
   if (age && !view.lines.includes(age)) view.lines.push(age);
+  const parts = poi.type === 'hamlet' ? phase4?.hamletParts?.(poi) : '';
+  if (parts && !view.lines.includes(parts)) view.lines.push(parts);
+  const welcome = poi.type === 'hamlet' ? phase4?.hamletWelcome?.(poi) : '';
+  if (welcome && !view.lines.includes(welcome)) view.lines.push(welcome);
+  // Every hamlet has a bed (the company's Campfire, as at a lit lantern).
+  if (poi.type === 'hamlet' && phase4?.restAtHamlet && !view.action) view.action = { id: 'rest-bed', label: 'Rest here' };
   return panelsModule.poiPanel({ id, type: poi.type, title: view.title, lines: view.lines, body: view.body, action: view.action, done: view.done, later: view.later, says: result[0] || '', result: result.slice(1) }, { miloSays: milosLine });
 }
 
@@ -3470,6 +3478,7 @@ function handlePhase3Action(button) {
     case 'travel': travel(button.dataset.target === 'home' ? 'home' : button.dataset.target); return true;
     case 'poi-open': chestAction(open); return true;
     case 'poi-enter-cave': enterCaveAction(open); return true;
+    case 'poi-rest-bed': bedAction(open); return true;
     case 'poi-search': ruinAction(open); return true;
     case 'poi-read': noteAction(open); return true;
     case 'poi-listen': statueAction(open); return true;
@@ -3761,6 +3770,12 @@ function restAction(id) {
   poiResults.set(id, ['Milo sits by the lantern a while and warms his hands.']);
   scheduleSave(150);
   refreshPanel({ focus: 'travel-home' });
+}
+
+function bedAction(id) {
+  const r = phase4?.restAtHamlet?.();
+  if (r?.lines?.length) poiResults.set(id, r.lines);
+  refreshPanel({ focus: 'poi-action' });
 }
 
 function poiDone(id, list, materials, lines) {

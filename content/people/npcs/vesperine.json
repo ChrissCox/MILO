@@ -1,0 +1,229 @@
+{
+  "id": "vesperine",
+  "name": "Vesperine Ashcombe",
+  "title": "the Dowager’s niece",
+  "after": {
+    "genre": "gothic"
+  },
+  "where": {
+    "x": -19,
+    "y": 36
+  },
+  "why": "By the old ruin west of the vale, the nearest thing to a long hall for miles. A letter went unanswered, and she has come to wait beside it until somebody replies.",
+  "dye": {
+    "m": "s",
+    "b": "c",
+    "u": "V",
+    "U": "V",
+    "Y": "N",
+    "r": "Q",
+    "R": "Q",
+    "Q": "Q"
+  },
+  "threshold": 4,
+  "likes": {
+    "kind": 2,
+    "craft": 1
+  },
+  "dislikes": ["joke"],
+  "resists": ["truth"],
+  "examine": ["Lady Vesperine Ashcombe is a ghost with excellent posture and a candle that does not gutter.", "She is holding a bundle of letters tied in black ribbon. Each one is addressed to somebody who is late.", "She is standing half inside the ruin’s wall. It is a low wall. She has made the effort."],
+  "meet": ["Good evening. Do stand up straight. Thank you. One feels so much better. I certainly do, and I am dead.", "Lady Vesperine Ashcombe. My aunt is the Dowager. I answer her letters. Somebody must, and it has never been the people they were sent to."],
+  "hello": {
+    "wary": ["Good evening. You have not written. I do not hold it against you. I simply have it here."],
+    "neutral": ["Good evening again. Your shoulders have dropped. Up. There. Now, to what do I owe this?"],
+    "warm": ["How lovely. A caller who calls twice. Do come through. I shall come through as well. I usually do."],
+    "fond": ["My dear correspondent. I have kept the top letter for you. It is the oldest. It has been ever so patient."]
+  },
+  "tired": ["I must stop there. A lady receives for an hour. Do call tomorrow. Leave a card if I am in a wall."],
+  "finished": ["We have said everything that needed saying. How rare. I shall stand here and enjoy it."],
+  "topics": [
+    {
+      "id": "letters",
+      "say": ["These are letters nobody answered. People mean to. They put the letter down to answer it properly, and then it is autumn. I keep them. I sort them by who has waited longest."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "Some of those are mine. I’m sorry.",
+          "reply": ["Three of them. I was not going to mention it. An apology is a reply, you know. That is one answered already."],
+          "remember": "apologised-for-the-letters"
+        },
+        {
+          "approach": "craft",
+          "text": "How do you sort them?",
+          "reply": ["Oldest on top. Then by how hopeful the handwriting is. The hopeful ones go first. They have suffered most."]
+        },
+        {
+          "approach": "joke",
+          "text": "Return to sender?",
+          "reply": ["I think not."]
+        },
+        {
+          "approach": "truth",
+          "text": "Most of them don’t need an answer.",
+          "reply": ["Every one of them was written by somebody who thought it did. I take their side."]
+        }
+      ]
+    },
+    {
+      "id": "posture",
+      "needs": 1,
+      "say": ["Excellent posture is the only thing one keeps. I lost the house, the carriage and, strictly, the body. I have not slouched since eighteen forty."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "You carry it well.",
+          "reply": ["Thank you. It is all carrying, at this point. There is nothing else to hold me up."],
+          "remember": "complimented-her-bearing"
+        },
+        {
+          "approach": "craft",
+          "text": "Is there a trick to it?",
+          "reply": ["A string from the crown of the head to the ceiling. One imagines it. Then one imagines a ceiling."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll hold the letters while you rest.",
+          "reply": ["How kind. I cannot put them down. I mean that exactly. They go through the table."]
+        }
+      ]
+    },
+    {
+      "id": "walls",
+      "needs": 3,
+      "say": ["I can walk through walls. One tries to resist. It is rude to arrive in a room without having been in the doorway first. But a wall is so often the shorter way."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "You may walk through any wall of mine.",
+          "reply": ["Oh. Nobody has ever given me leave. I shall knock on it first, all the same. From the inside."],
+          "remember": "gave-her-leave"
+        },
+        {
+          "approach": "craft",
+          "text": "What’s it like, inside a wall?",
+          "reply": ["Brief. A little dusty. One meets the occasional nail and says good evening."]
+        },
+        {
+          "approach": "joke",
+          "text": "Do you ever get stuck?",
+          "reply": ["A lady is never stuck. She is pausing."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "a-reply",
+    "title": "A reply, of any kind",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["The top letter was sent to your Town hall. It has had no reply. It does not want much. It wants to know it arrived.", "Stand at the Town hall door. Simply stand. I shall count it as received. Then return, and I shall tell the letter."],
+    "accept": "I’ll stand there.",
+    "steps": [
+      {
+        "kind": "visit",
+        "target": "townhall",
+        "text": "Stand at the Town hall door."
+      }
+    ],
+    "waiting": ["You have not been yet. No matter. The letter has waited since spring. It has excellent posture too."],
+    "report": "I stood at the door.",
+    "done": ["Then it arrived. I have told it. It has gone quite still, which in a letter is contentment.", "Do take the ribbon. It was round the oldest ones. They do not need tying now."],
+    "remember": "received-the-letter",
+    "approval": 2,
+    "keepsake": {
+      "name": "A black ribbon",
+      "text": "It tied the oldest unanswered letters. They do not need tying now."
+    }
+  },
+  "memories": {
+    "apologised-for-the-letters": "You said some of the unanswered letters were yours, and that you were sorry. She counted the apology as a reply.",
+    "complimented-her-bearing": "You told her she carries it well. She said it is all carrying, at this point.",
+    "gave-her-leave": "You gave her leave to walk through any wall of yours. She will knock first, from the inside.",
+    "received-the-letter": "You stood at the Town hall door so the oldest letter could be counted as received."
+  },
+  "camp": {
+    "early": ["Your camp. One does not move in on a first acquaintance. One is called upon, several times, and then one considers."],
+    "ask": ["A camp. I understand there are no walls. How novel. I should have to arrive by the front.", "I would keep a small desk. Everything waiting on you, oldest on top. I would not scold. I would simply stand beside it."],
+    "yes": ["Then I accept. I shall bring the candle. It does not go out. You need not ask why."],
+    "full": ["No bed. I do not use one. But I will not take a place before it is offered. I shall wait in the wall."],
+    "role": "Keeps a desk of everything waiting on you, oldest on top.",
+    "leaves": "A candle stub that has not burned down."
+  },
+  "sheet": {
+    "wants": {
+      "now": "For the oldest letter to be counted as received.",
+      "next": "One reply, in ink, to anything.",
+      "really": "To be called upon, and not only when something is overdue.",
+      "worry": "That she is the only one who still reads them."
+    },
+    "favourites": {
+      "food": "tea she cannot drink, poured anyway",
+      "weather": "fog with a candle in it",
+      "place": "a long hall, or failing that a low wall",
+      "topic": "who has been waiting longest",
+      "person": "a caller who calls twice"
+    },
+    "aversions": ["being told a letter did not matter", "slouching"],
+    "temperament": "Gracious, exact and gently unstoppable.",
+    "strangers": "Corrects their posture.",
+    "friends": "Keeps them the oldest letter.",
+    "opensUp": "An apology, or a compliment sincerely meant.",
+    "goesQuiet": "Levity about the dead."
+  },
+  "voice": {
+    "rhythm": "Formal and unhurried. No contractions. A courtesy, then a small alarming fact.",
+    "maxWords": 26,
+    "words": ["letter", "one"],
+    "never": ["okay", "guys"],
+    "tic": "xcellent posture",
+    "hello": "Says good evening and straightens you.",
+    "goodbye": "Says a lady receives for an hour.",
+    "pleased": "Says how lovely.",
+    "putOut": "Says I think not."
+  },
+  "gifts": {
+    "loves": ["herbs"],
+    "likes": ["berries", "ash"],
+    "replies": {
+      "birch": ["A birch log. How rustic. I shall hold it. It has gone through my hands. I shall stand near it."],
+      "ash": ["Ash. One made writing desks of ash. I shall think of it as a desk that has not happened yet."],
+      "pine": ["Pine. We had pine at Ashcombe for the servants’ stair. It creaked. I miss being creaked at."],
+      "minnow": ["A minnow. One does not know where to look. I shall look at its posture. Adequate."],
+      "trout": ["A trout. Very handsome. My aunt would have had it stuffed and written to."],
+      "berries": ["Berries. Thank you. I cannot eat them. I shall arrange them. That is nearly the same pleasure."],
+      "herbs": ["Herbs. For tea. I shall pour it and watch it cool. It is the part of tea I was always best at."],
+      "stone": ["A stone. For a wall, presumably. I am always glad of more wall."],
+      "copper": ["Copper. It goes green, in time. So did Ashcombe. I found it becoming."]
+    }
+  },
+  "day": {
+    "morning": "Good morning. I am fainter by day. Do speak up, and stand where I can see through you. Forgive me. Where I can see you.",
+    "afternoon": "The afternoon post has not come. It has not come since eighteen forty. I remain hopeful.",
+    "evening": "Good evening. This is my hour. The candle looks its best and so, I am told, do I.",
+    "night": "I do not sleep. I stand in the hall and am excellent at it.",
+    "rain": "Rain. It goes straight through me. I mention it so that you need not offer an umbrella."
+  },
+  "thinks": {
+    "mags": ["Miss Quire keeps a ledger and I keep a bundle. We have compared. Hers is tidier. Mine is sadder. We each think we won."],
+    "wendell": ["The gentleman in the road stood up straight when I asked. He was already straight. He thanked me anyway."],
+    "lumi": ["Miss Nightjar is also awake at three. We bow across the dark. She rides a machine that squeaks. One does not remark on it."]
+  },
+  "recalls": {
+    "apologised-for-the-letters": ["You apologised for three letters. I have retied the bundle. It is thinner by three."],
+    "complimented-her-bearing": ["You said I carry it well. I have been carrying it at the ruin all week. Nobody else has come."],
+    "gave-her-leave": ["I have not used your walls yet. I am saving the first one for an occasion."],
+    "received-the-letter": ["The oldest letter is still content. I look in on it. It has not asked for anything since."]
+  },
+  "helloAfter": {
+    "wary": ["Good evening. You received a letter for me once. One does not forget a kindness to the post."],
+    "neutral": ["Good evening again. The oldest letter is at peace. I should now like one reply in ink. To anything at all."],
+    "warm": ["How lovely. My caller. The letter arrived, thanks to you. Shoulders up. I am hoping for ink next."],
+    "fond": ["My dear correspondent. One letter received. I have begun to hope the others might be. Do not tell them yet."]
+  },
+  "arc": {
+    "want": "One letter counted as received.",
+    "complication": "She answers everybody’s letters and nobody writes to her.",
+    "kindness": "Someone apologises for the ones they left."
+  }
+}

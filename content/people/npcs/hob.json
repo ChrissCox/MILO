@@ -1,0 +1,189 @@
+{
+  "id": "hob",
+  "name": "Hob",
+  "title": "carpenter",
+  "where": {
+    "x": 33,
+    "y": 11
+  },
+  "why": "At the foot of the Watchtower. His grandfather Hob the Elder built it, and it has needed a Hob beside it ever since.",
+  "dye": {
+    "m": "n",
+    "b": "b",
+    "u": "q",
+    "U": "l",
+    "Y": "L",
+    "r": "U",
+    "R": "Y",
+    "Q": "Y"
+  },
+  "threshold": 4,
+  "likes": {
+    "craft": 2,
+    "kind": 1
+  },
+  "dislikes": ["truth"],
+  "resists": ["joke"],
+  "examine": ["Hob is a carpenter, grandson of Hob the Elder who built the Watchtower. He hums while he measures.", "He holds his thumb up to the tower, squints, and nods. He does not write anything down.", "There is a spirit level in his apron. The bubble is not in the middle. He seems content with where it is."],
+  "meet": ["Morning. Stand just there. A bit left. That’ll do. I’m seeing if the tower’s straight and you’re about the right height to check against.", "I’m Hob. My grandfather built that. I keep it up. It’s up, give or take."],
+  "hello": {
+    "wary": ["Oh, hello. Mind the plank. Which plank? Any of them, really."],
+    "neutral": ["Morning. Tower’s still standing. I looked at it for a good while. It looked back."],
+    "warm": ["Ah, good, it’s you. Hold this end. No, there’s nothing on the other end. It just helps."],
+    "fond": ["Here’s a friend. I’ve built you a stool. It’s got three legs. Four, give or take."]
+  },
+  "tired": ["I’ve run out of talk. I’ve got some humming left, but that’s private. Tomorrow."],
+  "finished": ["That’s everything I know, and some of it I only reckon. Come and lean on something."],
+  "topics": [
+    {
+      "id": "tower",
+      "say": ["Grandad built the tower by eye. No drawings. He stood back, said that’s about right, and it’s been about right for sixty years."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "How do you build by eye?",
+          "reply": ["You look at it till it stops bothering you. Then you put a nail in before it starts again."],
+          "remember": "asked-about-building-by-eye"
+        },
+        {
+          "approach": "kind",
+          "text": "He’d be proud of you.",
+          "reply": ["He’d say the door sticks. It does. But he’d say it fondly."]
+        },
+        {
+          "approach": "truth",
+          "text": "It leans.",
+          "reply": ["It rests. Towers get tired. You’d rest at that height."]
+        },
+        {
+          "approach": "joke",
+          "text": "Which way’s it falling?",
+          "reply": ["It isn’t."]
+        }
+      ]
+    },
+    {
+      "id": "waystone",
+      "needs": 1,
+      "say": ["I carve waystones. You stand one up and it remembers the place for you. If the place goes wrong, you go back to the stone. I’ve one in the yard that remembers a shed I never built."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "How often should I stand one up?",
+          "reply": ["More than you think. Nobody ever said, I wish I’d carved fewer."],
+          "remember": "asked-about-waystones"
+        },
+        {
+          "approach": "kind",
+          "text": "That’s a comfort, a stone like that.",
+          "reply": ["It is. I pat mine on the way past. It doesn’t need it. I do."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll help you carry one.",
+          "reply": ["They’re lighter than they look. No. That’s wrong. They’re as heavy as they look."]
+        }
+      ]
+    },
+    {
+      "id": "level",
+      "needs": 3,
+      "say": ["Somebody gave me a spirit level once. Very kind. I looked at the bubble. The bubble and I have agreed to differ."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "What do you trust instead?",
+          "reply": ["A marble. Put it on the floor. If it stays, the floor’s level. If it rolls, you’ve found where the fun is."],
+          "remember": "asked-what-he-trusts"
+        },
+        {
+          "approach": "kind",
+          "text": "Your way’s served you well.",
+          "reply": ["Sixty years of tower says so. I’m only thirty of those. Grandad did the hard half."]
+        },
+        {
+          "approach": "truth",
+          "text": "The bubble is right, Hob.",
+          "reply": ["The bubble’s never built anything."]
+        }
+      ]
+    }
+  ],
+  "memories": {
+    "asked-about-building-by-eye": "You asked how he builds by eye. You look at it till it stops bothering you.",
+    "asked-about-waystones": "You asked how often to stand up a waystone. More than you think, he said.",
+    "asked-what-he-trusts": "You asked what he trusts in place of a level. A marble, on the floor."
+  },
+  "camp": {
+    "never": ["Move to the camp? I couldn’t. The tower wants a Hob at the bottom of it. It leans a bit more when I’m at the shops.", "I’ll build you a bench, though. It’ll seat four. Three, give or take."],
+    "role": "Stays by the Watchtower, and builds the camp its benches."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A door on the Watchtower that shuts first time.",
+      "really": "To build one thing his grandfather would have looked at twice.",
+      "worry": "That he only keeps things up and never puts one up."
+    },
+    "favourites": {
+      "food": "a pie, any, eaten standing",
+      "weather": "dry, so the door doesn’t swell",
+      "place": "the foot of the tower, looking up",
+      "topic": "how a thing was put together",
+      "person": "Grandad"
+    },
+    "aversions": ["spirit levels", "being told a thing is crooked"],
+    "temperament": "Easy, humming and unbothered.",
+    "strangers": "Uses them to check a height.",
+    "friends": "Builds them a stool.",
+    "opensUp": "A question about the making.",
+    "goesQuiet": "Exact measurements."
+  },
+  "voice": {
+    "rhythm": "Ambling. A confident statement, then a small retreat from it.",
+    "maxWords": 26,
+    "words": ["tower", "grandad"],
+    "never": ["exactly", "precisely"],
+    "tic": "give or take",
+    "hello": "Says morning and where to stand.",
+    "goodbye": "Says he has some humming left.",
+    "pleased": "Asks you to hold an end.",
+    "putOut": "Says the bubble never built anything."
+  },
+  "gifts": {
+    "loves": ["ash"],
+    "likes": ["birch", "pine"],
+    "replies": {
+      "birch": ["Birch. That’ll be a stool leg. Or two short ones. We’ll see what it wants."],
+      "ash": ["Ash. Oh, that’s lovely. That’s a handle, that is. I’ve a mallet been waiting years for you."],
+      "pine": ["Pine. That’s a shelf. Smells of a shelf already."],
+      "minnow": ["A fish. I can’t build with that. Believe me. Grandad tried a fish hinge once."],
+      "trout": ["A trout. That’s supper. I’ll eat it standing, so I can keep an eye on the tower."],
+      "berries": ["Berries. I’ll put them in my apron pocket. I’ll find them again in March."],
+      "herbs": ["Herbs. I don’t cook. I’ll hang them in the tower. It could do with smelling of something else."],
+      "stone": ["A stone. That’s a waystone, if you squint. I always squint."],
+      "copper": ["Copper. Nails. Good ones. They go green and then they never come out. Bit like me."]
+    }
+  },
+  "day": {
+    "morning": "Morning. I measure first thing, before the tower’s properly awake. It’s straighter then.",
+    "afternoon": "Afternoon. I’m planing the door. It sticks. I’ve been planing it since I was nine.",
+    "evening": "Evening. The tower’s shadow comes right across the yard. It’s a straight shadow. I take that as a sign.",
+    "night": "I sleep in the lean-to. It leans to. That’s all a lean-to’s asked to do.",
+    "rain": "Rain. The door’ll swell. I’ll plane it tomorrow. Then it’ll shrink. It’s a living."
+  },
+  "thinks": {
+    "nan": ["Nan Bristle says my gate doesn’t shut. It shuts. You have to mean it, that’s all."],
+    "wendell": ["The fellow in the road measured the tower for me. He went a funny colour and wouldn’t give me the number."],
+    "tova": ["The stonewright tapped my tower and listened. She said it was proud. Then she said, of what. I didn’t have an answer ready."]
+  },
+  "recalls": {
+    "asked-about-building-by-eye": ["I looked at the door till it stopped bothering me. Then I put a nail in. It’s bothering me again."],
+    "asked-about-waystones": ["I stood another waystone up after we spoke. That’s nine. It’s still not too many."],
+    "asked-what-he-trusts": ["I tried the marble on the tower floor. It rolled. It was a lovely roll. I’m leaving it."]
+  },
+  "arc": {
+    "want": "A door that shuts.",
+    "complication": "He lives in the shadow of a thing his grandfather built.",
+    "kindness": "Someone asks how he does it and listens to the answer."
+  }
+}

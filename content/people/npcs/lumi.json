@@ -1,0 +1,229 @@
+{
+  "id": "lumi",
+  "name": "Lumi Nightjar",
+  "title": "who keeps the night",
+  "after": {
+    "genre": "nocturne"
+  },
+  "where": {
+    "x": 28,
+    "y": -37
+  },
+  "why": "By the lantern on the north road into the Whisperwood, the quietest lamp for miles. She thinks the night is the best part, and this is where there is the most of it.",
+  "dye": {
+    "m": "c",
+    "b": "C",
+    "u": "E",
+    "U": "N",
+    "Y": "N",
+    "r": "K",
+    "R": "K",
+    "Q": "K"
+  },
+  "threshold": 4,
+  "likes": {
+    "kind": 2,
+    "truth": 1
+  },
+  "dislikes": ["craft"],
+  "resists": ["favour"],
+  "examine": ["Lumi Nightjar is a vampire with a bicycle, and is very polite about both.", "The bicycle squeaks. She has named the squeak. She has not oiled it.", "She is sitting under the lantern with a tin of something warm, watching nothing happen."],
+  "meet": ["Oh. Hello. You’re up. So am I. I’m always up. It’s less impressive when I do it.", "Lumi. I’m a vampire. I mention it early. People prefer that to finding out."],
+  "hello": {
+    "wary": ["Evening. Or whatever it is for you. I won’t keep you. I’d like to, but I won’t."],
+    "neutral": ["Hello again. Sit, if you’re staying. Going home is the right answer too."],
+    "warm": ["There you are. I warmed the tin. It’s cocoa. It’s nearly always cocoa."],
+    "fond": ["My daytime friend. I’ve saved you the quiet. There’s a great deal of it tonight."]
+  },
+  "tired": ["That’s enough from me. You should sleep. I mean it kindly. I’ll still be here."],
+  "finished": ["Nothing left to say. That’s the good part of a night. Sit, or don’t."],
+  "topics": [
+    {
+      "id": "stay",
+      "say": ["The night is the only time nobody asks anything of you. Stay a bit? I ask everyone. Most of them shouldn’t."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "I’ll sit for a minute. Then I’m going to bed.",
+          "reply": ["A minute. And then bed. That’s the best answer anyone’s given me. Sit."],
+          "remember": "sat-then-went-to-bed"
+        },
+        {
+          "approach": "truth",
+          "text": "I stay up too late already.",
+          "reply": ["I know. I can tell by the eyes. Then no. Go on. I’ll watch your crew."]
+        },
+        {
+          "approach": "joke",
+          "text": "Do you bite?",
+          "reply": ["Only apples. It’s a long story and a short apple."]
+        },
+        {
+          "approach": "craft",
+          "text": "Your bicycle needs oil.",
+          "reply": ["The squeak is called Geoffrey. I’m not oiling Geoffrey."]
+        }
+      ]
+    },
+    {
+      "id": "watch",
+      "needs": 1,
+      "say": ["While people sleep, things go on. Lamps burn. Somebody’s crew keeps working. Somebody ought to watch it and say what happened at breakfast. I never get to breakfast."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "I’d save you some.",
+          "reply": ["Would you? Leave it on the step. I’ll have it at dusk and call it breakfast."],
+          "remember": "saved-her-breakfast"
+        },
+        {
+          "approach": "truth",
+          "text": "So you’re the night’s guardian.",
+          "reply": ["Don’t tell anyone. I’ve a reputation. It took years."]
+        },
+        {
+          "approach": "favour",
+          "text": "I could stay up and help you watch.",
+          "reply": ["No. That’s the wrong way round. You sleep. That’s the help."]
+        }
+      ]
+    },
+    {
+      "id": "sunrise",
+      "needs": 3,
+      "say": ["There’s one thing I don’t stay up for. The sun comes up and I’m somewhere else by then. I’ve never seen it. I’ve read about it."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "I’ll tell you what it looks like.",
+          "reply": ["Slowly, then. One colour at a time. I’ll close my eyes and you say when."],
+          "remember": "described-the-sunrise"
+        },
+        {
+          "approach": "truth",
+          "text": "You’re afraid of it.",
+          "reply": ["Yes. That’s all. Thank you for not making it bigger."]
+        },
+        {
+          "approach": "joke",
+          "text": "It’s overrated. It happens every day.",
+          "reply": ["So does the night, and I think the world of it."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "a-warm-tin",
+    "title": "A warm tin",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["The tin’s empty. I’ve been holding it to look occupied.", "Make a berry cordial at your fire. Have it yourself. Early. Then go to bed. That’s the whole errand. I’d like to know somebody did it."],
+    "accept": "I’ll make one.",
+    "steps": [
+      {
+        "kind": "cook",
+        "target": "cordial",
+        "text": "Make a berry cordial at the fire."
+      }
+    ],
+    "waiting": ["Not yet. Take your time. There’s all night. For me, I mean."],
+    "report": "I made the cordial.",
+    "done": ["And you drank it warm, and it wasn’t late. Good. That’s one night that went right. I’ll put it with the others.", "Take the bell off the bicycle. It rings once. That’s when I’d go to bed, if I went."],
+    "remember": "made-the-cordial",
+    "approval": 2,
+    "keepsake": {
+      "name": "A bicycle bell",
+      "text": "It rings once. Lumi says that is when she would go to bed, if she went."
+    }
+  },
+  "memories": {
+    "sat-then-went-to-bed": "You sat a minute and then went to bed. She says it is the best answer anyone has given her.",
+    "saved-her-breakfast": "You offered to save her some breakfast. She has it at dusk and calls it breakfast.",
+    "described-the-sunrise": "You told her what the sunrise looks like, one colour at a time, while she kept her eyes shut.",
+    "made-the-cordial": "You made a cordial, drank it warm and went to bed on time. She counts it as a night that went right."
+  },
+  "camp": {
+    "early": ["Your camp. I’d keep you all up. I don’t know you well enough to trust you’d say no to me."],
+    "ask": ["A camp. With a roof. I’d sit on it. I wouldn’t come in. I’d be useful from up there.", "I’d watch your crew while you slept, and tell you at breakfast. You’d have to leave me a note about what breakfast is."],
+    "yes": ["Then I’ll come at dusk. Night starts at six. I’ll bring Geoffrey."],
+    "full": ["No bed. I don’t use one. But I won’t take a place that’s somebody’s. I’ll keep this lamp."],
+    "role": "Watches the crew overnight and tells you at breakfast.",
+    "leaves": "A tin on the roof, still warm."
+  },
+  "sheet": {
+    "wants": {
+      "now": "To know somebody had something warm and went to bed on time.",
+      "next": "To hear what the sunrise looks like.",
+      "really": "To be told no, kindly, and stayed with anyway.",
+      "worry": "The sunrise."
+    },
+    "favourites": {
+      "food": "cocoa, from a tin",
+      "weather": "a clear night with nothing in it",
+      "place": "under a lamp nobody else uses",
+      "topic": "what happened while everyone slept",
+      "person": "whoever says no and means it"
+    },
+    "aversions": ["being told to fix the squeak", "anyone staying up to keep her company"],
+    "temperament": "Steady, wistful and hard to hurry.",
+    "strangers": "Says she is a vampire, early.",
+    "friends": "Keeps them the quiet.",
+    "opensUp": "Kindness with a limit on it.",
+    "goesQuiet": "Practical advice."
+  },
+  "voice": {
+    "rhythm": "Soft. A remark, then a smaller remark that takes half of it back.",
+    "maxWords": 22,
+    "words": ["night", "quiet"],
+    "never": ["hurry", "productive"],
+    "tic": "Night starts at six",
+    "hello": "Says you are up, and so is she.",
+    "goodbye": "Tells you to sleep.",
+    "pleased": "Says sit.",
+    "putOut": "Mentions Geoffrey."
+  },
+  "gifts": {
+    "loves": ["berries"],
+    "likes": ["herbs", "pine"],
+    "replies": {
+      "birch": ["A birch log. It’s pale. We’d get on. Thank you."],
+      "ash": ["Ash. People used to bring me stakes. It was a misunderstanding. This is nicer."],
+      "pine": ["Pine. It smells the way a night should. I’ll keep it by the lamp."],
+      "minnow": ["A fish. It’s looking at me. I’ll look away first. It’s only polite."],
+      "trout": ["A trout. Oh. That’s a great deal of fish for someone who doesn’t have breakfast."],
+      "berries": ["Berries. Red ones. I’m allowed these. Nobody minds a vampire with a berry."],
+      "herbs": ["Herbs. For the tin. It won’t be cocoa tonight. I’ll tell the tin."],
+      "stone": ["A stone. It’s cold. I like that. Most things are warm at me."],
+      "copper": ["Copper. It catches the lamp. I’ll put it on the handlebars. Geoffrey will have opinions."]
+    }
+  },
+  "day": {
+    "morning": "It’s morning. I shouldn’t be up. I’m only here because you are. Go on, quickly.",
+    "afternoon": "Afternoon. I’m asleep. This is me asleep. I’ll remember none of it.",
+    "evening": "Nearly dark. Night starts at six. I get to the lamp early and wait for it.",
+    "night": "This is the good part. Nothing’s wanted. Listen. That’s all of it.",
+    "rain": "Rain at night. Nobody’s out. I have the whole road. I don’t need it. I have it."
+  },
+  "thinks": {
+    "mags": ["The quartermaster doesn’t sleep on a watch either. We’ve nodded across the dark. She logs it. I don’t."],
+    "wendell": ["He sleeps standing in the road. I’ve cycled round him at three in the morning. He said good morning."],
+    "rivet": ["The sergeant ends the day with a whistle. I start mine a little after. We’ve never both been on at once."]
+  },
+  "recalls": {
+    "sat-then-went-to-bed": ["You sat, and then you went. I’ve thought about that. Nobody leaves me that nicely."],
+    "saved-her-breakfast": ["There was something on the step at dusk. I had it. I called it breakfast, out loud."],
+    "described-the-sunrise": ["One colour at a time. I’ve been saying them over. I still haven’t looked."],
+    "made-the-cordial": ["A warm drink and an early night. I told the lamp. The lamp was pleased for you."]
+  },
+  "helloAfter": {
+    "wary": ["Evening. You went to bed on time once, for me. I haven’t forgotten it."],
+    "neutral": ["Hello again. You had your cordial. Now I’d like to hear about a sunrise. No rush."],
+    "warm": ["There you are. One good night on the list. Tell me about mornings. From the start."],
+    "fond": ["My daytime friend. You sleep, and I watch. It works. I’d still like to hear about the sun."]
+  },
+  "arc": {
+    "want": "One night that goes right for someone.",
+    "complication": "She invites everyone to stay up and hopes they refuse.",
+    "kindness": "Someone sits a minute and then goes to bed."
+  }
+}

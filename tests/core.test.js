@@ -128,7 +128,7 @@ test('createState has the contract shape and calm defaults', () => {
     expedition: null,
     board: { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null },
     people: {},
-    camplife: { gather: null, last: null, cooked: {} },
+    camplife: { gather: null, last: null, cooked: {}, places: {} },
   });
   assert.deepEqual(Object.keys(state).slice(9), ['firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story',
     'embers', 'xp', 'kindle', 'chronicle', 'road', 'party', 'expedition', 'board', 'people', 'camplife'], 'new keys come after plots, Phase 4’s after story, and Phase 5’s last');

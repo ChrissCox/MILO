@@ -116,10 +116,10 @@ export async function setupPhase4(env) {
   const fights = !problem?.combat && !problem?.party;
   if (!groundwork && !fights) return null;
 
-  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod, questMod, peopleMod, blossomMod, errandMod, actsMod, folkMod] = await Promise.all([
+  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod, questMod, peopleMod, blossomMod, errandMod, actsMod, folkMod, settlementMod, welcomeMod, sheetsMod, campsMod] = await Promise.all([
     load('../state4.js'), load('../embers.js'), load('../lifeskills.js'), load('../party.js'),
     load('./fight.js'), load('./expedition.js'), load('./combat-hud.js'), load('./frontier.js'),
-    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'), load('../quests.js'), load('../people.js'), load('../world/blossoms.js'), load('../errands.js'), load('../acts.js'), load('../world/folk.js'),
+    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'), load('../quests.js'), load('../people.js'), load('../world/blossoms.js'), load('../errands.js'), load('../acts.js'), load('../world/folk.js'), load('../world/settlement.js'), load('../welcome.js'), load('../sheets.js'), load('../world/camps.js'),
   ]);
 
   const bus = createBus();
@@ -340,7 +340,20 @@ export async function setupPhase4(env) {
   // The Last Bridge or the Tollkeeper, clicked: his riddles once the trail is solved, else a look.
   // ---- the folk of the hamlets near Milo: the world's set pieces ----
   let folkKey = '';
+  let folkWhen = '';
   let folkNow = [];
+  let hamletsNow = [];
+  let campsNow = []; // the camps beside lit lanterns near Milo (camps.js)
+  // A hamlet's other buildings (settlement.js), as the wilds laid them out round its tile.
+  function partsOf(hamlet) {
+    try {
+      const wilds = env.wilds?.();
+      if (!wilds || typeof wilds.objectsIn !== 'function' || !Number.isInteger(hamlet?.x) || !Number.isInteger(hamlet?.y)) return [];
+      return wilds.objectsIn(hamlet.x - 9, hamlet.y - 9, hamlet.x + 9, hamlet.y + 9).filter((o) => o.place === hamlet.id && typeof o.part === 'string');
+    } catch { return []; }
+  }
+  const weatherNow = () => { try { return skyMod?.skyAt ? skyMod.skyAt(env.clockNow(), { seed: env.getState()?.wilds?.seed || 'hushlands', sky: bundle.sky ?? null })?.weather?.kind ?? null : null; } catch { return null; } };
+  const welcomeOf = (hamlet) => { try { return welcomeMod?.welcomeAt ? welcomeMod.welcomeAt(env.getState(), hamlet, env.clockNow()) : 'plain'; } catch { return 'plain'; } };
   function nearFolk() {
     try {
       const words = bundle.people?.folk;
@@ -351,31 +364,82 @@ export async function setupPhase4(env) {
       const cx = Math.floor(tile.x / 32);
       const cy = Math.floor(tile.y / 32);
       const key = `${cx},${cy}`;
-      if (key === folkKey) return folkNow;
+      // The folk keep a day: who is out depends on the hour and the rain.
+      const part = sheetsMod?.partOfDay ? sheetsMod.partOfDay(env.clockNow()) : 'day';
+      const rain = weatherNow() === 'rain';
+      const saved = env.getState();
+      const lit = isRecord(saved?.wilds?.lanterns) ? saved.wilds.lanterns : {};
+      const when = `${part}|${rain}|${Object.keys(lit).length}|${JSON.stringify(saved?.camplife?.places ?? null)}|${Math.floor(env.clockNow() / 3600000)}`;
+      if (key === folkKey && when === folkWhen) return folkNow;
       for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) wilds.chunk?.(cx + dx, cy + dy);
-      const hamlets = wilds.entitiesIn({ x: (cx - 1) * 32, y: (cy - 1) * 32, w: 96, h: 96 }, { tier: 1, lit: [], opened: [], notes: [], glimmers: [], felled: [], day: 0 })
-        .filter((e) => (e.poiType ?? e.type) === 'hamlet');
+      const around = wilds.entitiesIn({ x: (cx - 1) * 32, y: (cy - 1) * 32, w: 96, h: 96 }, { tier: 1, lit: [], opened: [], notes: [], glimmers: [], felled: [], day: 0 });
+      const hamlets = around.filter((e) => (e.poiType ?? e.type) === 'hamlet');
       const walkable = env.walkable?.();
       // Folk stand beside the road, never on it: 16 and 20 are worldgen's road and bridge.
       const onRoad = (x, y) => { const t = wilds.terrainAt?.(x, y); return t === 16 || t === 20; };
       const free = (x, y) => (typeof walkable === 'function' ? walkable(x, y) === true && !onRoad(x, y) : false);
-      folkNow = hamlets.flatMap((h) => folkMod.folkFor(h, words, { free }));
+      hamletsNow = hamlets.map((h) => ({ id: h.id, x: h.x, y: h.y }));
+      folkNow = hamlets.flatMap((h) => folkMod.folkFor(h, words, { free, parts: partsOf(h), part, rain }).map((p) => ({ ...p, hamlet: { id: h.id, x: h.x, y: h.y } })));
+      // New places follow the light: a camp beside each lantern lit two days ago or more, a hamlet once Milo keeps coming by.
+      campsNow = [];
+      if (campsMod?.campFor && welcomeMod?.visitsTo) {
+        for (const l of around.filter((e) => e.kind === 'lantern' && lit[e.id])) {
+          const camp = campsMod.campFor(l, { litAt: lit[l.id], visits: welcomeMod.visitsTo(saved, campsMod.campId(l.id)), now: env.clockNow(), free: (x, y) => free(x, y) && !(x === l.x && y === l.y) });
+          if (!camp) continue;
+          campsNow.push(camp);
+          hamletsNow.push({ id: camp.id, x: camp.x, y: camp.y });
+          const under = new Set(camp.parts.flatMap((p) => { const t = []; for (let y = p.y; y < p.y + p.h; y += 1) for (let x = p.x; x < p.x + p.w; x += 1) t.push(`${x},${y}`); return t; }));
+          const open = (x, y) => free(x, y) && !under.has(`${x},${y}`) && !(x === l.x && y === l.y);
+          folkNow.push(...folkMod.folkFor({ id: camp.id, x: camp.x, y: camp.y }, words, { free: open, parts: camp.parts, part, rain, age: 'new', limit: camp.stage === 'camp' ? 2 : null })
+            .map((p) => ({ ...p, hamlet: { id: camp.id, x: camp.x, y: camp.y } })));
+        }
+      }
       folkKey = key;
+      folkWhen = when;
     } catch (error) { console.error('[MILO] the folk', error); }
     return folkNow;
   }
   function folkSays(id) {
     const p = folkNow.find((f) => f.id === id);
     if (!p) return false;
-    const line = folkMod.folkLine(p, Math.floor(env.clockNow() / 86400000));
+    const line = folkMod.folkLine(p, Math.floor(env.clockNow() / 86400000), welcomeOf(p.hamlet));
     if (line) env.queueBubble({ kind: 'note', title: `${p.name}, who ${p.title}`, lines: [line], duration: 9000 });
     return true;
+  }
+  // Milo is at a hamlet when he stands within a few tiles of its own tile: counted once a day.
+  function visitHamlets(step) {
+    try {
+      if (!welcomeMod?.visitPlace) return;
+      for (const h of hamletsNow) {
+        if (Math.max(Math.abs(step.x - h.x), Math.abs(step.y - h.y)) > welcomeMod.VISIT_REACH) continue;
+        const next = welcomeMod.visitPlace(env.getState(), h.id, env.clockNow());
+        if (next !== env.getState()) shell.set(next, { save: 600 });
+      }
+    } catch (error) { console.error('[MILO] a visit', error); }
+  }
+  // A bed at a hamlet: the company's Campfire, as at a lit lantern (once a real day away from home).
+  function restAtHamlet() {
+    try {
+      if (!party?.campfire) return { ok: false, lines: [] };
+      const r = party.campfire(env.getState(), env.clockNow(), { where: 'lantern' });
+      if (r.ok) { shell.set(r.state, { save: 300 }); return { ok: true, lines: ['Milo sleeps in the spare bed. The company’s ready again.'] }; }
+      return { ok: false, lines: [r.reason || 'Not just now.'] };
+    } catch (error) { console.error('[MILO] a rest', error); return { ok: false, lines: [] }; }
   }
 
   function landmarkClick(entity) {
     try {
       const mark = String(entity?.id || '').replace(/^landmark:/, '');
       if (/^folk-/.test(mark)) { folkSays(mark); return true; }
+      if (/^camp:/.test(mark)) {
+        const camp = campsNow.find((c) => mark.startsWith(`${c.id}#`));
+        if (camp) {
+          const words = campsMod.campWords(camp);
+          const more = [settlementMod?.partsLine && camp.stage === 'hamlet' ? settlementMod.partsLine(camp.parts.filter((p) => p.part !== 'home').concat(camp.parts.filter((p) => p.part === 'home').slice(1))) : '', welcomeMod?.welcomeLine ? welcomeMod.welcomeLine(welcomeOf(camp)) : ''].filter(Boolean);
+          env.queueBubble({ kind: 'note', title: words.title, lines: [...words.lines, ...more], duration: 9000 });
+        }
+        return true;
+      }
       if (entity?.landmark === 'npc' || /^landmark:npc-/.test(String(entity?.id || ''))) {
         const pid = String(entity.id).replace(/^landmark:npc-/, '');
         if (/^[a-z][a-z0-9-]{1,39}$/.test(pid)) { env.openPanel(`person:${pid}`); return true; }
@@ -411,7 +475,7 @@ export async function setupPhase4(env) {
       // The Last Bridge, the Tollkeeper, and the people standing out in the world (those not yet at camp).
       const standing = peopleMod?.standing ? peopleMod.standing(state, bundle) : [];
       const folk = nearFolk();
-      const landSig = `${joined}|${bridge ? 1 : 0}|${standing.map((p) => p.id).join(',')}|${folk.map((p) => p.id).join(',')}`;
+      const landSig = `${joined}|${bridge ? 1 : 0}|${standing.map((p) => p.id).join(',')}|${folk.map((p) => `${p.id}@${p.x},${p.y}`).join(',')}|${campsNow.map((c) => `${c.id}:${c.stage}:${c.parts.length}`).join(',')}`;
       if (force || landSig !== lastLandSig) {
         lastLandSig = landSig;
         lastJoined = joined;
@@ -419,6 +483,7 @@ export async function setupPhase4(env) {
           ...(bridge && trailMod?.bridgeLandmarks ? trailMod.bridgeLandmarks(bridge, { joined }) : []),
           ...standing.map((p) => ({ id: `landmark:npc-${p.id}`, kind: 'npc', x: p.x, y: p.y, label: p.name, look: { who: p.id } })),
           ...folk.map((p) => ({ id: `landmark:${p.id}`, kind: 'npc', x: p.x, y: p.y, label: `${p.name}, who ${p.title}`, look: { who: p.look.who } })),
+          ...campsNow.flatMap((c) => c.parts.map((p) => ({ id: `landmark:${c.id}#${p.id}`, kind: 'prop', sprite: p.kind, x: p.x, y: p.y, w: p.w, h: p.h, label: campsMod.campWords(c).title }))),
         ]);
       }
       // The Blossomfield: a flower for every quest finished.
@@ -576,7 +641,19 @@ export async function setupPhase4(env) {
     },
     statusLine: () => statusLines.get('kindle') || null,
     onChest,
+    // The named people who live inside the vale (Nan at her field, Hob at the tower), for the vale's Places list.
+    valePeople: () => {
+      try {
+        const inHeart = env.worldgen?.()?.inHeart;
+        if (typeof inHeart !== 'function' || !peopleMod?.standing) return [];
+        return peopleMod.standing(env.getState(), bundle).filter((p) => inHeart(p.x, p.y)).map((p) => ({ id: `landmark:npc-${p.id}`, title: p.name, note: p.title }));
+      } catch { return []; }
+    },
     hamletAge: (poi) => { try { return folkMod?.ageLine ? folkMod.ageLine(poi, bundle.people?.folk) : ''; } catch { return ''; } },
+    camps: () => campsNow.map((c) => ({ id: c.id, stage: c.stage, parts: c.parts.map((p) => p.part) })),
+    hamletWelcome: (poi) => { try { return welcomeMod?.welcomeLine ? welcomeMod.welcomeLine(welcomeOf(poi)) : ''; } catch { return ''; } },
+    restAtHamlet,
+    hamletParts: (poi) => { try { const parts = partsOf(poi); return parts.length && settlementMod?.partsLine ? settlementMod.partsLine(parts) : ''; } catch { return ''; } },
     actStatus: () => { try { return actsMod?.actStatus ? actsMod.actStatus(env.getState(), bundle.story ?? null) : null; } catch { return null; } },
     landmarkClick,
     isFieldBoss: fieldBoss,
@@ -617,6 +694,7 @@ export async function setupPhase4(env) {
         // A visit is Milo's own step (the followers' steps arrive here too).
         // A new chunk of the world may hold a hamlet, and its folk.
         if (step?.scene === 'world' && (step.who === 'milo' || !step.who) && `${Math.floor(step.x / 32)},${Math.floor(step.y / 32)}` !== folkKey) syncWorld();
+        if (step?.scene === 'world' && (step.who === 'milo' || !step.who)) visitHamlets(step);
         if (step?.scene === 'world' && (step.who === 'milo' || !step.who) && trailMod?.placeAt) {
           const place = trailMod.placeAt({ x: step.x, y: step.y }, { bridge: getBridge() }) || nearGate(step);
           if (place && place !== lastVisit) { lastVisit = place; trailEvent({ kind: 'visit', target: place }); errandHappened({ kind: 'visit', target: place }); }

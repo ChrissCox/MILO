@@ -111,6 +111,83 @@
     ],
     "yes": ["Very well. I’ll bring both spoons. One will be good company."],
     "full": ["Every bed is taken. I won’t sleep on a spoon. Send word when there is room."],
-    "role": "Tests every soup with the second spoon."
+    "role": "Tests every soup with the second spoon.",
+    "leaves": "A spoon in the pot. The first."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A soup that deserves the second spoon.",
+      "next": "A patent for the ladle, filed as a third spoon.",
+      "really": "To be taken seriously, once.",
+      "worry": "That the clerk was right."
+    },
+    "favourites": {
+      "food": "soup, hot",
+      "weather": "cold enough for soup",
+      "place": "any queue with a desk at the end",
+      "topic": "spoons",
+      "person": "the clerk, grudgingly"
+    },
+    "aversions": ["being told it is just a spoon", "forks"],
+    "temperament": "Certain, tidy and easily delighted.",
+    "strangers": "Shows them both spoons.",
+    "friends": "Saves them the second.",
+    "opensUp": "A real question about how a thing is made.",
+    "goesQuiet": "Praise with nothing behind it."
+  },
+  "voice": {
+    "rhythm": "A claim, then a smaller claim that settles it.",
+    "maxWords": 20,
+    "words": ["spoon", "second"],
+    "never": ["sorry", "maybe"],
+    "tic": "Also",
+    "hello": "Points out a spoon.",
+    "goodbye": "Says he would say it all again.",
+    "pleased": "Says you have understood.",
+    "putOut": "Calls it a very general claim."
+  },
+  "gifts": {
+    "loves": ["trout"],
+    "likes": ["minnow", "herbs"],
+    "replies": {
+      "birch": ["A log. You could carve a spoon from it. It would be a third. No."],
+      "ash": ["Ash. Spoon handles are ash. Both of mine are. Also, thank you."],
+      "pine": ["Pine. It makes the soup taste of pine. I tested it. Once."],
+      "minnow": ["A minnow. That’s a start on a soup."],
+      "trout": ["A trout. That’s a soup. That is the whole soup."],
+      "berries": ["Berries. A cold soup, then. The second spoon doesn’t mind cold."],
+      "herbs": ["Herbs. Every soup wants these. The spoon said so."],
+      "stone": ["A stone. There is a soup made with a stone. It’s mostly a story."],
+      "copper": ["Copper. Pots are copper. Spoons shouldn’t be. I tried."]
+    }
+  },
+  "day": {
+    "morning": "The College opens at nine. I’m here at eight. Also at seven.",
+    "afternoon": "The clerk goes to lunch now. I watch him go. He takes one spoon.",
+    "evening": "They’ve shut the gate. I’ll wait. A patent can arrive at any hour.",
+    "night": "I sleep sitting up. The spoons stay in the satchel. It’s safer for the soup.",
+    "rain": "Rain fills the first spoon. Then I use the second. You see why I invented it."
+  },
+  "thinks": {
+    "wendell": ["The man in the road. I asked which spoon was the middle one. He hasn’t answered."],
+    "gorrin": ["He offered me a cabbage. I asked for the second cabbage. He only had the one."],
+    "mags": ["She has two hundred first spoons in a crate. She told me. I had to sit down."]
+  },
+  "recalls": {
+    "stamped-also": ["“ALSO”. It’s still on the form. I looked this morning."],
+    "suggested-the-ladle": ["I’ve thought about the ladle. I’m still thinking. Don’t rush me."],
+    "promised-soup": ["You promised a stew. The spoon remembers. Also, so do I."],
+    "cooked-the-supper": ["The supper was tested. I’ve told the clerk. He wrote it down as soup."]
+  },
+  "helloAfter": {
+    "wary": ["The spoon has been tested. That’s on record. Good day."],
+    "neutral": ["Welcome back. The second spoon is a used spoon now. It carries itself differently."],
+    "warm": ["Ah. A friend. The spoon has had a soup. It wants to talk about a ladle."],
+    "fond": ["Just the person. The second spoon is proven. I’m drawing a third. Don’t tell the clerk."]
+  },
+  "arc": {
+    "want": "The second spoon used.",
+    "complication": "A clerk who asked, second to what.",
+    "kindness": "Someone asks how it is made."
   }
 }

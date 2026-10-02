@@ -213,7 +213,7 @@ const fallbackModel = {
       expedition: null,
       board: { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null },
       people: {},
-      camplife: { gather: null, last: null, cooked: {} },
+      camplife: { gather: null, last: null, cooked: {}, places: {} },
     };
   },
   normalizeState(input, at = Date.now()) {

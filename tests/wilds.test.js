@@ -26,9 +26,11 @@ const KNOWN_KINDS = new Set([
   'tree', 'tree.blossom', 'tree.birch', 'pine', 'pine.snow', 'bush', 'bush.berry', 'rock', 'rock.basalt', 'basalt.column', 'dice.stone', 'reeds',
   'crag', 'crag.snow', 'lantern.post', 'landmark.stone', 'statue', 'ruin', 'cave', 'chest', 'chest.mimic', 'note', 'hamlet', 'ore.node', 'herbs',
   'fishing.spot', 'boat',
+  // a hamlet's other buildings (settlement.js)
+  'cottage', 'cottage.slate', 'cottage.clay', 'cottage.new', 'cottage.moss', 'well', 'stall', 'tent', 'woodpile', 'lamp.post', 'barrel', 'crate',
 ]);
 const TREES = new Set(['tree', 'tree.blossom', 'tree.birch', 'pine', 'pine.snow']);
-const BLOCKING = new Set(['tree', 'tree.blossom', 'tree.birch', 'pine', 'pine.snow', 'rock', 'rock.basalt', 'basalt.column', 'dice.stone', 'crag', 'crag.snow', 'hamlet', 'ruin', 'statue']);
+const BLOCKING = new Set(['tree', 'tree.blossom', 'tree.birch', 'pine', 'pine.snow', 'rock', 'rock.basalt', 'basalt.column', 'dice.stone', 'crag', 'crag.snow', 'hamlet', 'ruin', 'statue', 'cottage', 'cottage.slate', 'cottage.clay', 'cottage.new', 'cottage.moss', 'well', 'stall', 'tent', 'woodpile', 'lamp.post', 'barrel', 'crate']);
 const NEVER_BLOCKING = new Set(['reeds', 'note', 'fishing.spot', 'herbs', 'boat']);
 
 // An area round the vale and out to several regions, generated once and shared by the tests.

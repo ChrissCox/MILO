@@ -6,6 +6,9 @@ import {
   personOf, personView, choose, meet, inviteToCamp, bedsFor, residentsOf, knownWords, allPeople,
 } from '../people.js';
 import { errandOf, errandView, startErrand, giveStep, finishErrand } from '../errands.js';
+import { opening, wantNow, giftView, give, giftsKnown, aboutView, about, GIFT_ITEMS } from '../sheets.js';
+import { skyAt } from '../sky.js';
+import { LEVELS } from '../people.js';
 import { registerLook } from '../world/sprites-party.js';
 import { FOLK_DYES } from '../world/folk.js';
 import { portraitCanvas } from './dialogue.js';
@@ -22,6 +25,10 @@ export const COPY = Object.freeze({
   camp: 'Come to camp',
   askCamp: 'Ask about the camp',
   journal: 'What I know',
+  give: 'Give something',
+  giveHint: 'Hand over something Milo gathered. A thing they like counts once a day.',
+  nothingToGive: 'Nothing to give.',
+  never: 'Never mind.',
   memories: 'They remember',
   nothing: 'Nothing yet.',
 });
@@ -36,6 +43,9 @@ export function journalHtml(view) {
   if (words.likes.length) rows.push(`<li data-known="likes"><strong>Warms to</strong> ${esc(words.likes.join(', '))}</li>`);
   if (words.dislikes.length) rows.push(`<li data-known="dislikes"><strong>Put off by</strong> ${esc(words.dislikes.join(', '))}</li>`);
   if (words.resists.length) rows.push(`<li data-known="resists"><strong>Unmoved by</strong> ${esc(words.resists.join(', '))}</li>`);
+  if (view.wants) rows.push(`<li data-known="wants"><strong>Wants</strong> ${esc(view.wants)}</li>`);
+  if (view.tastes?.loves.length) rows.push(`<li data-known="loves"><strong>Loves</strong> ${esc(view.tastes.loves.join(', '))}</li>`);
+  if (view.tastes?.likes.length) rows.push(`<li data-known="gift-likes"><strong>Likes</strong> ${esc(view.tastes.likes.join(', '))}</li>`);
   let html = `<section class="group person-journal" data-group="journal"><h3>${esc(COPY.journal)}</h3>`;
   html += rows.length ? `<ul class="person-known">${rows.join('')}</ul>` : `<p class="quiet-note">${esc(COPY.nothing)}</p>`;
   if (view.memories.length) {
@@ -69,7 +79,12 @@ export function buildPerson(view, ui = {}, errand = null) {
   html += `<header class="person-head">${portraitCanvas(lookOf(view.id), { label: view.name, size: 56 })}`
     + `<div class="person-who"><p class="person-title">${esc(view.title)}</p><span class="person-level" title="How they feel about you." data-level="${esc(view.level)}">${esc(view.levelWord)}</span></div></header>`;
   html += '<section class="group person-talk" data-group="talk">';
-  if (ui.offer && errand) {
+  if (ui.gifts) {
+    html += ui.gifts.items.length
+      ? `<ul class="person-options person-gifts" aria-label="Give">${ui.gifts.items.map((g) => `<li><button type="button" class="person-option" data-action="person-give" data-person="${esc(view.id)}" data-item="${esc(g.item)}" data-focus-key="person-give-${esc(g.item)}">${esc(g.name[0].toUpperCase() + g.name.slice(1))} <span class="qty">× ${esc(g.have)}</span></button></li>`).join('')}</ul>`
+      : `<p class="quiet-note">${esc(COPY.nothingToGive)}</p>`;
+    html += `<p class="person-actions"><button type="button" class="link-btn" data-action="person-go" data-person="${esc(view.id)}" data-focus-key="person-go">${esc(COPY.never)}</button></p>`;
+  } else if (ui.offer && errand) {
     html += lines(ui.offer.lines);
     html += `<p class="person-actions"><button type="button" class="px-btn primary" data-action="person-errand-accept" data-person="${esc(view.id)}" data-focus-key="person-errand-accept">${esc(errand.accept)}</button> `
       + `<button type="button" class="link-btn" data-action="person-errand-no" data-person="${esc(view.id)}" data-focus-key="person-errand-no">Not now.</button></p>`;
@@ -84,19 +99,22 @@ export function buildPerson(view, ui = {}, errand = null) {
     html += lines(view.greeting);
     html += `<p class="person-actions"><button type="button" class="px-btn primary" data-action="person-meet" data-person="${esc(view.id)}" data-focus-key="person-meet">${esc(COPY.go)}</button></p>`;
   } else if (view.topic) {
-    html += lines(view.greeting.slice(0, 1), 'person-line person-hello');
+    html += lines([view.opening || view.greeting[0]].filter(Boolean), 'person-line person-hello');
     html += lines(view.topic.say);
     html += `<ul class="person-options" aria-label="Your answer">${view.topic.options.map((o) => `<li><button type="button" class="person-option" data-action="person-pick" data-person="${esc(view.id)}" data-topic="${esc(view.topic.id)}" data-index="${o.index}" data-approach="${esc(o.approach)}" data-focus-key="person-pick-${o.index}">`
       + `${esc(o.text)}</button></li>`).join('')}</ul>`;
   } else {
-    html += lines(view.greeting.slice(0, 1), 'person-line person-hello');
+    html += lines([view.opening || view.greeting[0]].filter(Boolean), 'person-line person-hello');
     html += lines(view.tired || view.finished);
   }
   html += '</section>';
-  const quiet = view.met && !ui.reply && !ui.camp && !ui.offer;
+  const quiet = view.met && !ui.reply && !ui.camp && !ui.offer && !ui.gifts;
   if (quiet && errand?.state === 'offer') html += `<p class="person-actions"><button type="button" class="person-option" data-action="person-errand-ask" data-person="${esc(view.id)}" data-focus-key="person-errand-ask">${esc(errand.ask)}</button></p>`;
   if (quiet && (errand?.state === 'doing' || errand?.state === 'ready')) html += errandHtml(view, errand);
   if (quiet) {
+    html += `<p class="person-actions person-more"><button type="button" class="link-btn" data-action="person-gifts" data-person="${esc(view.id)}" data-focus-key="person-gifts" title="${esc(COPY.giveHint)}">${esc(COPY.give)}</button>`
+      + (view.about || []).map((a) => ` <button type="button" class="link-btn" data-action="person-about" data-person="${esc(view.id)}" data-who="${esc(a.id)}" data-focus-key="person-about-${esc(a.id)}">About ${esc(a.name)}</button>`).join('')
+      + '</p>';
     if (view.camp.state === 'in') html += '<p class="plot-note person-camp" data-note="camp">They live at your camp.</p>';
     else if (view.camp.state === 'ask' || view.camp.state === 'full') html += `<p class="person-actions person-camp"><button type="button" class="px-btn primary" data-action="person-camp" data-person="${esc(view.id)}" data-focus-key="person-camp">${esc(COPY.camp)}</button></p>`;
     else html += `<p class="person-actions person-camp"><button type="button" class="link-btn" data-action="person-camp" data-person="${esc(view.id)}" data-focus-key="person-camp">${esc(COPY.askCamp)}</button></p>`;
@@ -119,7 +137,21 @@ export function mount(shell) {
     const idOf = (panelId) => (typeof panelId === 'string' && panelId.startsWith(PREFIX) && NPC_ID.test(panelId.slice(PREFIX.length)) ? panelId.slice(PREFIX.length) : null);
     const person = (pid) => (pid ? personOf(content(), pid) : null);
     const beds = () => bedsFor(shell.state?.hearth?.tier);
-    const view = (pid) => { const p = person(pid); return p ? personView(shell.state, p, shell.now(), { beds: beds() }) : null; };
+    const weather = () => { try { return skyAt(shell.now(), { seed: shell.state?.wilds?.seed || 'hushlands', sky: content()?.sky ?? null })?.weather?.kind ?? null; } catch { return null; } };
+    const view = (pid) => {
+      const p = person(pid);
+      if (!p) return null;
+      const v = personView(shell.state, p, shell.now(), { beds: beds() });
+      // The sheet's side (sheets.js): what they say first today, what they want (once they've warmed), their tastes, their neighbours.
+      const warm = LEVELS.indexOf(v.level) >= LEVELS.indexOf('warm');
+      return {
+        ...v,
+        opening: v.met ? opening(p, shell.state, shell.now(), { hello: v.greeting[0] || '', weather: weather() }) : '',
+        wants: warm ? wantNow(shell.state, p) : '',
+        tastes: giftsKnown(shell.state, p),
+        about: warm ? aboutView(shell.state, content(), p) : [],
+      };
+    };
     const refresh = (focus) => shell.refreshPanel?.({ focus });
     const say = (text) => shell.log?.({ tab: 'world', text, at: shell.now(), detail: null, action: null });
     // The errand as the panel shows it: where it stands, with the person's own words for asking and finishing.
@@ -157,6 +189,25 @@ export function mount(shell) {
             break;
           }
           case 'person-next': ui.set(pid, {}); refresh(null); break;
+          case 'person-gifts': ui.set(pid, { gifts: { items: giftView(shell.state, p) } }); refresh(null); break;
+          case 'person-give': {
+            const item = button.dataset.item;
+            const r = GIFT_ITEMS.includes(item) ? give(shell.state, p, item, now) : { ok: false };
+            if (!r.ok) { ui.set(pid, {}); refresh(null); break; }
+            const notes = [...r.notes];
+            if (r.levelled) notes.push({ kind: 'levelled', text: r.level === 'warm' ? `${first(p)} warms to you.` : `${first(p)} is fond of you now.` });
+            ui.set(pid, { reply: { lines: r.lines, notes } });
+            for (const n of notes) say(n.text);
+            shell.set(r.state, { save: 300 });
+            refresh('person-next');
+            break;
+          }
+          case 'person-about': {
+            const said = about(p, String(button.dataset.who || ''));
+            if (said.length) ui.set(pid, { camp: { lines: said } });
+            refresh('person-go');
+            break;
+          }
           case 'person-go': ui.set(pid, {}); refresh(null); break;
           case 'person-camp': {
             const r = inviteToCamp(shell.state, p, now, { beds: beds() });

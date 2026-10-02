@@ -1,0 +1,227 @@
+{
+  "id": "nell",
+  "name": "Nell Marrow",
+  "title": "novice of the Quiet Order",
+  "after": "mistmere-wakes",
+  "where": {
+    "x": 105,
+    "y": 16
+  },
+  "why": "On the road above Mistmere Harbor, between the chapel and the vale. Sister Mara sent her to teach the lantern-bearer to rest, and she has not sat down since she set out.",
+  "dye": {
+    "m": "e",
+    "b": "v",
+    "u": "c",
+    "U": "C",
+    "Y": "C",
+    "r": "w",
+    "R": "W",
+    "Q": "W"
+  },
+  "threshold": 4,
+  "likes": {
+    "kind": 2,
+    "favour": 1
+  },
+  "dislikes": ["truth"],
+  "resists": ["craft"],
+  "examine": ["Sister Nell Marrow is a Tidekin novice with a small bell and a flask. She is standing very purposefully.", "She has a list headed REST. Every item on it is a task.", "There is a perfectly good rock beside her. She has dusted it. She has not sat on it."],
+  "meet": ["Hello. You look tired. Sit down. No, not there, I’ve only just dusted it. Sit anyway. Have you had water?", "Sister Nell. Quiet Order. I’m here to help you rest. I’ve a schedule for it."],
+  "hello": {
+    "wary": ["You haven’t rested. I can tell. I haven’t either, but I’m supposed to be the one asking."],
+    "neutral": ["Hello again. Water first. Then talk. I’ll hold the flask. No, you hold it."],
+    "warm": ["Oh good, it’s you. I’ve been resting. I did four minutes. I timed it."],
+    "fond": ["There you are. Sit with me. I’m going to try sitting. Don’t watch. All right, watch."]
+  },
+  "tired": ["That’s enough. I’m told I mustn’t tire people out with resting. Come back tomorrow."],
+  "finished": ["I’ve nothing left on the list. I wrote a new list. It’s blank. I’m very proud of it."],
+  "topics": [
+    {
+      "id": "bell",
+      "say": ["This bell is for resting. One ring, a minute into a rest. You stand up, you drink something, you look at something far away. I ring it for everybody. I’ve never once heard it myself. I’m always busy ringing."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "I’ll ring it for you.",
+          "reply": ["Would you? Oh. I don’t know what I do when it rings. I’ll stand. I’m already standing. I’ll stand differently."],
+          "remember": "rang-it-for-her"
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll carry the flask.",
+          "reply": ["Thank you. Take a sip first. That’s the rule. I made the rule just now."]
+        },
+        {
+          "approach": "truth",
+          "text": "You need it more than I do.",
+          "reply": ["That’s not in the schedule."]
+        },
+        {
+          "approach": "craft",
+          "text": "How is a bell like that cast?",
+          "reply": ["I don’t know. I only know when to ring it. That’s all they’ve let me learn."]
+        }
+      ]
+    },
+    {
+      "id": "pell",
+      "needs": 1,
+      "say": ["My many-times-great-aunt was Sister Pell of the Old Company. She could sit still for a whole tide. I can manage until I think of something."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "Until you think of something is a start.",
+          "reply": ["It’s about nine seconds. But they’re a good nine seconds. Thank you."],
+          "remember": "nine-good-seconds"
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll sit with you and we’ll both try.",
+          "reply": ["Yes. You go first. I’ll watch how it’s done. Water first."]
+        },
+        {
+          "approach": "joke",
+          "text": "What do you think of?",
+          "reply": ["Chores. In order. Then out of order, to be thorough."]
+        }
+      ]
+    },
+    {
+      "id": "tide",
+      "needs": 3,
+      "say": ["Tidekin are supposed to feel the tide in their knees. It tells you when to stop. I feel it. I just carry on until the next one."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "Then stop at this one. I’ll stop too.",
+          "reply": ["Now? All right. Now. Oh. It’s very quiet when you stop. Is it always there?"],
+          "remember": "stopped-together"
+        },
+        {
+          "approach": "favour",
+          "text": "Tell me when it turns and I’ll rest.",
+          "reply": ["It’s turning. Go on. Sit. I’ll time you. No. I’ll just stand here and not time you."]
+        },
+        {
+          "approach": "truth",
+          "text": "You’re not very good at this.",
+          "reply": ["I’m aware. The Order is aware. They sent me anyway. I think it was a joke."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "something-warm",
+    "title": "Something warm",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["I’m supposed to rest too. Sister Mara wrote it at the bottom of my orders. Underlined. I’ve been treating it as a suggestion.", "Make a berry cordial at your fire. Sit while it warms. That’s the errand. The sitting. The cordial’s only so you’ve something to hold."],
+    "accept": "I’ll sit and make one.",
+    "steps": [
+      {
+        "kind": "cook",
+        "target": "cordial",
+        "text": "Make a berry cordial at the fire."
+      }
+    ],
+    "waiting": ["No cordial yet. Don’t rush it. I mean that. I’m practising saying it."],
+    "report": "I made it, and I sat.",
+    "done": ["You sat. And nothing went wrong while you did. I’ll tell Sister Mara. She’ll say she told me.", "Take the little bell. Not the real one. This one’s for you. It doesn’t ring. That’s so you can’t be busy with it."],
+    "remember": "sat-while-it-warmed",
+    "approval": 2,
+    "keepsake": {
+      "name": "A bell with no clapper",
+      "text": "It doesn’t ring. Nell says that is so you can’t be busy with it."
+    }
+  },
+  "memories": {
+    "rang-it-for-her": "You offered to ring the bell for her. She had never heard it. She stood differently.",
+    "nine-good-seconds": "You said that sitting still until she thinks of something is a start. It is about nine seconds.",
+    "stopped-together": "You stopped when the tide turned, and she stopped too. She asked if the quiet is always there.",
+    "sat-while-it-warmed": "You sat while a cordial warmed, and nothing went wrong. She is telling Sister Mara."
+  },
+  "camp": {
+    "early": ["Your camp. I’d reorganise it. I shouldn’t. Let me learn to sit near you first."],
+    "ask": ["A camp. With a fire to sit by. I’m told that’s what they’re for.", "I’d ring one soft bell, a minute into every rest. Stand, drink, look at something far away. I wouldn’t ring it twice. I’d want to."],
+    "yes": ["Then I’ll come. Water first. I’ll take the good stump. I won’t sit on it at first. I’ll work up to it."],
+    "full": ["No bed. That’s all right. I wasn’t going to sleep anyway. I’ll wait here and not sit on this rock."],
+    "role": "Rings one soft bell a minute into each rest.",
+    "leaves": "A dusted rock nobody has sat on."
+  },
+  "sheet": {
+    "wants": {
+      "now": "To see somebody sit down while something warms.",
+      "next": "To sit on the rock herself.",
+      "really": "To hear the bell rung for her, once.",
+      "worry": "That she will be the only Marrow who never learned to stop."
+    },
+    "favourites": {
+      "food": "water, then anything",
+      "weather": "a slack tide",
+      "place": "the edge of a seat",
+      "topic": "whether you have rested",
+      "person": "anyone who sits when asked"
+    },
+    "aversions": ["being told she needs rest more than you do", "an idle hand, especially her own"],
+    "temperament": "Earnest, kind and constitutionally unable to sit.",
+    "strangers": "Asks if they have had water.",
+    "friends": "Tries sitting, in front of them.",
+    "opensUp": "Someone doing the resting with her.",
+    "goesQuiet": "Being told the plain truth about herself."
+  },
+  "voice": {
+    "rhythm": "Quick starts and stops. An instruction, then the same instruction turned on herself.",
+    "maxWords": 22,
+    "words": ["rest", "sit"],
+    "never": ["relax", "lazy"],
+    "tic": "Water first",
+    "hello": "Says you look tired.",
+    "goodbye": "Says she mustn’t tire people with resting.",
+    "pleased": "Reports how long she rested.",
+    "putOut": "Says it is not in the schedule."
+  },
+  "gifts": {
+    "loves": ["herbs"],
+    "likes": ["berries", "minnow"],
+    "replies": {
+      "birch": ["A log. For a fire. To sit by. I see what you’re doing. Thank you."],
+      "ash": ["Ash. It’s very straight. I’ll lean on it. That’s nearly resting."],
+      "pine": ["Pine. Smell that. I stopped to smell it. Did you see? That counted."],
+      "minnow": ["A minnow. A small supper is a short supper. I can sit through a short one."],
+      "trout": ["A trout. That’s a long supper. I’ll have to sit for all of it. I’ll try."],
+      "berries": ["Berries. You eat these one at a time. That’s a rest with a number on it."],
+      "herbs": ["Herbs. Tidewort. This is what Aunt Pell steeped. You sit while it steeps. That’s the whole method."],
+      "stone": ["A stone. To sit on. I’ve one already. I haven’t used it. Now I’ve two."],
+      "copper": ["Copper. It’s for the bell, isn’t it. No. It’s only copper. I’m resting from thinking about the bell."]
+    }
+  },
+  "day": {
+    "morning": "Morning. I’ve done the chores. There weren’t any. I found some.",
+    "afternoon": "Afternoon. This is when people flag. Have you flagged? Water first.",
+    "evening": "Evening. The tide’s going out. I can feel it. I’m ignoring it politely.",
+    "night": "I’m not asleep. I’m lying down with my eyes shut and a list. It’s nearly the same.",
+    "rain": "Rain. You can’t do much in rain. That’s a rest. Somebody arranged that."
+  },
+  "thinks": {
+    "lumi": ["The night lady tells people to go to bed. I tell them to sit down. Neither of us does it. We’ve agreed not to mention that."],
+    "rivet": ["The sergeant blows a whistle at six and everybody stops. I want a whistle. I’d never put it down."],
+    "mae": ["The detective stands under a lamp all night. I offered her the rock. She said she’d noticed I hadn’t used it."]
+  },
+  "recalls": {
+    "rang-it-for-her": ["I keep thinking about you ringing it. I’ve been standing differently on purpose."],
+    "nine-good-seconds": ["I did eleven seconds yesterday. I’d have said, but I was resting."],
+    "stopped-together": ["It was quiet again at the turn. I stopped. On my own. Nobody saw. I’m telling you."],
+    "sat-while-it-warmed": ["You sat and nothing went wrong. I’ve written that on the list. It’s the only thing on it."]
+  },
+  "helloAfter": {
+    "wary": ["You sat once, while a cordial warmed. I saw. I mean I heard. I don’t forget a sit."],
+    "neutral": ["Hello again. You’ve rested. Now it’s me. I’ve picked the rock. I’m circling it."],
+    "warm": ["Oh good, it’s you. I’m going to sit on the rock this week. Wednesday. I’ve scheduled it."],
+    "fond": ["There you are. You can rest. So I might. The rock’s right there. I’ve dusted it twice."]
+  },
+  "arc": {
+    "want": "To see one person rest.",
+    "complication": "She rings the bell for everyone and has never heard it.",
+    "kindness": "Someone stops, so that she stops too."
+  }
+}

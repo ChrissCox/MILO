@@ -1,0 +1,234 @@
+{
+  "id": "mae",
+  "name": "Mae Holloway",
+  "title": "detective",
+  "after": {
+    "genre": "noir"
+  },
+  "where": {
+    "x": 109,
+    "y": 12
+  },
+  "why": "Under the lantern on the Mistmere road, where the harbor fog starts. A question nobody answered came through here, and she is waiting for it to come back.",
+  "dye": {
+    "m": "m",
+    "b": "B",
+    "u": "b",
+    "U": "B",
+    "Y": "m",
+    "r": "R",
+    "R": "Q",
+    "Q": "Q"
+  },
+  "threshold": 4,
+  "likes": {
+    "truth": 2,
+    "craft": 1
+  },
+  "dislikes": ["kind"],
+  "resists": ["joke"],
+  "examine": ["Mae Holloway wears a long coat and a red scarf, and is quietly delighted that it might rain.", "She has a notebook open to a page headed THE MISSING REASON. The rest of the page is clean.", "She is reading the fog. She seems to be near the end."],
+  "meet": ["You came up the road at a walk, you looked at the lantern before you looked at me, and you’ve got something in your satchel you forgot about.", "Mae Holloway. I’m a detective. That was one clue each. I need three."],
+  "hello": {
+    "wary": ["You again. Fine. Stand where I can see what you’re not saying."],
+    "neutral": ["Back. Good. You walk the same way every time. It’s a help."],
+    "warm": ["There’s my witness. The reliable one. I’ve only got the one."],
+    "fond": ["Partner. I kept the dry side of the lantern for you. It’s this side. I checked."]
+  },
+  "tired": ["That’s all I’ve got today. I get tired around the third question. So does everybody. Tomorrow."],
+  "finished": ["Case closed. All of them. I’m standing here out of habit. It’s a good lantern."],
+  "topics": [
+    {
+      "id": "case",
+      "say": ["Somebody asked a question and never got an answer. That’s the whole case. The question’s still out there. It’s been waiting longer than I have."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "It might have been me who didn’t answer.",
+          "reply": ["I know. I wasn’t going to say. You said it. That’s worth more than the answer."],
+          "remember": "owned-up"
+        },
+        {
+          "approach": "craft",
+          "text": "Where do you start?",
+          "reply": ["With who was asked. Then with why they went quiet. It’s nearly always a Tuesday."]
+        },
+        {
+          "approach": "joke",
+          "text": "Did the butler do it?",
+          "reply": ["There’s no butler."]
+        },
+        {
+          "approach": "kind",
+          "text": "You’ll crack it.",
+          "reply": ["That’s what clients say. Then they don’t pay."]
+        }
+      ]
+    },
+    {
+      "id": "rain",
+      "needs": 1,
+      "say": ["Where I come from it rains in every scene. Here it rains when it wants. I’ve had to learn to detect in the dry. It’s harder. Nobody looks guilty."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "Most people here aren’t guilty.",
+          "reply": ["I’d worked that out. It took a week. I kept waiting for the turn."],
+          "remember": "nobody-is-guilty"
+        },
+        {
+          "approach": "craft",
+          "text": "What does rain tell you?",
+          "reply": ["Who hurried. Who stood still. Who’d been waiting. It’s all in the shoes."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll tell you when it’s going to rain.",
+          "reply": ["I’ll know. My knee is a better source than you. No offence to you or the knee."]
+        }
+      ]
+    },
+    {
+      "id": "reason",
+      "needs": 3,
+      "say": ["When a thing fails and nobody knows why, there’s a reason somewhere. Somebody put it down and forgot. I find where."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "Sometimes I don’t want to know why.",
+          "reply": ["No. Nobody does. That’s usually where it is."],
+          "remember": "did-not-want-to-know"
+        },
+        {
+          "approach": "craft",
+          "text": "Three clues. Is that always enough?",
+          "reply": ["Three clues and I’ll name it. Two and I’ll guess. One and I’ll buy you a coffee and wait."]
+        },
+        {
+          "approach": "kind",
+          "text": "It’s good that somebody looks.",
+          "reply": ["It’s a living. Don’t make it sound noble. I’ve a coat to keep up."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "the-other-road",
+    "title": "The other road",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["The question came in by one road and left by another. I can only watch this one. I’m one detective.", "Stand at the Last Bridge. Then go out by your west gate. Tell me what you didn’t see. That’s the half I need."],
+    "accept": "I’ll look.",
+    "steps": [
+      {
+        "kind": "visit",
+        "target": "landmark:last-bridge",
+        "text": "Stand at the Last Bridge."
+      },
+      {
+        "kind": "visit",
+        "target": "gate:w",
+        "text": "Go out by the west gate."
+      }
+    ],
+    "waiting": ["You haven’t been to both. Your boots say one road. I need two."],
+    "report": "I’ve been to both.",
+    "done": ["Nothing at the bridge and nothing at the gate. Good. That’s two places it isn’t. Three clues. It’s on your own board.", "Take the spare notebook. The first page is torn out. I solved that one."],
+    "remember": "walked-the-other-road",
+    "approval": 2,
+    "keepsake": {
+      "name": "A spare notebook",
+      "text": "The first page is torn out. Mae says she solved that one."
+    }
+  },
+  "memories": {
+    "owned-up": "You said the unanswered question might have been yours. She had known, and had not been going to say.",
+    "nobody-is-guilty": "You told her most people here are not guilty of anything. She had been waiting a week for the turn.",
+    "did-not-want-to-know": "You admitted that sometimes you do not want to know why. She said that is usually where the reason is.",
+    "walked-the-other-road": "You watched the other road for her. Nothing at the bridge, nothing at the gate. That made three clues."
+  },
+  "camp": {
+    "early": ["A camp. I don’t move in with a client. Tell me one true thing and I’ll think about calling you something else."],
+    "ask": ["A camp. A fire, a board, people who all say they were asleep.", "I’d keep the open questions. Each with what’s known. I wouldn’t accuse anybody. I’d just leave the file where you’d see it."],
+    "yes": ["Then I’m on retainer. Don’t pay me. It spoils it."],
+    "full": ["No bed. I’ve slept in doorways with better manners. Send word. I’ll be under the lantern."],
+    "role": "Keeps a board of open questions, each with what is known.",
+    "leaves": "A notebook open to a clean page."
+  },
+  "sheet": {
+    "wants": {
+      "now": "Somebody to watch the other road.",
+      "next": "One case that ends with the client being pleased.",
+      "really": "To be told the truth before she has to find it.",
+      "worry": "That there is no turn, and everyone is exactly who they say."
+    },
+    "favourites": {
+      "food": "coffee, cold by the time she drinks it",
+      "weather": "rain",
+      "place": "under a lamp, on the dry side",
+      "topic": "what nobody mentioned",
+      "person": "a witness who walks the same way twice"
+    },
+    "aversions": ["being reassured", "jokes about butlers"],
+    "temperament": "Careful, wry and quietly pleased by bad weather.",
+    "strangers": "Tells them three things about themselves.",
+    "friends": "Keeps them the dry side of the lantern.",
+    "opensUp": "A plain admission.",
+    "goesQuiet": "Being cheered on."
+  },
+  "voice": {
+    "rhythm": "Long observing sentences, then a flat short one.",
+    "maxWords": 30,
+    "words": ["clue", "question"],
+    "never": ["obviously", "elementary"],
+    "tic": "Three clues",
+    "hello": "Notices how you walked up.",
+    "goodbye": "Says she tires at the third question.",
+    "pleased": "Calls you a witness, then a partner.",
+    "putOut": "Says clients say that."
+  },
+  "gifts": {
+    "loves": ["minnow"],
+    "likes": ["pine", "stone"],
+    "replies": {
+      "birch": ["A birch log. Cut this morning, carried on your left side. You favour that shoulder."],
+      "ash": ["Ash. Straight grain. Somebody chose this one. That was you. Case closed."],
+      "pine": ["Pine. Burns fast, smokes a lot. Good for a stakeout. Bad for hiding one."],
+      "minnow": ["A minnow. Now that’s a red herring I can use. I’ve been short of them here."],
+      "trout": ["A trout. It’s too big to be a clue. It’s evidence. I’ll need a bag."],
+      "berries": ["Berries. There were more of these when you set out. I’m not asking."],
+      "herbs": ["Herbs. Picked near water. You don’t need to tell me which water. I’m enjoying this."],
+      "stone": ["A stone. Flat, dry underneath. It’s been somewhere out of the rain. Lucky stone."],
+      "copper": ["Copper. Somebody’s going to say it was already missing. Write down that it wasn’t."]
+    }
+  },
+  "day": {
+    "morning": "Morning fog. It’s the harbor’s. It comes up the road and doesn’t say why.",
+    "afternoon": "Afternoon. The light’s too honest for my work. I wait it out.",
+    "evening": "Lamp’s lit. This is when a detective looks right. I’ve nothing on. I look right anyway.",
+    "night": "I don’t sleep on a case. I haven’t got a case. I’m resting my eyes at it.",
+    "rain": "Rain. There it is. Don’t talk. No, go on. I can do both."
+  },
+  "thinks": {
+    "dusty": ["The sheriff has an empty board and a missing horse. I offered to find the horse. Dusty said it’s happier lost."],
+    "gorrin": ["The cabbage man loses a cart a week. He’s never asked me who took it. He knows it was the hill."],
+    "juno": ["The fixer reads one line and names the fault. I need three clues. I haven’t told her that bothers me."]
+  },
+  "recalls": {
+    "owned-up": ["You owned up that first day. I’ve had confessions. I hadn’t had a volunteer."],
+    "nobody-is-guilty": ["Still nobody guilty. I’ve checked twice. I’m getting used to it."],
+    "did-not-want-to-know": ["You said you didn’t want to know why. I looked there. You were right about where it was."],
+    "walked-the-other-road": ["Bridge and gate, both empty. Three clues. I’ve had cases with less and a body."]
+  },
+  "helloAfter": {
+    "wary": ["You again. You walked a road for me once. I don’t forget who does legwork."],
+    "neutral": ["Back. Good. The question turned up. It was on a board the whole time. They usually are."],
+    "warm": ["There’s my witness. Case closed. I’d like the next one to end with somebody pleased."],
+    "fond": ["Partner. One solved. Nobody hurt, nobody guilty. I don’t know what to charge for that."]
+  },
+  "arc": {
+    "want": "The other road watched.",
+    "complication": "A detective in a place where nobody is guilty of anything.",
+    "kindness": "Someone tells her the truth before she has to find it."
+  }
+}

@@ -1677,6 +1677,70 @@ const HAMLET = grid(`
   ..oooooooooooooooooooooooooooooooooooo..
 `);
 
+// The rest of a settlement (settlement.js lays it out round the hamlet's own home).
+// A cottage is the hamlet home one bay narrower: the door and one window. 30 x 34.
+const cutColumns = (rows, from, count) => rows.map((row) => row.slice(0, from) + row.slice(from + count));
+const COTTAGE = [...cutColumns(HAMLET.slice(0, 17), 12, 10), ...cutColumns(HAMLET.slice(17), 26, 10)];
+// Its roof in slate and in clay tile, and in fresh shingle for a place that has only just gone up.
+const roofed = (map) => recolor(COTTAGE, map, { top: 3, bottom: 17 });
+const COTTAGE_SLATE = roofed({ u: 'e', U: 'E', Y: 'N' });
+const COTTAGE_CLAY = roofed({ u: 'r', U: 'R', Y: 'Q' });
+const COTTAGE_NEW = roofed({ u: 'n', U: 'b', Y: 'B' });
+// and in mossy shingle, for the wood-villages of the Whisperwood
+const COTTAGE_MOSS = roofed({ u: 'q', U: 'l', Y: 'L' });
+
+// A well: a clay-tiled cap on two posts, a bucket on its rope and a ring of stone. 16 x 23.
+const WELL = grid(`
+  ....oooooooo....
+  ...oRRRRRRRRo...
+  ..oRrRRrRRrRRo..
+  .oRRrRRrRRrRRRo.
+  .oQQQQQQQQQQQQo.
+  ..oooooooooooo..
+  ...om......mo...
+  ...om..nn..mo...
+  ...om..nn..mo...
+  ...om.oooo.mo...
+  ...om.obBo.mo...
+  ...om.obBo.mo...
+  ...om..oo..mo...
+  ..oooooooooooo..
+  .osSssSssSssSso.
+  .osozzzzzzzzoso.
+  .oSozWWwWWwzoSo.
+  .osoozzzzzzooso.
+  .oSsoooooooosSo.
+  .osSssSssSssSso.
+  .oSssSssSssSsSo.
+  .oSzSSzSSzSSzSo.
+  ..oooooooooooo..
+`);
+
+// A market stall: a striped awning over a counter with a cabbage, a loaf, a jar and a flower. 30 x 21.
+const STALL = grid(`
+  ..oooooooooooooooooooooooooo..
+  .orrccrrccrrccrrccrrccrrccrro.
+  orrrccrrccrrccrrccrrccrrccrrro
+  oRRRCCRRCCRRCCRRCCRRCCRRCCRRRo
+  oooooooooooooooooooooooooooooo
+  .om........................mo.
+  .om........................mo.
+  .om........................mo.
+  .om..oo....oooo.....oo.....mo.
+  .om.oqlo..oUUUUo...oeeo..o.mo.
+  .om.olLo..oUYYUo...oeEo.okomo.
+  .oooooooooooooooooooooooooooo.
+  .onnnnnnnnnnnnnnnnnnnnnnnnnno.
+  .obbbbbbbbbbbbbbbbbbbbbbbbbbo.
+  .oooooooooooooooooooooooooooo.
+  .oBbbBbbBbbBbbBbbBbbBbbBbbBbo.
+  .oBbbBbbBbbBbbBbbBbbBbbBbbBbo.
+  .oBbbBbbBbbBbbBbbBbbBbbBbbBbo.
+  .oBbbBbbBbbBbbBbbBbbBbbBbbBbo.
+  .oBbbBbbBbbBbbBbbBbbBbbBbbBbo.
+  .oooooooooooooooooooooooooooo.
+`);
+
 // Tamsin Wick, waving, on a plinth. Her left hand was never carved (she insisted), and the carver's
 // chisel still lies on the plinth. 20 x 32.
 const STATUE = grid(`
@@ -2440,6 +2504,13 @@ export const SPRITES = {
   'chest.mimic': [MIMIC_CLOSED, MIMIC_AWAKE],
   note: [NOTE],
   hamlet: [HAMLET],
+  cottage: [COTTAGE],
+  'cottage.slate': [COTTAGE_SLATE],
+  'cottage.clay': [COTTAGE_CLAY],
+  'cottage.new': [COTTAGE_NEW],
+  'cottage.moss': [COTTAGE_MOSS],
+  well: [WELL],
+  stall: [STALL],
   statue: [STATUE],
   'landmark.stone': [LANDMARK_STONE],
   'ore.node': [ORE_NODE],

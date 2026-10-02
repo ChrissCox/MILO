@@ -167,11 +167,12 @@ export function createWildsScene({
   // ---------- walking ----------
 
   let riftTiles = new Set();
+  let propTiles = new Set(); // the tiles under landmark props (a camp's tent and fire): Milo walks round them
   const ringBlocked = (x, y) => wilds.ringBlocked(x, y, wildState.tier);
   const navStatic = createNav({ valeWalkable: mapIsWalkable, worldgen, wildBlocked: wilds.blocked, extraBlocked: ringBlocked });
   const navMilo = createNav({
     valeWalkable: mapIsWalkable, worldgen, wildBlocked: wilds.blocked,
-    extraBlocked: (x, y) => ringBlocked(x, y) || riftTiles.has(`${x},${y}`),
+    extraBlocked: (x, y) => ringBlocked(x, y) || riftTiles.has(`${x},${y}`) || propTiles.has(`${x},${y}`),
   });
 
   /** A tile Milo can walk to for something at (x, y): itself when he can stand there, else beside it. */
@@ -731,12 +732,22 @@ export function createWildsScene({
   let landmarks = [];
   function setLandmarks(list) {
     landmarks = [];
+    propTiles = new Set();
     for (const l of Array.isArray(list) ? list : []) {
       if (!l || typeof l.id !== 'string' || !Number.isInteger(l.x) || !Number.isInteger(l.y) || landmarks.some((o) => o.id === l.id)) continue;
-      const mark = { id: l.id, kind: l.kind === 'tollkeeper' ? 'tollkeeper' : l.kind === 'npc' ? 'npc' : 'last-bridge', x: l.x, y: l.y, dir: l.dir === 'v' ? 'v' : 'h', label: typeof l.label === 'string' ? l.label : '', dry: !!l.dry };
+      const mark = { id: l.id, kind: l.kind === 'tollkeeper' ? 'tollkeeper' : l.kind === 'npc' ? 'npc' : l.kind === 'prop' ? 'prop' : 'last-bridge', x: l.x, y: l.y, dir: l.dir === 'v' ? 'v' : 'h', label: typeof l.label === 'string' ? l.label : '', dry: !!l.dry };
       if (mark.kind === 'npc') mark.look = { kind: 'rig', rig: 'coat', who: String(l.look?.who || '') };
       mark.deck = Array.isArray(l.deck) && l.deck.length ? l.deck.map((t) => ({ x: t.x, y: t.y })) : [{ x: l.x, y: l.y }];
-      if (mark.kind === 'last-bridge') {
+      if (mark.kind === 'prop') {
+        // A sprite standing on a footprint (w × h tiles from x, y), bottom-centred as the wilds' own props are.
+        const rows = SPRITES[String(l.sprite || '')]?.[0] || null;
+        const pw = Number.isInteger(l.w) && l.w > 0 ? Math.min(4, l.w) : 1;
+        const ph = Number.isInteger(l.h) && l.h > 0 ? Math.min(4, l.h) : 1;
+        const baseX = (l.x + pw / 2) * TILE;
+        const baseY = (l.y + ph) * TILE;
+        mark.art = rows ? { rows, sx: Math.round(baseX - rows[0].length / 2), sy: Math.round(baseY - rows.length), w: rows[0].length, h: rows.length, feetY: baseY, feetX: baseX } : null;
+        if (rows) for (let y = l.y; y < l.y + ph; y += 1) for (let x = l.x; x < l.x + pw; x += 1) propTiles.add(`${x},${y}`);
+      } else if (mark.kind === 'last-bridge') {
         const art2 = lastBridgeRows(mark.deck.length, mark.dir);
         const first = mark.deck[0];
         mark.art = { rows: art2.frames[0], sx: first.x * TILE - art2.span[0], sy: first.y * TILE - art2.span[1], w: art2.w, h: art2.h };

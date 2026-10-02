@@ -1,0 +1,229 @@
+{
+  "id": "dusty",
+  "name": "Dusty Calloway",
+  "title": "sheriff of nobody yet",
+  "after": {
+    "genre": "frontier"
+  },
+  "where": {
+    "x": -17,
+    "y": 63
+  },
+  "why": "By the lantern on the south-west road, where the road forks. A sheriff watches the fork, to see who rides in first.",
+  "dye": {
+    "m": "Y",
+    "b": "U",
+    "u": "p",
+    "U": "P",
+    "Y": "P",
+    "r": "R",
+    "R": "Q",
+    "Q": "Q"
+  },
+  "threshold": 4,
+  "likes": {
+    "joke": 2,
+    "favour": 1
+  },
+  "dislikes": ["craft"],
+  "resists": ["truth"],
+  "examine": ["Dusty Calloway is a sheriff from a western, hat tipped against a sun that isn’t especially strong here.", "There is a board nailed to the lantern post. It says WANTED and then nothing.", "The sheriff has a star, a hat and no horse. The horse is discussed often."],
+  "meet": ["Howdy. Don’t reach for anything. I’m only saying that out of habit. Reach for whatever you want.", "Sheriff Calloway. Dusty. I came in on a deadline. It rode off without me."],
+  "hello": {
+    "wary": ["Stranger. Well. You’ve been here twice. I don’t have a word for that yet."],
+    "neutral": ["Howdy again. Nobody’s in trouble yet. I looked."],
+    "warm": ["Well now. My deputy. Unpaid, unsworn, and the best one I’ve had."],
+    "fond": ["There’s my partner. Pull up some road. I’ve been saving a story and it’s nearly true."]
+  },
+  "tired": ["That’s enough jawing for one day. I’ve a fork to watch. It forks the same every day, but I watch it."],
+  "finished": ["Nothing left on the board. It’s the quietest town I ever kept. It isn’t a town."],
+  "topics": [
+    {
+      "id": "board",
+      "say": ["This here is a wanted board. Back home it was full. Faces, dates, how much. Here there’s nobody on it. I put it up anyway. A sheriff needs a board."],
+      "options": [
+        {
+          "approach": "joke",
+          "text": "Put me on it.",
+          "reply": ["What for?", "Loitering near a sheriff. That’s fair. I’ll get the chalk."],
+          "remember": "asked-to-be-wanted"
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll bring you something to pin up.",
+          "reply": ["A deadline would do. One with a date on it. I’d look after it."]
+        },
+        {
+          "approach": "craft",
+          "text": "The lettering’s uneven.",
+          "reply": ["It’s a wanted board. It was done in a hurry. That’s the tradition."]
+        },
+        {
+          "approach": "truth",
+          "text": "An empty board is a good board.",
+          "reply": ["That’s what I tell the board."]
+        }
+      ]
+    },
+    {
+      "id": "horse",
+      "needs": 1,
+      "say": ["I had a horse. In the story I had a horse. I fell out of the story and the horse stayed in. I think of it at noon."],
+      "options": [
+        {
+          "approach": "joke",
+          "text": "Did it finish the story without you?",
+          "reply": ["I expect it’s sheriff by now. It always had the temperament."],
+          "remember": "the-horse-is-sheriff"
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll keep an eye out for a horse.",
+          "reply": ["Much obliged. It’s brown. It’s a horse. That’s the whole description."]
+        },
+        {
+          "approach": "kind",
+          "text": "I’m sorry about the horse.",
+          "reply": ["Don’t be. It’s having a fine time. I’m the one standing at a fork."]
+        }
+      ]
+    },
+    {
+      "id": "noon",
+      "needs": 3,
+      "say": ["Where I’m from everything happens at noon. Here I waited for noon. It came. Nothing happened. I waited for the next one."],
+      "options": [
+        {
+          "approach": "joke",
+          "text": "High noon, low stakes.",
+          "reply": ["That’s it. That’s the town motto. I’ll paint it on the board."],
+          "remember": "high-noon-low-stakes"
+        },
+        {
+          "approach": "favour",
+          "text": "Tell me when one’s due and I’ll be early.",
+          "reply": ["Early. Now that would be something. I’ve never arrested anybody for early."]
+        },
+        {
+          "approach": "truth",
+          "text": "Most deadlines aren’t showdowns.",
+          "reply": ["I’ve heard that. I’ve also heard horses don’t become sheriffs."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "something-for-the-pot",
+    "title": "Something for the pot",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["A sheriff keeps a pot on. That’s how folks know the law’s in. My pot’s been empty since I got here.", "Cook a trout stew at your fire. I’ll smell it from the fork. I’ve a good nose for stew and for trouble, and there’s no trouble."],
+    "accept": "I’ll cook one.",
+    "steps": [
+      {
+        "kind": "cook",
+        "target": "trout-stew",
+        "text": "Cook a trout stew at the fire."
+      }
+    ],
+    "waiting": ["No stew yet. Take your time. Nobody’s in trouble yet, and that includes you."],
+    "report": "The stew’s made.",
+    "done": ["I smelled it. Clear down the road. That’s the law fed. First time in this county.", "Take the star. No, the spare. It’s tin. It’s deputy grade."],
+    "remember": "cooked-the-stew",
+    "approval": 2,
+    "keepsake": {
+      "name": "A tin star",
+      "text": "Deputy grade. Dusty swore nobody in. You have it anyway."
+    }
+  },
+  "memories": {
+    "asked-to-be-wanted": "You asked to go on the wanted board. You are on it, in chalk, for loitering near a sheriff.",
+    "the-horse-is-sheriff": "You wondered if the horse finished the story. Dusty expects it is sheriff by now.",
+    "high-noon-low-stakes": "You said high noon, low stakes. It is painted on the board.",
+    "cooked-the-stew": "You cooked a trout stew so the law could eat. Dusty smelled it from the fork."
+  },
+  "camp": {
+    "early": ["A camp. I’d need to know the folks first. A sheriff can’t ride into a place where nobody knows whether to wave."],
+    "ask": ["A camp with a fire. That’s a town, near enough. A town wants a board.", "I’d rank what’s due. Soonest on top. Nobody on it would be in trouble. That’s the point of the board."],
+    "yes": ["Then I’ll ride in. On foot. Don’t look at where the horse would be."],
+    "full": ["No bed. I’ll bunk here at the fork. It’s got two roads. That’s one more than most rooms."],
+    "role": "Keeps a board of what’s due, soonest on top.",
+    "leaves": "A board that says WANTED and then nothing."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A pot of stew, so folks know the law is in.",
+      "next": "One deadline to look after, with a date on it.",
+      "really": "A town that needs a sheriff and never any trouble.",
+      "worry": "Noon."
+    },
+    "favourites": {
+      "food": "stew, from a pot kept on",
+      "weather": "a low sun and a long shadow",
+      "place": "a fork in a road",
+      "topic": "the horse",
+      "person": "anybody who’s early"
+    },
+    "aversions": ["being told how to letter a board", "showdowns"],
+    "temperament": "Easy, talkative and harder to worry than a fence post.",
+    "strangers": "Says howdy and tells them not to reach.",
+    "friends": "Deputises them without asking.",
+    "opensUp": "A joke at the board’s expense.",
+    "goesQuiet": "Being corrected on the craft of it."
+  },
+  "voice": {
+    "rhythm": "A drawl. A long easy sentence, then a short one that undoes it.",
+    "maxWords": 24,
+    "words": ["board", "horse"],
+    "never": ["hurry up", "urgent"],
+    "tic": "Nobody’s in trouble yet",
+    "hello": "Says howdy.",
+    "goodbye": "Says there is a fork to watch.",
+    "pleased": "Says well now.",
+    "putOut": "Cites tradition."
+  },
+  "gifts": {
+    "loves": ["trout"],
+    "likes": ["pine", "berries"],
+    "replies": {
+      "birch": ["Birch. That’s a pale sort of wood. It’d make a ghost of a fence."],
+      "ash": ["Ash. A man could whittle that. I’m not that man. I’ll hold it for him."],
+      "pine": ["Pine. Now that burns. That’s a pot kept on. Much obliged."],
+      "minnow": ["A minnow. I’ve seen bigger bait. I’ll let it think it’s supper."],
+      "trout": ["A trout. Well now. That’s the pot spoken for. You’ve fed the law."],
+      "berries": ["Berries. I’ll eat them at noon. Gives noon something to do."],
+      "herbs": ["Greens. A sheriff eats what he’s handed. That’s in the oath. I wrote the oath."],
+      "stone": ["A rock. I’ll set it on the board. Keeps the wanted from blowing off, the day there is one."],
+      "copper": ["Copper. That’s star metal. Mine’s tin. Don’t tell the board."]
+    }
+  },
+  "day": {
+    "morning": "Morning. I count who’s come up the road. That’s you. That’s the count.",
+    "afternoon": "Past noon. Noon came and went. It didn’t draw.",
+    "evening": "Sun’s going. A sheriff looks his best about now. It’s the shadow.",
+    "night": "Night watch. I sleep with one eye on the board. The board sleeps fine.",
+    "rain": "Rain. I’d stand under the hat. I am standing under the hat. It’s a small hat for the job."
+  },
+  "thinks": {
+    "gorrin": ["The cabbage fella. I’ve had reports of a runaway cart. I’ve had them from him. Four times."],
+    "rivet": ["The sergeant. He ends shifts. I watch forks. We nodded. Two lawmen with nothing on."],
+    "mae": ["The detective. She wants three clues. I’ve got an empty board and no horse. That’s two."]
+  },
+  "recalls": {
+    "asked-to-be-wanted": ["You’re still on the board. Loitering. I’ve not had a better lead."],
+    "the-horse-is-sheriff": ["I thought about the horse being sheriff. It’d be fair. It’d be very fair."],
+    "high-noon-low-stakes": ["High noon, low stakes. I say it at noon now. It helps."],
+    "cooked-the-stew": ["That stew. I can still smell it. The fork smells of it. Both roads."]
+  },
+  "helloAfter": {
+    "wary": ["Stranger. You fed the law once. I don’t forget a pot."],
+    "neutral": ["Howdy again. Pot’s been on. Now I want something to pin to the board. Something with a date."],
+    "warm": ["Well now. My deputy. The law’s fed. I’m looking for one honest deadline to mind."],
+    "fond": ["There’s my partner. We’ve a pot and a board. All this town wants is a date, and it can be a long way off."]
+  },
+  "arc": {
+    "want": "A pot kept on.",
+    "complication": "A sheriff with no town, no trouble and no horse.",
+    "kindness": "Someone laughs with the board and asks to be on it."
+  }
+}

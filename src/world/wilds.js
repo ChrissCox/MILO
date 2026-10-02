@@ -19,6 +19,7 @@ import { SPRITES, PALETTE } from './sprites.js';
 import { PALISADE_CELL } from './scene-art.js';
 import { CHUNK, HEART, GATES, TERRAIN as T, TERRAIN_INFO, layRoad } from './worldgen.js';
 import { hashString, fbm } from './rng.js';
+import { layoutSettlement } from './settlement.js';
 
 export const CHUNK_PX = CHUNK * TILE; // 512 art pixels a side
 export const SLICE_ROWS = 64; // ground rows per idle slice
@@ -1287,6 +1288,31 @@ export function createWilds({ worldgen, maxChunks = 64 } = {}) {
       if (!WATER_T.has(ter(object.x, object.y)) && !ROADISH(ter(object.x, object.y)) && ter(object.x, object.y) !== T.SKY) {
         internals.firm.push([...footprint.slice(0, 4), ...FIRM]);
       }
+      if (p.type === 'hamlet' && placed) placeSettlement(p, own, sky);
+    }
+
+    // A hamlet is more than one home (settlement.js): its other homes, its well and the rest go up
+    // round its tile with the same care as the first (inside the chunk, off the road, with a tile
+    // between any two, cutting no walk in two), and nothing grows on the green between them.
+    function placeSettlement(p, own, sky) {
+      for (let y = p.y - 1; y <= p.y + 2; y += 1) for (let x = p.x - 2; x <= p.x + 2; x += 1) if (local(x, y)) clear[(y - y0) * CHUNK + (x - x0)] = 1;
+      const region = hushRegion(p.x, p.y)?.id ?? null;
+      layoutSettlement(p, (part, fx, fy) => {
+        for (let y = fy; y < fy + part.h; y += 1) for (let x = fx; x < fx + part.w; x += 1) if (!spotOk(x, y, own, { sky })) return false;
+        if (!sky && !ringOk(fx, fy, part.w, part.h, walk)) return false;
+        objects.push({ id: `${p.id}#${part.id}`, kind: part.kind, x: fx, y: fy, w: part.w, h: part.h, blocks: true, dx: 0, dy: 0, place: p.id, part: part.part, frame: 0 });
+        for (let y = fy - 1; y <= fy + part.h; y += 1) for (let x = fx - 1; x <= fx + part.w; x += 1) taken.add(`${x},${y}`);
+        for (let y = fy; y < fy + part.h; y += 1) {
+          for (let x = fx; x < fx + part.w; x += 1) {
+            clear[(y - y0) * CHUNK + (x - x0)] = 1;
+            blocked[(y - y0) * CHUNK + (x - x0)] = 1;
+          }
+        }
+        const footprint = [fx * TILE, fy * TILE, (fx + part.w) * TILE, (fy + part.h) * TILE];
+        if (!fixedTile.has(own)) internals.dry.push([...footprint, ...DRY_LOCAL]);
+        if (!sky) internals.firm.push([...footprint, ...FIRM]);
+        return true;
+      }, { region });
     }
 
     // Every fixed point of interest near this chunk, whichever chunk it's in, so all agree.

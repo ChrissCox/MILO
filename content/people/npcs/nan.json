@@ -1,0 +1,189 @@
+{
+  "id": "nan",
+  "name": "Nan Bristle",
+  "title": "hedge-gardener",
+  "where": {
+    "x": 19,
+    "y": 32
+  },
+  "why": "At the edge of the Blossomfield, south of the camp. Every flower in it is a thing somebody finished, and somebody has to water them.",
+  "dye": {
+    "m": "s",
+    "b": "S",
+    "u": "l",
+    "U": "L",
+    "Y": "M",
+    "r": "k",
+    "R": "K",
+    "Q": "K"
+  },
+  "threshold": 4,
+  "likes": {
+    "truth": 2,
+    "joke": 1
+  },
+  "dislikes": ["favour"],
+  "resists": ["kind"],
+  "examine": ["Nan Bristle is a hedge-gardener, sharp-tongued, soft-hearted and older than she admits.", "She has a watering can, a trowel and a look that has ended conversations.", "She is counting the flowers. She knows how many there should be. She is checking your work."],
+  "meet": ["Mind your feet. That’s somebody’s Tuesday you’re standing on. Yours, as it happens.", "Nan Bristle. I do the hedges and I do this field. Every flower’s a thing you finished, love. I only water them."],
+  "hello": {
+    "wary": ["Oh, it’s you. Wipe your boots on the grass, not the flowers."],
+    "neutral": ["Back again. Good. The field’s no bigger than yesterday. I noticed."],
+    "warm": ["There you are. Come and look at this one. It came up overnight. That was you."],
+    "fond": ["Here’s my best grower. Don’t let it go to your head. Your head’s got weeds in it."]
+  },
+  "tired": ["That’s enough chat. The hedges won’t clip themselves. I’ve asked them."],
+  "finished": ["I’ve nothing more to tell you. Go and finish something. I’ll know."],
+  "topics": [
+    {
+      "id": "field",
+      "say": ["This field wasn’t here before the lantern woke. Then you finished a thing, and a flower came up. I didn’t plant it. I’ve stopped asking where they come from."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "There aren’t many yet.",
+          "reply": ["No. There aren’t. But I’ve seen a field start with fewer, and I’ve seen one stop with more."],
+          "remember": "said-there-were-few"
+        },
+        {
+          "approach": "joke",
+          "text": "Do I get one for watering them?",
+          "reply": ["You get one for finishing the watering. I’ve done it. Where’s mine?"]
+        },
+        {
+          "approach": "kind",
+          "text": "You keep it beautifully.",
+          "reply": ["I keep it watered. The beautiful’s your doing, and it’s patchy."]
+        },
+        {
+          "approach": "favour",
+          "text": "Let me carry the can.",
+          "reply": ["You’d overwater. Your sort always does. Enthusiasm."]
+        }
+      ]
+    },
+    {
+      "id": "age",
+      "needs": 1,
+      "say": ["People ask how old I am. I tell them sixty. I’ve been telling them sixty for a good while now."],
+      "options": [
+        {
+          "approach": "joke",
+          "text": "Sixty what?",
+          "reply": ["Sixty winters I’m prepared to admit to. The rest are between me and the hedge."],
+          "remember": "asked-sixty-what"
+        },
+        {
+          "approach": "truth",
+          "text": "You were here before the Hush.",
+          "reply": ["I was. Don’t spread it about. I’ve a reputation for being merely old."]
+        },
+        {
+          "approach": "kind",
+          "text": "You don’t look it.",
+          "reply": ["I look every day of it. I just look them briskly."]
+        }
+      ]
+    },
+    {
+      "id": "weeds",
+      "needs": 3,
+      "say": ["There’s a weed in every field. Something you started and left. I don’t pull them. I leave them where you’ll see. You know which ones they are."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "I know which ones.",
+          "reply": ["Course you do. Go on, then. Or don’t. A weed’s patient. More patient than me."],
+          "remember": "knew-the-weeds"
+        },
+        {
+          "approach": "joke",
+          "text": "Some of them are quite pretty.",
+          "reply": ["So’s a nettle, till you’re fond of it."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll pull them for you.",
+          "reply": ["You’ll do no such thing. You pull a weed by finishing it, not by yanking."]
+        }
+      ]
+    }
+  ],
+  "memories": {
+    "said-there-were-few": "You said there were not many flowers yet. She has seen a field start with fewer.",
+    "asked-sixty-what": "You asked her sixty what. Sixty winters she is prepared to admit to.",
+    "knew-the-weeds": "You told her you know which weeds are yours. She said a weed is patient."
+  },
+  "camp": {
+    "never": ["Me, at a camp? And who waters this lot? No, love. I’ve a field and nine hedges.", "I’ll come by for tea. I’ll bring my own opinion."],
+    "role": "Stays with the field, and comes by for tea."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A field with more flowers in it than weeds.",
+      "really": "To see something she watered outlast her.",
+      "worry": "A dry spell, of either kind."
+    },
+    "favourites": {
+      "food": "mint tea, or something she swears is mint",
+      "weather": "rain overnight and none by morning",
+      "place": "the far corner of the field, where it is thin",
+      "topic": "what you finished",
+      "person": "anyone who doesn’t overwater"
+    },
+    "aversions": ["being helped", "flattery"],
+    "temperament": "Sharp, brisk and soft underneath, where she keeps it.",
+    "strangers": "Tells them to mind their feet.",
+    "friends": "Shows them the newest flower.",
+    "opensUp": "Being told the plain truth.",
+    "goesQuiet": "Fuss."
+  },
+  "voice": {
+    "rhythm": "Brisk country speech. A telling-off, then the kindness hidden in the last few words.",
+    "maxWords": 22,
+    "words": ["flower", "field"],
+    "never": ["darling", "marvellous"],
+    "tic": ", love",
+    "hello": "Tells you to mind your feet.",
+    "goodbye": "Says the hedges won’t clip themselves.",
+    "pleased": "Shows you a flower and says that was you.",
+    "putOut": "Blames enthusiasm."
+  },
+  "gifts": {
+    "loves": ["herbs"],
+    "likes": ["berries", "stone"],
+    "replies": {
+      "birch": ["A log. And what am I to do with that, grow it? Leave it by the gate."],
+      "ash": ["Ash. That’s a bean pole. Good and straight. You’ve been useful by accident."],
+      "pine": ["Pine. Needles everywhere. I’ll be sweeping till Michaelmas. Thank you, I suppose."],
+      "minnow": ["A minnow. For the roses. Don’t look at me that way. Roses eat better than you do."],
+      "trout": ["A trout. That’s too good for the roses. I’ll have that one myself."],
+      "berries": ["Berries. Off my hedge, were they? No. All right. I’ll have them."],
+      "herbs": ["Now that’s mint. That’s actual mint. I’ve been drinking I don’t know what, love."],
+      "stone": ["A stone. That’ll edge the bed. It’s the first straight edge this field’s had."],
+      "copper": ["Copper. Slugs won’t cross it. You didn’t know that. Now you’ve done a clever thing."]
+    }
+  },
+  "day": {
+    "morning": "Morning’s for watering. Before the sun’s on them. You’re late and so’s the sun.",
+    "afternoon": "Afternoon I do hedges. There’s nine. I’m on the fourth. I’m always on the fourth.",
+    "evening": "Evening. They close up about now. So should you. Go on.",
+    "night": "I’m not out here at night. This is me fetching the can. Don’t make it a conversation.",
+    "rain": "Rain. That’s my watering done for me. I’ll find something else to be cross about."
+  },
+  "thinks": {
+    "gorrin": ["The cabbage man asked me why his come up as cabbages. I said that’s cabbages for you. He wrote it down."],
+    "wendell": ["Him in the road. He measured my field. Said the middle was a daisy. I’ve left it alone since."],
+    "hob": ["Young Hob built my gate. It shuts, more or less. I’ve grown a hedge over the less."]
+  },
+  "recalls": {
+    "said-there-were-few": ["You said there weren’t many. There’s more now. I’m not saying well done. I’m saying more."],
+    "asked-sixty-what": ["Sixty what, you said. I’ve been asked my age for years and that’s the first good answer."],
+    "knew-the-weeds": ["One of your weeds is gone. I didn’t pull it. So that was you, love."]
+  },
+  "arc": {
+    "want": "A fuller field.",
+    "complication": "She will not take help or praise.",
+    "kindness": "Someone is honest with her about how little is finished."
+  }
+}

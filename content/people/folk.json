@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "about": "The folk of the hamlets: the world’s set pieces. Each hamlet gets two or three, made from a name, a job and the hamlet’s age (old: there before the road; new: went up after the lantern woke). They can’t be befriended or recruited. They say one thing at a time, and only what they would say: plain, deadpan, no stage directions.",
+  "about": "The folk of the hamlets: the world’s set pieces. Each hamlet gets three or four (a seller, a keeper of something, and one or two more), made from a name, a job and the hamlet’s age (old: there before the road; new: went up after the lantern woke). They can’t be befriended or recruited. A job with a post (the well, the stall, a home) stands beside it. They say one thing at a time, and only what they would say: plain, deadpan, no stage directions.",
   "ages": {
     "old": "An old place. It was here before the road.",
     "new": "A new place. It went up after the lantern woke."
@@ -13,32 +13,44 @@
     {
       "id": "well-keeper",
       "title": "keeps the well",
+      "post": "well",
       "any": [
         "The well is fine. I check it every hour. It has never not been fine.",
         "People drop coins in. I take them out. It evens up."
       ],
       "old": ["This well is older than the road. The road is sensitive about it."],
-      "new": ["We dug it in the spring. We hit water on the second day. Nobody was more surprised than the water."]
+      "new": ["We dug it in the spring. We hit water on the second day. Nobody was more surprised than the water."],
+      "keeper": true,
+      "cool": "That was the tree by the well. It kept the bucket company. I’ll check on the bucket.",
+      "warm": "You again. I’ve told the well about you. It took it well."
     },
     {
       "id": "baker",
       "title": "bakes",
+      "post": "home",
       "any": [
         "There is bread. There is always bread. I don’t know how to stop.",
         "I made too many loaves again. Take one. Take four."
       ],
       "old": ["This oven was my grandmother’s. She is still in charge of it. She has been gone nine years."],
-      "new": ["The oven is new. It hasn’t burned anything yet. I don’t trust it."]
+      "new": ["The oven is new. It hasn’t burned anything yet. I don’t trust it."],
+      "cool": "There’s bread. You can’t have any today. That was a good tree.",
+      "warm": "I kept you the end of a loaf. It’s the best bit. Don’t tell the middle."
     },
     {
       "id": "lamplighter",
       "title": "lights the lamps",
+      "post": "lamp",
       "any": [
         "I light them at dusk. Then I put them out at dawn. It is a living.",
         "One lamp won’t light. I talk to it. It hasn’t helped."
       ],
       "old": ["These lamps were here before the Hush. I only inherited the ladder."],
-      "new": ["We put the lamps up last month. We are very proud of both of them."]
+      "new": ["We put the lamps up last month. We are very proud of both of them."],
+      "keeper": true,
+      "night": true,
+      "cool": "I hung a lamp on that tree. I’ll hang it on the stump. It’s lower. I’ve noted my feelings.",
+      "warm": "I leave one lit for you now. Don’t make a thing of it."
     },
     {
       "id": "goat-minder",
@@ -48,7 +60,10 @@
         "The goats eat the laundry. We have less laundry now. It works out."
       ],
       "old": ["My family has minded these goats for a hundred years. The goats don’t seem grateful."],
-      "new": ["We brought the goats with us. They chose the spot. We built round them."]
+      "new": ["We brought the goats with us. They chose the spot. We built round them."],
+      "keeper": true,
+      "cool": "The goats saw you do it. I can’t speak for them. One of them is writing something.",
+      "warm": "The goats know your walk. Six of them do. The seventh says it doesn’t."
     },
     {
       "id": "road-watcher",
@@ -58,7 +73,11 @@
         "I watch the road. It doesn’t do much. I watch it anyway."
       ],
       "old": ["I’ve stood here thirty years. A great many people have walked past. Two of them stopped."],
-      "new": ["They gave me the job because I was already standing here."]
+      "new": ["They gave me the job because I was already standing here."],
+      "keeper": true,
+      "night": true,
+      "cool": "One tree down, your side of the road. I’ve written it up. I underlined your name.",
+      "warm": "You’ve come up this road three times. I don’t write you down any more. I just nod."
     },
     {
       "id": "fisher",
@@ -68,7 +87,9 @@
         "The fish know me. That’s the problem."
       ],
       "old": ["My father fished this water. He didn’t catch anything either. It’s a family trade."],
-      "new": ["I was told there were fish here. I’m still looking into it."]
+      "new": ["I was told there were fish here. I’m still looking into it."],
+      "cool": "You cut the tree I sit under. Now I sit under nothing. The fish can see me.",
+      "warm": "Sit. You don’t scare the fish. Nothing does. But sit."
     },
     {
       "id": "child",
@@ -78,37 +99,48 @@
         "I found a rock. You can look at it. You can’t have it."
       ],
       "old": ["My house is the old one. It leans. I lean too, so it looks straight."],
-      "new": ["We’re new. I have been here two weeks. I know where everything is."]
+      "new": ["We’re new. I have been here two weeks. I know where everything is."],
+      "cool": "You cut down the tree. It was the climbing one. I’m frowning. Look.",
+      "warm": "You’re back. I told the puddle. It’s your puddle too now. A bit of it."
     },
     {
       "id": "elder",
       "title": "remembers when",
+      "post": "home",
       "any": [
         "I remember when this was all fields. It is still mostly fields.",
         "Sit down if you want. I was going to anyway."
       ],
       "old": ["I was born in that house. I’ve been meaning to leave."],
-      "new": ["I’m too old to start a village. I started one anyway."]
+      "new": ["I’m too old to start a village. I started one anyway."],
+      "cool": "That tree was planted the year I was born. I didn’t much care for it. All the same.",
+      "warm": "I remember when you were new here. It was last week. Still."
     },
     {
       "id": "carpenter",
       "title": "builds",
+      "post": "timber",
       "any": [
         "I’m building a fence. It’s to keep the other fence in.",
         "Measure twice, cut once. I measured four times. I haven’t cut anything."
       ],
       "old": ["I mend what my father built. He built it badly. It keeps me in work."],
-      "new": ["Everything here is new. I made most of it. Don’t lean on anything yet."]
+      "new": ["Everything here is new. I made most of it. Don’t lean on anything yet."],
+      "cool": "You felled it badly. I’d have felled it badly too, but I’d have asked.",
+      "warm": "I made you a peg by the door. It’s for a hat. Get a hat."
     },
     {
       "id": "merchant",
       "title": "sells things",
+      "post": "stall",
       "any": [
         "I sell rope, lamp oil and one hat. The hat is not for sale.",
         "Business is slow. You are the business."
       ],
       "old": ["This stall has been in the family for six generations. We have sold the same rope twice."],
-      "new": ["I opened yesterday. You are my second customer. The first was me."]
+      "new": ["I opened yesterday. You are my second customer. The first was me."],
+      "cool": "Shut. On account of the tree. I’d have sold you the axe. That makes it worse.",
+      "warm": "Regular’s price for you. It’s the same price. But I say it differently."
     }
   ]
 }

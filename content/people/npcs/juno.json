@@ -1,0 +1,229 @@
+{
+  "id": "juno",
+  "name": "Juno Glitchwright",
+  "title": "fixer",
+  "after": {
+    "genre": "neon"
+  },
+  "where": {
+    "x": -41,
+    "y": 20
+  },
+  "why": "By the lantern on the west road, a day’s walk short of Cinderforge. She fell through a failing build, liked the tea, and is waiting here for her kiosk to arrive.",
+  "dye": {
+    "m": "k",
+    "b": "K",
+    "u": "e",
+    "U": "E",
+    "Y": "N",
+    "r": "u",
+    "R": "U",
+    "Q": "Y"
+  },
+  "threshold": 4,
+  "likes": {
+    "craft": 2,
+    "joke": 1
+  },
+  "dislikes": ["favour"],
+  "resists": ["kind"],
+  "examine": ["Juno Glitchwright is a fixer from a neon city, goggles pushed up, reading something that isn’t there.", "She has chalked a rectangle on the ground beside the road. It is labelled KIOSK.", "There is a cable in her pocket with a different plug on each end. Neither fits anything here."],
+  "meet": ["Hey. Don’t step in the rectangle. That’s a kiosk. It hasn’t arrived yet but the lease has.", "Juno. I fix things. Mostly I tell people what’s wrong and they fix it and thank me."],
+  "hello": {
+    "wary": ["Kiosk’s shut. Kiosk’s also not here. Both of those are true."],
+    "neutral": ["Hey. Back again. Something broken, or is this social?"],
+    "warm": ["There you are. I saved you the good error. It’s a short one."],
+    "fond": ["My favourite ticket. Come stand in the kiosk. Mind the wall. There isn’t one."]
+  },
+  "tired": ["I’m out of words. I get about three good explanations a day. Come back tomorrow."],
+  "finished": ["Nothing’s broken. I checked. It’s unsettling."],
+  "topics": [
+    {
+      "id": "build",
+      "say": ["I fell through a failing build. One line was wrong. I read the line. It was a comma. I was already falling."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "What did the error say?",
+          "reply": ["It said “unexpected”. Just that. I’ve thought about it since. It was fair."],
+          "remember": "asked-what-it-said"
+        },
+        {
+          "approach": "joke",
+          "text": "Was the comma all right?",
+          "reply": ["The comma was fine. The comma landed on its feet. It had feelings about line forty."]
+        },
+        {
+          "approach": "kind",
+          "text": "That must have been awful.",
+          "reply": ["It was a Tuesday. Builds fail on a Tuesday. You learn to bring a coat."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll look out for the kiosk.",
+          "reply": ["Don’t. It’ll come when it comes. I’ve filed a ticket. With myself."]
+        }
+      ]
+    },
+    {
+      "id": "line",
+      "needs": 1,
+      "say": ["Most broken things will tell you why. In one line. People read the whole page and miss the line. I read the line."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "How do you find the line?",
+          "reply": ["It’s the first one that’s embarrassed. Everything after it is the build being upset."],
+          "remember": "asked-how-to-find-it"
+        },
+        {
+          "approach": "joke",
+          "text": "What if it’s two lines?",
+          "reply": ["Then one of them is lying. Usually the second."]
+        },
+        {
+          "approach": "truth",
+          "text": "Some things are just broken.",
+          "reply": ["No such thing. That’s a thing that had feelings and nobody asked."]
+        }
+      ]
+    },
+    {
+      "id": "tea",
+      "needs": 3,
+      "say": ["Where I’m from, tea is a button. You press it. Here somebody boils a leaf on purpose. I didn’t know you could do that."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "I’ll show you how it’s made.",
+          "reply": ["Wait. The leaf goes in after? I’ve been doing it in the wrong order since Thursday."],
+          "remember": "showed-her-tea"
+        },
+        {
+          "approach": "joke",
+          "text": "Did you look for the button?",
+          "reply": ["On the kettle. For an hour. It’s a very clean kettle now."]
+        },
+        {
+          "approach": "kind",
+          "text": "I’m glad you like it here.",
+          "reply": ["I like the tea. The rest is under review."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "a-proper-cup",
+    "title": "A proper cup",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["I want tea made the long way. With a leaf. On a fire. I’ve only had the button kind and one cup here, which I spilled.", "Brew a kettle at your fire. I don’t need to be there. I need to know it happened. That’s how I run everything."],
+    "accept": "I’ll brew one.",
+    "steps": [
+      {
+        "kind": "cook",
+        "target": "brew",
+        "text": "Brew a kettle at the fire."
+      }
+    ],
+    "waiting": ["No kettle yet. That’s fine. A thing that hasn’t run can’t fail."],
+    "report": "The kettle’s brewed.",
+    "done": ["It ran. First time. No errors. I don’t trust it and I’m very happy.", "Take the cable. Neither end fits anything here. That makes it the safest cable I own."],
+    "remember": "brewed-the-kettle",
+    "approval": 2,
+    "keepsake": {
+      "name": "A cable",
+      "text": "A different plug on each end. Neither fits anything in the Hushlands."
+    }
+  },
+  "memories": {
+    "asked-what-it-said": "You asked what the error said. It said “unexpected”. She thinks that was fair.",
+    "asked-how-to-find-it": "You asked how she finds the one line. It is the first one that is embarrassed.",
+    "showed-her-tea": "You showed her the leaf goes in after. She had been doing it in the wrong order since Thursday.",
+    "brewed-the-kettle": "You brewed a kettle the long way. It ran first time. She does not trust it and is very happy."
+  },
+  "camp": {
+    "early": ["Your camp’s not on my map. I mean that. I don’t have a map. Tell me how something’s made first."],
+    "ask": ["A camp. With a fire. So there’s a kettle. And a kettle is a build that mostly passes.", "I’d read your failing checks. One line each. I’d be nice about it. Nicer than the checks are."],
+    "yes": ["Deal. I’ll bring the rectangle. I can chalk it again when I get there."],
+    "full": ["No bed. Fine. I’ve slept in a queue. Ping me when one frees up. Shout, I mean. Shout."],
+    "role": "Reads a failing check and says what’s wrong in one line.",
+    "leaves": "A chalk rectangle by the fire, labelled KIOSK."
+  },
+  "sheet": {
+    "wants": {
+      "now": "Tea made the long way, with a leaf.",
+      "next": "Four walls for the kiosk. Three would do.",
+      "really": "To be asked how a thing works by someone who wants to know.",
+      "worry": "A failure with no line in it."
+    },
+    "favourites": {
+      "food": "tea, boiled on purpose",
+      "weather": "rain on something shiny",
+      "place": "a rectangle of her own",
+      "topic": "the one line that matters",
+      "person": "anyone who reads the error"
+    },
+    "aversions": ["being looked after", "people who say it is just broken"],
+    "temperament": "Quick, dry and kinder than she lets on.",
+    "strangers": "Asks if something is broken.",
+    "friends": "Saves them the good error.",
+    "opensUp": "A real question about how something is made.",
+    "goesQuiet": "Sympathy and offers of help."
+  },
+  "voice": {
+    "rhythm": "Quick clipped sentences. A fact, then the same fact made funnier.",
+    "maxWords": 20,
+    "words": ["kiosk", "line"],
+    "never": ["impossible", "whatever"],
+    "tic": "had feelings",
+    "hello": "Says hey and asks what is broken.",
+    "goodbye": "Says she has three explanations a day.",
+    "pleased": "Says it ran first time.",
+    "putOut": "Says it is under review."
+  },
+  "gifts": {
+    "loves": ["copper"],
+    "likes": ["herbs", "berries"],
+    "replies": {
+      "birch": ["A log. No ports. I’ve looked at both ends."],
+      "ash": ["Ash. It’s a stick with a good reputation. I’ll take your word."],
+      "pine": ["Pine. It’s sticky. Is that a fault or a feature? Don’t answer."],
+      "minnow": ["A fish. A small one. It’s the demo version."],
+      "trout": ["A trout. That’s the full release. I don’t know how to open it."],
+      "berries": ["Berries. Small, bright, no instructions. I’d ship that."],
+      "herbs": ["Herbs. That’s tea. That’s tea before the button. Thank you."],
+      "stone": ["A rock. It does nothing and it never fails. I’m keeping it as an example."],
+      "copper": ["Copper. Now we’re talking. I can make a plug that fits this cable. One end of it."]
+    }
+  },
+  "day": {
+    "morning": "Morning. Nothing’s failed yet. It’s early.",
+    "afternoon": "Afternoon. This is when things break. I’ve got the goggles down.",
+    "evening": "Evening. The lantern hums a bit. I think it’s a loose something. I’m not allowed to open it.",
+    "night": "I do my best work at night. There’s no work here. I’m keeping in practice.",
+    "rain": "Rain. Finally. It looks right on the lantern. It’d look better on chrome."
+  },
+  "thinks": {
+    "rivet": ["The sergeant. He caps your jobs. I respect a hard limit. Half my tickets are people who didn’t have one."],
+    "pip": ["Pip unfolded my cable. Now it’s two cables. Neither end fits. It’s still better."],
+    "mags": ["The quartermaster has a laser-awl. She won’t let me look inside. I’ve asked four times."]
+  },
+  "recalls": {
+    "asked-what-it-said": ["“Unexpected.” I’ve been using it on other things. The weather. This road."],
+    "asked-how-to-find-it": ["I read a signpost your way today. First embarrassed line. It was the distance."],
+    "showed-her-tea": ["Leaf after. I’ve got it now. I wrote it on my hand. It washed off. I’ve still got it."],
+    "brewed-the-kettle": ["That kettle ran clean. I keep waiting for the follow-up failure. Nothing. It just had tea in it."]
+  },
+  "helloAfter": {
+    "wary": ["Kiosk’s shut. But you brewed a kettle once. That’s on your record. It’s a good record."],
+    "neutral": ["Hey. I’ve had real tea. Now I want walls. Start small. One wall."],
+    "warm": ["There you are. Tea’s sorted. I’m pricing walls. Nobody here sells walls."],
+    "fond": ["My favourite ticket. Tea works. Kiosk’s next. Then I’m out of problems and I’ll need yours."]
+  },
+  "arc": {
+    "want": "One proper cup of tea.",
+    "complication": "A fixer in a place where nothing she knows is broken.",
+    "kindness": "Someone asks how it works because they want to know."
+  }
+}

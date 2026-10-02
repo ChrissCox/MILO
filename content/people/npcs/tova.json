@@ -1,0 +1,230 @@
+{
+  "id": "tova",
+  "name": "Tova Deepcoal",
+  "title": "stonewright",
+  "after": {
+    "built": 1
+  },
+  "where": {
+    "x": -6,
+    "y": -32
+  },
+  "why": "At the foot of the Last Bridge, reading its stones. Word reached Cinderforge that somebody in Hearthvale had built a thing, and she walked up to see whose work it was.",
+  "dye": {
+    "m": "R",
+    "b": "r",
+    "u": "S",
+    "U": "z",
+    "Y": "z",
+    "r": "U",
+    "R": "Y",
+    "Q": "Y"
+  },
+  "threshold": 4,
+  "likes": {
+    "craft": 2,
+    "truth": 1
+  },
+  "dislikes": ["joke"],
+  "resists": ["favour"],
+  "examine": ["Tova Deepcoal is a Cinderfolk stonewright. She is forty, which is young for Cinderfolk.", "She taps the bridge with a small hammer, listens, and writes nothing down.", "Her great-great-grandfather was the Stonewright of the Old Company. She has not brought it up."],
+  "meet": ["Mind the third stone. It’s sound. I only say mind it because I’ve just been listening to it and it’s shy.", "Tova Deepcoal. Stonewright. I heard somebody built something down the road. Was that you? It’s decent work."],
+  "hello": {
+    "wary": ["You again. The bridge is still up. I’d have told you."],
+    "neutral": ["Hello. I’m on the fourth stone today. It’s taking its time. So am I."],
+    "warm": ["Ah, the builder. Come and listen to this one. It’s got a good note in it."],
+    "fond": ["There you are. I’ve been keeping a stone for you. It’s only a small one. It rings."]
+  },
+  "tired": ["That’s my listening done for today. Stone takes it out of you. Come back tomorrow."],
+  "finished": ["I’ve said what I know. The rest is in the stones, and they talk slower than I do."],
+  "topics": [
+    {
+      "id": "note",
+      "say": ["Every stonewright has a note. You tap a stone and it answers in your note. My family all have one. I’m forty and mine hasn’t turned up."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "What does the tapping tell you?",
+          "reply": ["Where it’s tired. Where it’s proud. This one’s proud. It was laid by somebody patient."],
+          "remember": "asked-about-the-tapping"
+        },
+        {
+          "approach": "truth",
+          "text": "Forty isn’t late.",
+          "reply": ["For Cinderfolk it’s Tuesday morning. I know. I still check every stone."]
+        },
+        {
+          "approach": "joke",
+          "text": "Maybe your note is a rest.",
+          "reply": ["That’s a music joke. I’m a mason."]
+        },
+        {
+          "approach": "kind",
+          "text": "It’ll come.",
+          "reply": ["Everybody says so. They all had theirs by thirty."]
+        }
+      ]
+    },
+    {
+      "id": "bridges",
+      "needs": 1,
+      "say": ["A bridge is a promise between two sides. You raise one and both sides have to keep it up. Most people raise them and walk off."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "How do you know when one’s failing?",
+          "reply": ["It goes quiet. A good bridge hums. I’d draw every one you’ve got and mark the quiet ones."],
+          "remember": "asked-about-quiet-bridges"
+        },
+        {
+          "approach": "truth",
+          "text": "I’ve raised a few and walked off.",
+          "reply": ["I know. I walked up three of them to get here. Steady now. They’ll mend."]
+        },
+        {
+          "approach": "favour",
+          "text": "Let me carry your tools.",
+          "reply": ["They’re weighted to my hand. You’d walk in a circle."]
+        }
+      ]
+    },
+    {
+      "id": "brannoch",
+      "needs": 3,
+      "say": ["My great-great-grandfather built half of what’s standing. He sells tea now. People ask if I’m as good as him. I don’t know. He won’t look at my work."],
+      "options": [
+        {
+          "approach": "craft",
+          "text": "Show me something you built.",
+          "reply": ["This. The cap on the fourth stone. I set it this morning. Nobody asked me to. Listen."],
+          "remember": "asked-to-see-her-work"
+        },
+        {
+          "approach": "truth",
+          "text": "He might be afraid it’s better.",
+          "reply": ["I hadn’t thought of that. I don’t think I’ll think of it again. Thank you, though."]
+        },
+        {
+          "approach": "kind",
+          "text": "You’re your own mason.",
+          "reply": ["I’m somebody’s great-great-granddaughter with a hammer. It’s a start."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "a-capstone",
+    "title": "A capstone",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["The bridge wants one more cap. I’ve the mortar and the hammer. I haven’t the stone. I’ve tapped every one on this bank and they’re all busy.", "Bring me four stone. Plain is fine. I’ll find the one that wants to be here."],
+    "accept": "I’ll bring the stone.",
+    "steps": [
+      {
+        "kind": "give",
+        "item": "stone",
+        "n": 4,
+        "text": "Bring Tova 4 stone."
+      }
+    ],
+    "waiting": ["No stone yet. That’s all right. The bridge has stood three hundred years. It can stand a week."],
+    "report": "That’s four.",
+    "done": ["Four. This one. Hear that? No. Nor do I. But it sat down straight away, and that’s something.", "Keep the offcut. It’s the first piece I’ve cut that I didn’t want to cut again."],
+    "remember": "brought-the-capstone",
+    "approval": 2,
+    "keepsake": {
+      "name": "A stone offcut",
+      "text": "The first piece Tova cut that she didn’t want to cut again."
+    }
+  },
+  "memories": {
+    "asked-about-the-tapping": "You asked what the tapping tells her. This bridge is proud, and was laid by somebody patient.",
+    "asked-about-quiet-bridges": "You asked how she knows a bridge is failing. It goes quiet. She offered to draw every one of yours.",
+    "asked-to-see-her-work": "You asked to see something she built. She showed you the cap on the fourth stone, set that morning.",
+    "brought-the-capstone": "You brought her four stone, and one of them sat down straight away."
+  },
+  "camp": {
+    "early": ["A camp. I’d want to see how you build first. Not what. How. Ask me something about stone."],
+    "ask": ["Your camp. Is anything in it level? No. Don’t tell me. I’d rather find out.", "I’d keep a ledger of your bridges. Every one drawn, and the quiet ones marked. I wouldn’t nag. The drawing nags."],
+    "yes": ["Then I’ll come. Steady now. I’ll need a flat place for the hammer and a wall to disapprove of."],
+    "full": ["No bed. I’ll sleep at the bridge. It’s been promised to both sides. That’s more than most beds."],
+    "role": "Draws every outside connection as a bridge, and marks the quiet ones.",
+    "leaves": "One stone by the fire that rings when tapped."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A capstone for the Last Bridge.",
+      "next": "Something of her own to build, from the ground.",
+      "really": "To tap a stone and hear her own note come back.",
+      "worry": "That the note went to somebody else in the family."
+    },
+    "favourites": {
+      "food": "black tea, strong enough to stand a chisel in",
+      "weather": "cold and still, for listening",
+      "place": "the underside of a good arch",
+      "topic": "who laid a stone, and how",
+      "person": "anyone who looks after what they built"
+    },
+    "aversions": ["being compared to Brannoch", "bridges raised and walked away from"],
+    "temperament": "Steady, exacting and slow to say a kind thing she means.",
+    "strangers": "Warns them about a stone.",
+    "friends": "Keeps a stone for them.",
+    "opensUp": "A question about the work.",
+    "goesQuiet": "Jokes about the note."
+  },
+  "voice": {
+    "rhythm": "Even, unhurried sentences. A judgement of the work, then a small allowance.",
+    "maxWords": 24,
+    "words": ["stone", "bridge"],
+    "never": ["perfect", "quickly"],
+    "tic": "Steady now",
+    "hello": "Says which stone she is on.",
+    "goodbye": "Says stone takes it out of you.",
+    "pleased": "Says it is decent work.",
+    "putOut": "Says she is a mason."
+  },
+  "gifts": {
+    "loves": ["stone"],
+    "likes": ["copper", "herbs"],
+    "replies": {
+      "birch": ["Birch. It’d do for a wedge. Wood’s a short-term material. No offence to it."],
+      "ash": ["Ash. That’s a hammer handle. Mine’s sound. I’ll keep this for the day it isn’t."],
+      "pine": ["Pine. It moves when it’s wet. I don’t build with anything that has moods."],
+      "minnow": ["A fish. I don’t know what to tap. I’ll ask someone."],
+      "trout": ["A trout. Good weight to it. Well made. Whoever built it knew what they were doing."],
+      "berries": ["Berries. They stain mortar. I found that out at nine. I’ll eat them over here."],
+      "herbs": ["Herbs. For the tea. My great-great-grandfather would have views. He’s not here."],
+      "stone": ["Stone. Let me hear it. Good. That’s a willing stone. Decent work, bringing it."],
+      "copper": ["Copper. That’s a cramp for two stones that don’t get on. I know just the two."]
+    }
+  },
+  "day": {
+    "morning": "Morning. The stone’s cold and honest. Best time to listen.",
+    "afternoon": "Afternoon. The sun’s on the south face. It rings a bit sharp. I allow for it.",
+    "evening": "Evening. The bridge settles about now. You can hear it sit down.",
+    "night": "I sleep against the abutment. It’s warm from the day. It doesn’t fidget.",
+    "rain": "Rain. Good. You see where water wants to go. Then you build so it can."
+  },
+  "thinks": {
+    "wendell": ["The man in the road measured this bridge for me. End to end. He was a hand’s breadth out and told me so."],
+    "rivet": ["The sergeant oils hinges nobody asked him to. I set caps nobody asked for. We haven’t discussed it."],
+    "mags": ["The quartermaster mends seams. I mend joints. She uses a laser. I think that’s cheating. I want a go."]
+  },
+  "recalls": {
+    "asked-about-the-tapping": ["I tapped the fifth stone after you left. Tired. I’ve given it the afternoon off."],
+    "asked-about-quiet-bridges": ["I’ve started the drawing. Three of yours hum. One’s gone quiet. I’ve marked it gently."],
+    "asked-to-see-her-work": ["The cap’s still sitting right. I check it when nobody’s on the bridge."],
+    "brought-the-capstone": ["That stone’s settled in. The ones either side have stopped complaining."]
+  },
+  "helloAfter": {
+    "wary": ["You again. The cap’s on. You brought the stone. I don’t forget who brings stone."],
+    "neutral": ["Hello. The bridge is finished. It was finished before. Now it’s finished and I helped."],
+    "warm": ["Ah, the builder. The bridge is capped. I want something of my own next. From the footing up."],
+    "fond": ["There you are. One cap, sat straight. I’m drawing a thing of my own. Don’t look yet."]
+  },
+  "arc": {
+    "want": "One stone for the bridge.",
+    "complication": "A family note that has not come to her.",
+    "kindness": "Someone asks to see what she built."
+  }
+}

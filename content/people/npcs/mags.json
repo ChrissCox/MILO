@@ -87,5 +87,74 @@
   "camp": {
     "never": ["No. The Bindery needs a quartermaster, and that’s me. I’ll visit. I’ll bring my own cup."],
     "role": "Visits, and brings her own cup."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A full count of the first seam.",
+      "really": "To know what was in crate nine hundred and five.",
+      "worry": "An empty list."
+    },
+    "favourites": {
+      "food": "tea, from her own cup",
+      "weather": "dry, for the ledger",
+      "place": "the Bindery stores",
+      "topic": "inventories",
+      "person": "anyone who counts"
+    },
+    "aversions": ["favours", "rounding"],
+    "temperament": "Brisk, dry and exact.",
+    "strangers": "Asks their business.",
+    "friends": "Enters them in the ledger.",
+    "opensUp": "A question about how a tool works.",
+    "goesQuiet": "Offers of help."
+  },
+  "voice": {
+    "rhythm": "Short items, then a number.",
+    "maxWords": 16,
+    "words": ["list", "ledger"],
+    "never": ["perhaps", "guess"],
+    "tic": "logged",
+    "hello": "States what is on the list.",
+    "goodbye": "Says she stops at three.",
+    "pleased": "Says she has entered it.",
+    "putOut": "Says no."
+  },
+  "gifts": {
+    "loves": ["herbs"],
+    "likes": ["copper"],
+    "replies": {
+      "birch": ["A log. I’ll enter it as one log."],
+      "ash": ["Ash. I’ve logged it as one."],
+      "pine": ["Pine. It’s sticky. I’m not putting it near the ledger."],
+      "minnow": ["A fish. The Bindery has no line for fish. I’ll add one."],
+      "trout": ["A trout. It goes under fish. There’s a line for that now."],
+      "berries": ["Berries. I counted them. Forty. You ate one on the way."],
+      "herbs": ["Herbs. That’s tea. Rule two is covered."],
+      "stone": ["A stone. I have forty trees and one stone. Good."],
+      "copper": ["Copper. The awl takes copper wire. This saves me a requisition."]
+    }
+  },
+  "day": {
+    "morning": "Mornings I count the seam. It’s the same length. I count it anyway.",
+    "afternoon": "Afternoons I write it up. Nobody reads it. It’s filed correctly.",
+    "evening": "It’s late. The ledger closes at dusk. I’m still here. That goes in tomorrow.",
+    "night": "I don’t sleep on a watch. I’ve logged this as rest.",
+    "rain": "Rain. The ledger’s under my coat. The coat leaks. The ledger doesn’t."
+  },
+  "thinks": {
+    "wendell": ["The man in the road. He measures. I count. We don’t compare."],
+    "gorrin": ["I counted his cabbages. I got a third number. He took it well."],
+    "jonas": ["Two spoons. I told him about crate nine hundred and four. He sat down."]
+  },
+  "recalls": {
+    "asked-about-the-awl": ["The awl’s been cleaned. It was Thursday."],
+    "crate-905": ["I thought about crate nine hundred and five again. Still nothing."],
+    "offer-tea-anyway": ["I offered a stray tea yesterday. It bit the cup. I’d stood back."],
+    "the-ship": ["I looked at the badge this morning. It’s still to scale."]
+  },
+  "arc": {
+    "want": "The seam counted.",
+    "complication": "A crate she will never open.",
+    "kindness": "Someone says she misses her ship."
   }
 }

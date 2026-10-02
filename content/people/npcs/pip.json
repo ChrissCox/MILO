@@ -1,0 +1,242 @@
+{
+  "id": "pip",
+  "name": "Pip",
+  "title": "who decided to be small",
+  "after": {
+    "genre": "void"
+  },
+  "where": {
+    "x": 12,
+    "y": 46
+  },
+  "why": "On a stone by the south-west gate. It came out of a rift that was far too big, looked at the size of everything, and sat down here to be small.",
+  "dye": {
+    "m": "N",
+    "b": "E",
+    "u": "v",
+    "U": "V",
+    "Y": "V",
+    "r": "k",
+    "R": "K",
+    "Q": "K"
+  },
+  "threshold": 4,
+  "likes": {
+    "kind": 2,
+    "joke": 1
+  },
+  "dislikes": ["favour"],
+  "resists": ["truth"],
+  "examine": ["Pip is from very far away. It has more eyes than it needs and uses all of them kindly.", "It is sitting on a stone. The stone looks slightly more organised than the other stones.", "Pip has unfolded a leaf into eleven smaller leaves and laid them out in a row."],
+  "meet": ["Hello. Big road. Big gate. Big you. I am Pip. I am small. I did it on purpose.", "Sit. There is room. I made the stone into two stones."],
+  "hello": {
+    "wary": ["Hello. You are loud today. That is all right. I am small. It goes over."],
+    "neutral": ["Hello again. I counted your steps. There were many. Each one was small."],
+    "warm": ["You came. Good. I saved the flat stone. It is the good stone."],
+    "fond": ["My person. I made today into pieces for you. This is the first piece."]
+  },
+  "tired": ["Enough words. I had many. Now I have a few. Come tomorrow."],
+  "finished": ["No more to unfold. All small now. I checked with every eye."],
+  "topics": [
+    {
+      "id": "big",
+      "say": ["Where I come from, things are big. Too big to look at. I looked anyway. Then I came here."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "I’m glad you came.",
+          "reply": ["I am glad too. I said it small. I meant it large."],
+          "remember": "glad-it-came"
+        },
+        {
+          "approach": "joke",
+          "text": "How big? Bigger than a cabbage?",
+          "reply": ["Bigger than all the cabbages. I have seen the cabbage man. He would not cope."]
+        },
+        {
+          "approach": "truth",
+          "text": "That sounds frightening.",
+          "reply": ["I do not know that word. Is it a big word?"]
+        },
+        {
+          "approach": "craft",
+          "text": "How do you make a thing small?",
+          "reply": ["You find the first piece. Then you stop looking at the rest."]
+        }
+      ]
+    },
+    {
+      "id": "unfold",
+      "needs": 1,
+      "say": ["I can unfold things. A big thing is many small things, folded. People forget. I show them."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "Show me one.",
+          "reply": ["This stone. It is one stone. Now look. It is a sitting place and a thinking place. Bit by bit."],
+          "remember": "asked-to-be-shown"
+        },
+        {
+          "approach": "joke",
+          "text": "Can you unfold my Monday?",
+          "reply": ["Yes. It is nine small things and one nap. You forgot the nap."]
+        },
+        {
+          "approach": "favour",
+          "text": "Let me help you fold them back.",
+          "reply": ["No. Folding is how it got big. Leave it flat."]
+        }
+      ]
+    },
+    {
+      "id": "eyes",
+      "needs": 3,
+      "say": ["I have many eyes. People look at one and then stop. Nobody has looked at all of them."],
+      "options": [
+        {
+          "approach": "kind",
+          "text": "I’ll look at all of them.",
+          "reply": ["You did. One at a time. That is the right way. Nobody did that before."],
+          "remember": "looked-at-every-eye"
+        },
+        {
+          "approach": "joke",
+          "text": "Which one is in charge?",
+          "reply": ["The left one. It is not. It thinks it is. We let it."]
+        },
+        {
+          "approach": "craft",
+          "text": "What do the extra ones see?",
+          "reply": ["The next piece. Always the next piece. Never the whole thing. It is restful."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "three-small-things",
+    "title": "Three small things",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["I want a supper. A supper is big. So. Three small things.", "Bring one berries. Bring one herbs. Bring one minnow. I will put them next to each other. That is a supper."],
+    "accept": "I’ll bring them.",
+    "steps": [
+      {
+        "kind": "give",
+        "item": "berries",
+        "n": 1,
+        "text": "Bring Pip 1 berries."
+      },
+      {
+        "kind": "give",
+        "item": "herbs",
+        "n": 1,
+        "text": "Bring Pip 1 herbs."
+      },
+      {
+        "kind": "give",
+        "item": "minnow",
+        "n": 1,
+        "text": "Bring Pip 1 minnow."
+      }
+    ],
+    "waiting": ["You have some of them. That is fine. One is also a number."],
+    "report": "That’s all three.",
+    "done": ["Three. Next to each other. It is a supper. I did not have to look at a whole supper.", "Take this. It was a big star. I folded it. It will stay folded if you are gentle."],
+    "remember": "brought-three-small-things",
+    "approval": 2,
+    "keepsake": {
+      "name": "A folded star",
+      "text": "It was big once. Pip folded it. Be gentle."
+    }
+  },
+  "memories": {
+    "glad-it-came": "You said you were glad it came. It said so too, small, and meant it large.",
+    "asked-to-be-shown": "You asked Pip to show you how a thing unfolds. It used the stone you were sitting on.",
+    "looked-at-every-eye": "You looked at every one of its eyes, one at a time. Nobody had.",
+    "brought-three-small-things": "You brought three small things and it called them a supper."
+  },
+  "camp": {
+    "early": ["A camp is big. I do not know you small enough yet. Sit longer."],
+    "ask": ["Your camp. It has a fire. A fire is many small fires.", "Is there a stump? I want a stump. A good one."],
+    "yes": ["Then I come. I will take the stump. I will make your list into small lists."],
+    "full": ["No bed. I do not need a bed. But a rule is a rule. I will wait on the stone."],
+    "role": "Unfolds a big quest into small steps.",
+    "leaves": "One stump that looks more organised than the others."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A supper it does not have to look at all at once.",
+      "next": "A stump of its own.",
+      "really": "To be looked at one eye at a time.",
+      "worry": "Being asked to look at the whole of something."
+    },
+    "favourites": {
+      "food": "anything in three parts",
+      "weather": "a small cloud",
+      "place": "the good stone",
+      "topic": "the first piece of a thing",
+      "person": "whoever is sitting down"
+    },
+    "aversions": ["being helped to fold things back up", "being hurried"],
+    "temperament": "Gentle, bold and unhurried.",
+    "strangers": "Makes room on the stone.",
+    "friends": "Cuts their day into pieces for them.",
+    "opensUp": "Kindness, said plainly.",
+    "goesQuiet": "Offers to tidy it."
+  },
+  "voice": {
+    "rhythm": "Very short sentences. No contractions. A small thing, then a smaller thing.",
+    "maxWords": 12,
+    "words": ["small", "piece"],
+    "never": ["hurry", "everything"],
+    "tic": "Bit by bit",
+    "hello": "Says hello and how big you are.",
+    "goodbye": "Says it has a few words left.",
+    "pleased": "Says nobody did that before.",
+    "putOut": "Asks if it is a big word."
+  },
+  "gifts": {
+    "loves": ["berries"],
+    "likes": ["stone", "minnow"],
+    "replies": {
+      "birch": ["A log. Big. I will make it sticks. Then it is many gifts."],
+      "ash": ["A log. Long. I will sit on one end only."],
+      "pine": ["It smells. A big smell. I will smell it bit by bit."],
+      "minnow": ["A small fish. Good. It did the work already."],
+      "trout": ["A big fish. Hm. I will think of it as six minnows."],
+      "berries": ["Berries. Many small ones. This is the best gift. Each one is a gift."],
+      "herbs": ["Leaves. Small leaves. I will count them. Do not help."],
+      "stone": ["A stone. For sitting. Now I have a visiting stone."],
+      "copper": ["Shiny. It has a small me in it. Hello."]
+    }
+  },
+  "day": {
+    "morning": "Morning is the first piece. I like the first piece.",
+    "afternoon": "The middle of the day. I do not look at it. I look at now.",
+    "evening": "The light is going small. It is doing it well.",
+    "night": "Night is big. So I shut most of my eyes. Now it is small.",
+    "rain": "Rain. It is one big wet. No. It is drops. Bit by bit."
+  },
+  "thinks": {
+    "rivet": ["The whistle man. His list was long. I made it short lists. He looked at me for a while."],
+    "gorrin": ["The cabbage man. He has many. He counts them as one sadness. I would count them as cabbages."],
+    "jonas": ["Two spoons. That is a good number. It is small and it is more than one."]
+  },
+  "recalls": {
+    "glad-it-came": ["You said glad. I kept it. It is still the same size."],
+    "asked-to-be-shown": ["The stone is still two things. I checked this morning."],
+    "looked-at-every-eye": ["You looked at all of them. The left one is still talking about it."],
+    "brought-three-small-things": ["The supper was three things. I ate them one at a time. It took all evening."]
+  },
+  "helloAfter": {
+    "wary": ["Hello. You brought three things once. I remember small things best."],
+    "neutral": ["Hello again. I had a supper. Now I want a stump. One thing at a time."],
+    "warm": ["You came. Good. I am looking at stumps. Only the first one so far."],
+    "fond": ["My person. The supper is done. The stump is next. After that I do not look."]
+  },
+  "arc": {
+    "want": "A supper in three parts.",
+    "complication": "It came from somewhere too big to look at.",
+    "kindness": "Someone looks at every one of its eyes."
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "id": "sloe",
+  "name": "Sloe",
+  "title": "captain of the ferry",
+  "where": {
+    "x": 91,
+    "y": 34
+  },
+  "why": "At his quay south of the east road, where the river meets the sea. The ferry to the Far Shore leaves from here, and somebody has to be standing by it when it does.",
+  "dye": {
+    "m": "S",
+    "b": "s",
+    "u": "N",
+    "U": "N",
+    "Y": "N",
+    "r": "p",
+    "R": "P",
+    "Q": "P"
+  },
+  "threshold": 4,
+  "likes": {
+    "truth": 2,
+    "kind": 1
+  },
+  "dislikes": ["favour"],
+  "resists": ["joke"],
+  "examine": ["Captain Obadiah Sloe is the ferryman to the Far Shore. He says little and rows steadily.", "His boat is tied up with one knot. It is a very old knot. It has never been retied.", "He is looking west. He has been looking west since before you arrived, and will be after."],
+  "meet": ["Aye.", "Sloe. Ferry. Far Shore. One way."],
+  "hello": {
+    "wary": ["You. No passage today."],
+    "neutral": ["Aye. You again. Tide’s out."],
+    "warm": ["Sit on the bollard. It’s dry."],
+    "fond": ["Kept you the dry bollard. Sit."]
+  },
+  "tired": ["That’s my words for today. I had nine."],
+  "finished": ["Said it all. Wasn’t much. Watch the water with me."],
+  "topics": [
+    {
+      "id": "shore",
+      "say": ["Finished things go west. I row them. They don’t come back. They don’t need to."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "I’ve things that should have gone by now.",
+          "reply": ["I know. Boat’s been light. Bring them when they’re done."],
+          "remember": "things-that-should-have-gone"
+        },
+        {
+          "approach": "kind",
+          "text": "That’s a gentle job.",
+          "reply": ["It’s rowing. But I’m careful with them."]
+        },
+        {
+          "approach": "joke",
+          "text": "Do you do returns?",
+          "reply": ["One way."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll take an oar.",
+          "reply": ["Two oars. Two hands. Both mine."]
+        }
+      ]
+    },
+    {
+      "id": "boat",
+      "needs": 2,
+      "say": ["This boat’s older than the quay. I’ve replaced every plank. Same boat."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "Then it isn’t the same boat.",
+          "reply": ["It knows the way. That’s the boat."],
+          "remember": "the-same-boat"
+        },
+        {
+          "approach": "craft",
+          "text": "What’s she built of?",
+          "reply": ["Larch. And habit."]
+        },
+        {
+          "approach": "kind",
+          "text": "You’ve kept her well.",
+          "reply": ["She’s kept me. I only bail."]
+        }
+      ]
+    },
+    {
+      "id": "far",
+      "needs": 4,
+      "say": ["People ask what’s on the Far Shore. I’ve never got out. I row there. I row back. That’s my half."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "You’ve never wanted to look?",
+          "reply": ["Wanted to. Once. The boat wouldn’t wait. It was right."],
+          "remember": "never-got-out"
+        },
+        {
+          "approach": "kind",
+          "text": "Your half matters.",
+          "reply": ["Somebody’s has to be the rowing."]
+        },
+        {
+          "approach": "joke",
+          "text": "Maybe it’s just more quay.",
+          "reply": ["Could be. Wouldn’t change the rowing."]
+        }
+      ]
+    }
+  ],
+  "memories": {
+    "things-that-should-have-gone": "You told him you have finished things that should have gone west by now. He said the boat has been light.",
+    "the-same-boat": "You said a boat with every plank replaced is not the same boat. He said it knows the way.",
+    "never-got-out": "You asked if he ever wanted to look at the Far Shore. Once. The boat would not wait."
+  },
+  "camp": {
+    "never": ["No. Boat’s here. So I’m here.", "Bring something finished. I’ll row it. That’s my visit."],
+    "role": "Stays at his quay, and rows finished things west."
+  },
+  "sheet": {
+    "wants": {
+      "now": "Something finished to row west.",
+      "really": "To be thanked by somebody who watched the boat go.",
+      "worry": "A full quay and nothing done."
+    },
+    "favourites": {
+      "food": "ship’s biscuit, softened in tea",
+      "weather": "a flat grey calm",
+      "place": "the bollard at the end of the quay",
+      "topic": "nothing, comfortably",
+      "person": "whoever can sit quiet"
+    },
+    "aversions": ["being helped with the oars", "chatter"],
+    "temperament": "Still, plain and kinder than the count of his words.",
+    "strangers": "Says aye.",
+    "friends": "Keeps them the dry bollard.",
+    "opensUp": "A plain truth, said once.",
+    "goesQuiet": "He is already quiet. Jokes make it deeper."
+  },
+  "voice": {
+    "rhythm": "Almost nothing. Three or four words and a full stop.",
+    "maxWords": 9,
+    "words": ["boat", "row"],
+    "never": ["very", "perhaps"],
+    "tic": "Aye.",
+    "hello": "Says aye.",
+    "goodbye": "Counts the words he has used.",
+    "pleased": "Offers the bollard.",
+    "putOut": "Says one way."
+  },
+  "gifts": {
+    "loves": ["trout"],
+    "likes": ["minnow", "pine"],
+    "replies": {
+      "birch": ["Birch. Burns. Thanks."],
+      "ash": ["Ash. That’s an oar, one day."],
+      "pine": ["Pine. For the seams. Good."],
+      "minnow": ["Bait. Aye. I’ll use it."],
+      "trout": ["Trout. Aye. That’s supper. Sit."],
+      "berries": ["Berries. Don’t get many at sea."],
+      "herbs": ["Greens. For the tea. All right."],
+      "stone": ["Ballast. Small. Still ballast."],
+      "copper": ["Copper. Keeps the worm off. Good."]
+    }
+  },
+  "day": {
+    "morning": "Tide’s coming. Not yet.",
+    "afternoon": "Slack water. Good for sitting.",
+    "evening": "Light’s west. I watch it go.",
+    "night": "I sleep in the boat. It rocks me.",
+    "rain": "Rain. Same water. Different way up."
+  },
+  "thinks": {
+    "gorrin": ["Cabbage man. Wants passage for a cart. Cart’s not finished. Told him."],
+    "mae": ["Detective. Asked who took the ferry. Nobody. Told her. She wrote it down."],
+    "odo": ["The clerk. Logs my sailings. I’ve had two. He has three in the book."]
+  },
+  "recalls": {
+    "things-that-should-have-gone": ["Boat’s still light. No hurry. I’m here."],
+    "the-same-boat": ["New plank this week. Same boat. Asked it."],
+    "never-got-out": ["Thought about getting out. Sat down again."]
+  },
+  "arc": {
+    "want": "A finished thing to carry.",
+    "complication": "He has rowed to the Far Shore all his life and never stepped onto it.",
+    "kindness": "Someone sits on the bollard and says one true thing."
+  }
+}

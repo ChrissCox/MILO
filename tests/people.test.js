@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { createState, normalizeState } from '../src/model.js';
 import { cleanPeople, APPROACHES, PEOPLE_LIMITS } from '../src/state5.js';
 import {
-  allPeople, personOf, personView, choose, meet, inviteToCamp, sendHome, residents, standing, residentsOf, levelOf, pointsNow,
+  allPeople, personOf, personView, choose, meet, inviteToCamp, sendHome, residents, standing, residentsOf, levelOf, pointsNow, hasArrived, riftMended,
   nextTopic, DAY_TURNS, FLOOR, BEDS, bedsFor,
 } from '../src/people.js';
 import { PALETTE } from '../src/world/sprites.js';
@@ -27,11 +27,40 @@ const fresh = () => createState(T0);
 const wendell = () => personOf(content, 'wendell');
 const indexOf = (person, topicId, approach) => person.topics.find((t) => t.id === topicId).options.findIndex((o) => o.approach === approach);
 
-test('the three people are in the bundle, and the state starts with nobody met', () => {
-  assert.deepEqual(Object.keys(npcs).sort(), ['gorrin', 'jonas', 'mags', 'wendell']);
+const CAST = ['bram', 'dusty', 'gorrin', 'hob', 'jonas', 'juno', 'lumi', 'mae', 'mags', 'nan', 'nell', 'odo', 'pip', 'rivet', 'sloe', 'tova', 'vesperine', 'wendell'];
+// Out in the world from the first day: everyone whose file names nothing that has to happen first.
+const FROM_THE_START = ['bram', 'gorrin', 'hob', 'jonas', 'nan', 'odo', 'sloe', 'wendell'];
+
+test('the cast is in the bundle, and the state starts with nobody met', () => {
+  assert.deepEqual(Object.keys(npcs).sort(), CAST);
   assert.deepEqual(fresh().people, {});
-  assert.deepEqual(allPeople(content).map((p) => p.id).sort(), ['gorrin', 'jonas', 'mags', 'wendell']);
-  assert.deepEqual(standing(fresh(), content).map((p) => p.id).sort(), ['gorrin', 'jonas', 'wendell'], 'Mags arrives with the story');
+  assert.deepEqual(allPeople(content).map((p) => p.id).sort(), CAST);
+  assert.deepEqual(standing(fresh(), content).map((p) => p.id).sort(), FROM_THE_START, 'the rest arrive with the story, a mended rift or a first building');
+});
+
+test('people arrive when their story does: a chapter, a mended rift of their genre, a first building', () => {
+  const who = (state) => standing(state, content).map((p) => p.id).sort();
+  const mended = (genre, how = 'sealed') => ({ ...fresh(), rifts: { ...fresh().rifts, history: [{ key: 'k', id: 'r', name: '', genres: [genre], kind: 'real', how, openedAt: T0, closedAt: T0 }] } });
+  const arrivals = { iron: 'rivet', void: 'pip', frontier: 'dusty', neon: 'juno', noir: 'mae', nocturne: 'lumi', gothic: 'vesperine' };
+  for (const [genre, id] of Object.entries(arrivals)) {
+    assert.equal(npcs[id].after.genre, genre);
+    assert.equal(riftMended(mended(genre), genre), true);
+    assert.deepEqual(who(mended(genre)), [...FROM_THE_START, id].sort(), `${id} steps out of a mended ${genre} rift`);
+    assert.deepEqual(who(mended(genre, 'stitched')), [...FROM_THE_START, id].sort());
+    assert.deepEqual(who(mended(genre, 'let-go')), FROM_THE_START, 'a rift let go brings nobody; the next one will');
+  }
+  assert.equal(riftMended(fresh(), 'iron'), false);
+  assert.equal(riftMended({ rifts: { history: 'junk' } }, 'iron'), false);
+  // Tova comes to see the first thing built.
+  const built = { ...fresh(), tally: { ...fresh().tally, buildingsDesigned: 1 } };
+  assert.deepEqual(who(built), [...FROM_THE_START, 'tova'].sort());
+  // Nell waits for Mistmere to wake, which is a later chapter.
+  assert.equal(hasArrived(built, personOf(content, 'nell')), false);
+  // Whoever has been met has arrived, whatever the history says now.
+  const metRivet = { ...fresh(), people: cleanPeople({ rivet: { points: 0, met: T0, seen: T0 } }) };
+  assert.equal(hasArrived(metRivet, personOf(content, 'rivet')), true);
+  assert.equal(hasArrived(fresh(), personOf(content, 'rivet')), false);
+  assert.equal(hasArrived(fresh(), { id: 'x', after: { nonsense: true } }), true, 'an unknown condition never hides anyone');
 });
 
 test('every person file is complete, calm, and can be won', () => {
@@ -93,7 +122,7 @@ test('every person file is complete, calm, and can be won', () => {
     for (const text of spoken) {
       assert.ok(!/\b(?:isn’t|is not|aren’t|are not|not)\b[^.?!]{0,60}[.,]\s*(?:it’s|it is|that’s|that is|they’re|they are)\b/i.test(text), `${where}: no "it’s not X, it’s Y": ${text}`);
     }
-    assertCalm(npc.camp.role, `${where}.role`, { proper: ['Gorrin', 'Wendell', 'Jonas', 'Mags'] });
+    assertCalm(npc.camp.role, `${where}.role`, { proper: ['Gorrin', 'Wendell', 'Jonas', 'Mags', 'Gamewright’s', 'Rest', 'Watchtower'] });
   }
 });
 
@@ -180,11 +209,11 @@ test('Come to camp: not until they are Fond, not without a bed, and then they li
   assert.deepEqual(r.lines, p.camp.yes);
   assert.equal(residentsOf(r.state), 1);
   assert.deepEqual(residents(r.state, content).map((x) => x.id), ['wendell']);
-  assert.deepEqual(standing(r.state, content).map((x) => x.id).sort(), ['gorrin', 'jonas'], 'a resident no longer stands in the road');
+  assert.deepEqual(standing(r.state, content).map((x) => x.id).sort(), FROM_THE_START.filter((id) => id !== 'wendell'), 'a resident no longer stands in the road');
   assert.equal(personView(r.state, p, T0).camp.state, 'in');
   const home = sendHome(r.state, p, T0 + DAY);
   assert.equal(residentsOf(home), 0);
-  assert.equal(standing(home, content).length, 3);
+  assert.equal(standing(home, content).length, FROM_THE_START.length);
 });
 
 test('beds grow with the Hearth', () => {

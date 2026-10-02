@@ -1,8 +1,9 @@
 // Folk (PLAN.md Phase 5b; LORE.md §9.0): the people of the hamlets, the world's set pieces. Each
-// hamlet gets two or three, made from a name, a job and the hamlet's age, the same every time for
+// hamlet gets three or four, made from a name, a job and the hamlet's age, the same every time for
 // the same hamlet. They can't be befriended or recruited: they stand where they live and say one
 // thing at a time. Pure: the words are content/people/folk.json, and `free(x, y)` says where a
 // person can stand.
+import { hamletAge } from './settlement.js';
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -28,11 +29,7 @@ function hash(...parts) {
 
 const keyOf = (hamlet) => `${hamlet.x}_${hamlet.y}`;
 
-/** A hamlet is old (there before the road) or new (went up after the lantern woke), for good. */
-export function hamletAge(hamlet) {
-  if (!isRecord(hamlet) || !Number.isInteger(hamlet.x) || !Number.isInteger(hamlet.y)) return 'old';
-  return hash('age', keyOf(hamlet)) % 5 < 2 ? 'new' : 'old';
-}
+export { hamletAge };
 
 /** What the hamlet's own panel says about its age. */
 export function ageLine(hamlet, folk) {
@@ -41,57 +38,112 @@ export function ageLine(hamlet, folk) {
 }
 
 /**
- * The folk of a hamlet: two or three, each { id, name, role, title, age, x, y, look, lines }.
- * `free(x, y)` → whether someone can stand on a tile (walkable and nothing on it). Someone who
- * can't be given a tile near the hamlet is left out. `lines` has the role's lines for any hamlet
- * first, then the ones for this hamlet's age.
+ * The folk of a hamlet: three or four, each { id, name, role, title, age, x, y, look, lines, cool, warm }.
+ * Every hamlet has a seller and a keeper of something (LORE.md §9.0), and one or two others.
+ * `free(x, y)` → whether someone can stand on a tile (walkable and nothing on it). `parts` are
+ * the hamlet's buildings (settlement.js): someone whose job has a `post` (the well, the stall, a
+ * home) stands beside it. `lines` has the role's lines for any hamlet, then this hamlet's age.
+ *
+ * They keep a day (`part`: 'morning' | 'afternoon' | 'evening' | 'night', and `rain`). At night
+ * only those whose job is the night are out (the lamplighter, whoever watches the road). In the
+ * rain the seller stays under the awning and the rest go in. Of an evening they gather at the well.
+ * Whoever is indoors isn't in the list, and everyone keeps their name, job and id whatever the hour.
  */
-export function folkFor(hamlet, folk, { free = () => true } = {}) {
+export function folkFor(hamlet, folk, { free = () => true, parts = [], part = 'day', rain = false, age: given = null, limit = null } = {}) {
   if (!isRecord(hamlet) || !Number.isInteger(hamlet.x) || !Number.isInteger(hamlet.y) || !isRecord(folk)) return [];
   const names = Array.isArray(folk.names) ? folk.names.filter((n) => typeof n === 'string' && n) : [];
   const roles = Array.isArray(folk.roles) ? folk.roles.filter((r) => isRecord(r) && typeof r.id === 'string' && typeof r.title === 'string') : [];
   if (!names.length || !roles.length) return [];
   const key = keyOf(hamlet);
-  const age = hamletAge(hamlet);
-  const count = 2 + (hash('count', key) % 2);
-  // Tiles round the hamlet, nearest first, in an order that is the hamlet's own.
+  // A camp beside a lantern (camps.js) is new by definition, and has room for fewer.
+  const age = given === 'new' || given === 'old' ? given : hamletAge(hamlet);
+  const built = (Array.isArray(parts) ? parts : []).filter((p) => isRecord(p) && typeof p.part === 'string' && [p.x, p.y, p.w, p.h].every(Number.isInteger));
+  const can = (x, y) => { try { return free(x, y) === true; } catch { return false; } };
+  const list = (v) => (Array.isArray(v) ? v.filter((l) => typeof l === 'string' && l) : []);
+
+  // Who lives here: the seller, a keeper, and one or two more. The same people whatever the hour.
+  const seller = roles.findIndex((r) => r.post === 'stall');
+  const keepers = roles.map((r, i) => (r.keeper === true ? i : -1)).filter((i) => i >= 0);
+  const keeper = keepers.length ? keepers[hash('keeper', key) % keepers.length] : -1;
+  const count = Math.min(roles.length, names.length, Number.isInteger(limit) && limit > 0 ? limit : Infinity, 3 + (hash('count', key) % 2));
+  const usedNames = new Set();
+  const usedRoles = new Set();
+  const roster = [];
+  for (let i = 0; i < count; i += 1) {
+    let r = i === 0 && seller >= 0 ? seller : i === 1 && keeper >= 0 ? keeper : hash('role', key, i) % roles.length;
+    while (usedRoles.has(r)) r = (r + 1) % roles.length;
+    usedRoles.add(r);
+    let n = hash('name', key, i) % names.length;
+    while (usedNames.has(n)) n = (n + 1) % names.length;
+    usedNames.add(n);
+    roster.push({ i, role: roles[r], name: names[n] });
+  }
+
+  // Tiles round the hamlet, in an order that is the hamlet's own.
   const tiles = [];
   for (let dy = -3; dy <= 4; dy += 1) {
     for (let dx = -3; dx <= 5; dx += 1) {
       const x = hamlet.x + dx;
       const y = hamlet.y + dy;
-      if (dx >= -1 && dx <= 3 && dy >= -1 && dy <= 2) continue; // the houses themselves, and their doorsteps
-      let ok = false;
-      try { ok = free(x, y) === true; } catch { ok = false; }
-      if (ok) tiles.push({ x, y, order: hash('tile', key, x, y) });
+      if (dx >= -1 && dx <= 3 && dy >= -1 && dy <= 2) continue; // the first home itself, and its doorstep
+      if (can(x, y)) tiles.push({ x, y, order: hash('tile', key, x, y) });
     }
   }
   tiles.sort((a, b) => a.order - b.order);
   const out = [];
-  const usedNames = new Set();
-  const usedRoles = new Set();
-  for (let i = 0; i < count; i += 1) {
-    const spot = tiles.find((t) => !out.some((p) => Math.abs(p.x - t.x) <= 1 && Math.abs(p.y - t.y) <= 1));
-    if (!spot) break;
-    let n = hash('name', key, i) % names.length;
-    while (usedNames.has(n)) n = (n + 1) % names.length;
-    usedNames.add(n);
-    let r = hash('role', key, i) % roles.length;
-    while (usedRoles.has(r)) r = (r + 1) % roles.length;
-    usedRoles.add(r);
-    const role = roles[r];
-    const list = (v) => (Array.isArray(v) ? v.filter((l) => typeof l === 'string' && l) : []);
+  const usedPosts = new Set();
+  const apart = (t) => !out.some((p) => Math.abs(p.x - t.x) <= 1 && Math.abs(p.y - t.y) <= 1);
+  // Beside what they keep, if the hamlet has one: in front of it first, then at either end.
+  const postFor = (role) => {
+    for (const p of built) {
+      if (p.part !== role.post || usedPosts.has(p)) continue;
+      const front = [];
+      for (let x = p.x; x < p.x + p.w; x += 1) front.push({ x, y: p.y + p.h });
+      const spot = [...front, { x: p.x - 1, y: p.y + p.h - 1 }, { x: p.x + p.w, y: p.y + p.h - 1 }].find((t) => can(t.x, t.y) && apart(t));
+      if (spot) { usedPosts.add(p); return spot; }
+    }
+    return null;
+  };
+  // Of an evening, round the well.
+  const well = built.find((p) => p.part === 'well');
+  const byWell = () => {
+    if (!well) return null;
+    const ring = [];
+    for (let dy = -2; dy <= 2; dy += 1) for (let dx = -2; dx <= 2; dx += 1) {
+      const t = { x: well.x + dx, y: well.y + dy };
+      if ((dx || dy) && can(t.x, t.y)) ring.push({ ...t, order: hash('well', key, t.x, t.y) });
+    }
+    return ring.sort((a, b) => a.order - b.order).find(apart) || null;
+  };
+  const isOut = (role) => {
+    if (part === 'night') return role.night === true;
+    if (rain) return role.night === true || role.post === 'stall';
+    return true;
+  };
+  for (const { i, role, name } of roster) {
+    if (!isOut(role)) continue;
+    const gathering = part === 'evening' && !rain && role.night !== true && role.post !== 'stall';
+    const spot = (gathering && byWell()) || (typeof role.post === 'string' && postFor(role)) || tiles.find(apart);
+    if (!spot) continue;
     out.push({
-      id: `folk-${key}-${i}`, name: names[n], role: role.id, title: role.title, age, x: spot.x, y: spot.y,
+      id: `folk-${key}-${i}`, name, role: role.id, title: role.title, age, x: spot.x, y: spot.y,
       look: folkLook(hash('look', key, i)), lines: [...list(role.any), ...list(role[age])],
+      cool: typeof role.cool === 'string' ? role.cool : '', warm: typeof role.warm === 'string' ? role.warm : '',
     });
   }
   return out;
 }
 
-/** What one of the folk says today: a different line each day, the same all day. */
-export function folkLine(person, day = 0) {
+/**
+ * What one of the folk says today: a different line each day, the same all day. `welcome` is how
+ * the hamlet takes to Chris (welcome.js): while it's cool they say so, and nothing else; once it's
+ * warm, every third day they say something only a regular hears.
+ */
+export function folkLine(person, day = 0, welcome = 'plain') {
   const lines = Array.isArray(person?.lines) ? person.lines : [];
+  const turn = hash('line', person?.id) + Math.max(0, Math.floor(Number(day) || 0));
+  if (welcome === 'cool' && person?.cool) return person.cool;
+  if (welcome === 'warm' && person?.warm && turn % 3 === 0) return person.warm;
   if (!lines.length) return '';
-  return lines[(hash('line', person.id) + Math.max(0, Math.floor(Number(day) || 0))) % lines.length];
+  return lines[turn % lines.length];
 }

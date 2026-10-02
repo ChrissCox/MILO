@@ -2,6 +2,7 @@
 // the tonics and Cheers that fights already use. Short words: the detail is in the satchel. The rules
 // are in src/camplife.js.
 import { cookView, cook, RECIPES } from '../camplife.js';
+import { fireTalk } from '../sheets.js';
 import { esc } from './panels.js';
 
 export const id = 'fire';
@@ -17,8 +18,8 @@ export const COPY = Object.freeze({
 
 const needsWords = (needs) => needs.map((n) => `${n.n} ${n.name} (${n.have})`).join(', ');
 
-/** The `fire` panel. view: camplife.cookView's; says: the last thing made. */
-export function buildFire(view, says = '') {
+/** The `fire` panel. view: camplife.cookView's; says: the last thing made; talk: sheets.fireTalk's (a resident on another), or null. */
+export function buildFire(view, says = '', talk = null) {
   const list = Array.isArray(view) ? view.filter(isRecord) : [];
   let html = '<div class="fire-view">';
   if (says) html += `<p class="plot-note fire-says" data-note="made" tabindex="-1">${esc(says)}</p>`;
@@ -33,7 +34,12 @@ export function buildFire(view, says = '') {
         : `<span class="fire-why">${esc(r.why || '')}</span>`)
       + '</li>';
   }
-  return `${html}</ul></div>`;
+  html += '</ul>';
+  if (talk && Array.isArray(talk.lines) && talk.lines.length) {
+    html += `<section class="group fire-talk" data-group="talk" data-who="${esc(talk.who)}" data-about="${esc(talk.about)}"><h3>${esc(talk.name)}, on ${esc(talk.aboutName)}</h3>`
+      + `${talk.lines.map((l) => `<p class="person-line">${esc(l)}</p>`).join('')}</section>`;
+  }
+  return `${html}</div>`;
 }
 
 const NOOP = Object.freeze({ dispose() {}, refresh() {} });
@@ -44,7 +50,8 @@ export function mount(shell) {
     if (!shell || typeof shell.registerPanel !== 'function') return NOOP;
     const offs = [];
     let says = '';
-    const render = () => buildFire(cookView(shell.state), says);
+    const talk = () => { try { return fireTalk(shell.state, shell.content?.() ?? null, shell.now()); } catch { return null; } };
+    const render = () => buildFire(cookView(shell.state), says, talk());
     const action = (button) => {
       if (button?.dataset?.action !== 'fire-cook') return false;
       const rid = button.dataset.recipe || '';

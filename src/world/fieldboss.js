@@ -25,6 +25,8 @@ export const SIGHT_RADIUS = 3;
 export const FIELD_COVER = Object.freeze({
   tree: 'O', 'tree.blossom': 'O', 'tree.birch': 'O', pine: 'O', 'pine.snow': 'O', 'basalt.column': 'O', crag: 'O', 'crag.snow': 'O',
   'lantern.post': 'O', 'landmark.stone': 'O', statue: 'O', hamlet: 'O', cave: 'O',
+  cottage: 'O', 'cottage.slate': 'O', 'cottage.clay': 'O', 'cottage.new': 'O', 'cottage.moss': 'O', tent: 'O', well: 'O', 'lamp.post': 'O',
+  stall: 'o', woodpile: 'o', barrel: 'o', crate: 'o',
   rock: 'o', 'rock.basalt': 'o', bush: 'o', 'bush.berry': 'o', 'dice.stone': 'o', ruin: 'o', chest: 'o', 'chest.mimic': 'o', 'ore.node': 'o',
   reeds: '.', note: '.', herbs: '.', 'fishing.spot': '.', boat: '.',
 });

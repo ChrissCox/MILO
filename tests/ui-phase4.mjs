@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createUiKit, makeRoot } from './ui-helpers.mjs';
 import { createWorldgen } from '../src/world/worldgen.js';
 import { lastBridge } from '../src/world/trail.js';
+import { skyAt } from '../src/sky.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const artifacts = path.join(repo, 'test-results');
@@ -58,6 +59,18 @@ const stepsTo = (page, from, target, nearby) => page.evaluate(async ({ from, tar
   }
   return [];
 }, { from, target, nearby });
+
+// Two in the afternoon on the first day from today with no rain, by the sky's own rule.
+async function clearAfternoon() {
+  const sky = JSON.parse(await readFile(path.join(repo, 'content/sky.json'), 'utf8'));
+  const base = new Date();
+  base.setHours(14, 0, 0, 0);
+  for (let d = 0; d < 30; d += 1) {
+    const at = base.getTime() + d * 86_400_000;
+    if (skyAt(at, { seed: 'hushlands', sky })?.weather?.kind !== 'rain') return at;
+  }
+  return base.getTime();
+}
 
 async function outTheGate(kit, gate) {
   await kit.openPlacesList();
@@ -273,16 +286,47 @@ try {
       await page.locator('#panel [data-action="person-next"]').click();
       await page.keyboard.press('Escape');
     });
-    await check('a hamlet down the road has folk: set pieces who say one thing and can’t be befriended, and the hamlet says its age', async () => {
-      const at = await kit.standingAt();
+    await noErrors(kit, 'errand');
+    await kit.close();
+  }
+
+  // ---- The settled world: a camp by a lit lantern, a hamlet, its folk and its bed ---------------
+  {
+    // The folk keep a day (indoors at night and in the rain), so this runs on a clear afternoon.
+    const noon = await clearAfternoon();
+    const kit = await launchWith('settled', (s) => {
+      s.wilds = { ...s.wilds, lanterns: { ...(s.wilds?.lanterns || {}), 'lantern:28,-14': noon - 3 * 86_400_000 } };
+    }, { MILO_NOW: new Date(noon).toISOString() });
+    const page = kit.window;
+    const state = () => page.evaluate(() => window.milo.loadState());
+    await check('a lantern lit three days ago has a camp beside it: a fire, a tent and two of the folk, and coming by is counted', async () => {
+      const at = await outTheNorthGate(kit);
+      await walk(kit, at, await stepsTo(page, at, { x: 28, y: -14 }, [[0, 0], [0, 1], [1, 0], [-1, 0]]));
+      await kit.standingAt();
+      await kit.dismissBubbles(1500);
+      await kit.openPlacesList();
+      assert.equal(await page.locator('#place-list [data-entity="landmark:camp:lantern:28,-14#fire1"]').count(), 1, 'a fire');
+      assert.equal(await page.locator('#place-list [data-entity="landmark:camp:lantern:28,-14#tent1"]').count(), 1, 'a tent');
+      assert.equal(await page.locator('#place-list [data-entity^="landmark:folk-28_-14-"]').count(), 2, 'two folk');
+      await page.locator('#place-list [data-entity="landmark:camp:lantern:28,-14#tent1"]').click();
+      await kit.poll(async () => /Somebody pitched it after you lit the lantern/.test(await bubbleText(page)), 'the camp to say what it is', 30_000);
+      await kit.poll(async () => (await state()).camplife?.places?.['camp:lantern:28,-14']?.days === 1, 'the visit to be counted');
+      await kit.dismissBubbles(1000);
+    });
+    await check('a hamlet down the east road is a settlement: a seller and a keeper among its folk, what stands in it, and a bed for the company once a day', async () => {
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-entity="home"]').click();
+      await kit.poll(async () => (await kit.area()) === 'vale', 'Milo to be home', 60_000);
+      await kit.dismissBubbles(1000);
+      const at = await outTheGate(kit, 'gate:e');
       await walk(kit, at, await stepsTo(page, at, { x: 106, y: -5 }, [[4, 3], [3, 3], [-2, 3], [4, 0], [-2, 0]]));
       await kit.standingAt();
       await kit.dismissBubbles(1500);
       await kit.openPlacesList();
       const folk = page.locator('#place-list [data-entity^="landmark:folk-106_-5-"]');
       const count = await folk.count();
-      assert.ok(count === 2 || count === 3, `two or three folk: ${count}`);
-      assert.match(await folk.first().textContent(), /, who /);
+      assert.ok(count === 3 || count === 4, `three or four folk: ${count}`);
+      assert.equal(await page.locator('#place-list [data-entity^="landmark:folk-106_-5-"]', { hasText: 'who sells things' }).count(), 1, 'a seller');
       await folk.first().click();
       await kit.poll(async () => /, who /.test(await bubbleText(page)), 'one of the folk to speak', 30_000);
       assert.equal(await page.locator('#panel .person-view').count(), 0, 'no panel, no approval: a set piece');
@@ -290,9 +334,15 @@ try {
       await kit.openPlacesList();
       await page.locator('#place-list [data-entity="poi:hamlet:106,-5"]').click();
       await kit.poll(async () => /An old place|A new place/.test(await page.locator('#panel').textContent()), 'the hamlet to say its age', 30_000);
+      assert.match(await page.locator('#panel').textContent(), /Two homes, a tent, a well and a stall\./, 'and what stands in it');
+      await page.locator('#panel [data-action="poi-rest-bed"]').click();
+      await kit.poll(async () => /sleeps in the spare bed/.test(await page.locator('#panel').textContent()), 'Milo to rest', 30_000);
+      await page.locator('#panel [data-action="poi-rest-bed"]').click();
+      await kit.poll(async () => /lantern Campfire today/.test(await page.locator('#panel').textContent()), 'a second rest to be refused kindly', 30_000);
+      assert.equal((await state()).camplife?.places?.['poi:hamlet:106,-5']?.days, 1, 'being there is counted');
       await page.keyboard.press('Escape');
     });
-    await noErrors(kit, 'errand');
+    await noErrors(kit, 'settled');
     await kit.close();
   }
 

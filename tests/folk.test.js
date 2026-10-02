@@ -40,10 +40,10 @@ test('folk only speak, plainly: no stage directions, ellipses, dashes, similes o
   }
 });
 
-test('a hamlet has two or three folk, the same every time, each with their own name, job and tile', () => {
+test('a hamlet has three or four folk, the same every time, each with their own name, job and tile', () => {
   const a = folkFor(HAMLET, folk, { free: open });
   assert.deepEqual(a, folkFor(HAMLET, folk, { free: open }));
-  assert.ok(a.length === 2 || a.length === 3);
+  assert.ok(a.length === 3 || a.length === 4);
   assert.equal(new Set(a.map((p) => p.name)).size, a.length);
   assert.equal(new Set(a.map((p) => p.role)).size, a.length);
   assert.equal(new Set(a.map((p) => `${p.x},${p.y}`)).size, a.length);
@@ -104,7 +104,8 @@ test('every named person stands where their story is, and their sheet says why',
   for (const n of npcs) {
     assert.ok(typeof n.why === 'string' && n.why.length >= 30, `${n.id} says why they stand there`);
     assert.ok(worldgen.walkable(n.where.x, n.where.y) && !wilds.blocked(n.where.x, n.where.y), `${n.id} can stand there`);
-    assert.ok(!worldgen.inHeart(n.where.x, n.where.y), `${n.id} is out in the world`);
+    // Two locals belong to the vale itself: Nan at her field and Hob at his grandfather's tower.
+    assert.equal(worldgen.inHeart(n.where.x, n.where.y), ['nan', 'hob'].includes(n.id), `${n.id} is ${['nan', 'hob'].includes(n.id) ? 'in the vale' : 'out in the world'}`);
   }
   // Wendell: on the north road, about halfway between the gate and the Last Bridge.
   const bridge = lastBridge(worldgen);
@@ -115,7 +116,23 @@ test('every named person stands where their story is, and their sheet says why',
   assert.ok(at.gorrin.x > 64 && at.gorrin.x < 108 && Math.abs(at.gorrin.y - 14) <= 3, 'Gorrin is beside the east road');
   assert.ok(d(at.jonas, worldgen.anchorById['ivory-college']) <= 6, 'Jonas is outside the Ivory College');
   assert.ok(d(at.mags, gate) <= 8, 'Mags is by the north gate');
-  // Scattered: no two of them within sight of each other, apart from nobody.
+  // Scattered: the first four are out of sight of each other, and nobody stands on top of anybody.
+  const first = ['wendell', 'gorrin', 'jonas', 'mags'];
+  for (let i = 0; i < first.length; i += 1) for (let j = i + 1; j < first.length; j += 1) assert.ok(d(at[first[i]], at[first[j]]) >= 20, `${first[i]} and ${first[j]} are apart`);
   const ids = Object.keys(at);
-  for (let i = 0; i < ids.length; i += 1) for (let j = i + 1; j < ids.length; j += 1) assert.ok(d(at[ids[i]], at[ids[j]]) >= 20, `${ids[i]} and ${ids[j]} are apart`);
+  for (let i = 0; i < ids.length; i += 1) for (let j = i + 1; j < ids.length; j += 1) assert.ok(d(at[ids[i]], at[ids[j]]) >= 5, `${ids[i]} and ${ids[j]} have room`);
+  // The rest, each where their story is.
+  const near = (id, x, y, r) => assert.ok(d(at[id], { x, y }) <= r, `${id} is near ${x},${y}`);
+  near('rivet', 0, 20, 6);          // the west gate, whose hinges he oils
+  near('pip', 11, 43, 6);           // a stone by the south-west gate
+  near('tova', bridge.stand.x, bridge.stand.y, 4); // the foot of the Last Bridge
+  near('sloe', 92, 34, 2);          // his quay
+  near('mae', 108, 14, 4);          // the lantern on the Mistmere road
+  near('odo', 108, 18, 4);          // the stone above Mistmere Harbor
+  near('bram', -60, 92, 3);         // the stone that marks Gamewright's Rest
+  near('hob', 31, 10, 3);           // the Watchtower's door
+  near('lumi', 28, -38, 2);         // the quietest lantern on the north road
+  near('juno', -40, 18, 3);         // the lantern on the road to Cinderforge
+  near('dusty', -16, 62, 3);        // the lantern where the south-west road forks
+  near('vesperine', -20, 35, 3);    // the old ruin west of the vale
 });

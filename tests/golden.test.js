@@ -3,6 +3,8 @@
 // tests/fixtures/phase3-golden.json (hashed at 0b8f5ae by tests/fixtures/make-golden.mjs) is rebuilt
 // here with the same builders and must hash the same. Only a layout's roomRects and the tale-lead
 // object's name and label are ignored.
+// Phase 5b's settlements rebuilt the chunks that hold a hamlet, on purpose: those wild-object cases
+// are re-hashed, and the fixture's `amended` lists them. Nothing without a hamlet may be amended.
 //   node --test tests/golden.test.js
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,6 +33,11 @@ test('the golden fixture was made from the Phase 3 baseline and names every grou
     const n = Object.keys(golden.groups[group]).length;
     assert.ok(n >= floors[group], `${group}: ${n} cases`);
     assert.ok(Object.values(golden.groups[group]).every((h) => /^[0-9a-f]{64}$/.test(h)), `${group}: every entry is a SHA-256`);
+  }
+  assert.deepEqual(Object.keys(golden.amended || {}), ['wildObjects'], 'only wild objects were ever amended');
+  for (const key of Object.keys(golden.amended.wildObjects)) {
+    const chunk = cases.wildObjects.find((c) => c.key === key);
+    assert.ok(chunk && chunk.value().some((o) => o.kind === 'hamlet'), `${key}: amended only because a hamlet stands in it`);
   }
 });
 

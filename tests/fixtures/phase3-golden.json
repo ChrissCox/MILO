@@ -1764,7 +1764,7 @@
    "hushlands:2,-3": "1979b94f4d29fcd24a88b5b734eb98aa43e92c06d213838132ee505f5f9a0458",
    "hushlands:3,-3": "0b8db0b6306b35f847d4a22f6dee8b78fe89ab3baaf864c4d115881d132ae292",
    "hushlands:-3,-2": "39365d92112e685feec394b4e328f90ea343c8dc9c80db028ee58d43f9455067",
-   "hushlands:-2,-2": "0de55d03e730f5063a1d3964e770107bf3afde35a545080b48dece5fb024cb06",
+   "hushlands:-2,-2": "a93b0bf83decffdde8db38fae77b719d06ae4455e460aa33517e003a12f1e46f",
    "hushlands:-1,-2": "941c088e7f97d1a0f9a911731097c9d0687637b6e8abe909cc2caa2aebd6c206",
    "hushlands:0,-2": "3e51095bf5a8ffe0f03ac72dd95faf792271d16f09cff0a58bd950d0675237ee",
    "hushlands:1,-2": "4b593a8bd45c674ec82a802589a1ecdad7f65a8524472430afeba746fdddbba6",
@@ -1776,14 +1776,14 @@
    "hushlands:0,-1": "f35b19a712be3dd5d49dc8ea2c28a7f3f73c8c11e0206db7127884f7ae69d030",
    "hushlands:1,-1": "fa6234a6aa24b2a906f17de58219d1a81b188db661ca1c024ead0cf28b06fa8b",
    "hushlands:2,-1": "fbabad1cd9b5438e02285f2028c882a2106eb63d091ea3e15a22ddb6409932ac",
-   "hushlands:3,-1": "5aa94a12f599dff1ab18bb7fd76553b576b7b5b516965d59b3ea07b195c99162",
+   "hushlands:3,-1": "60523e0566bb73728531ca678b7ba32abb865679afb00fa4555f8485bc4adba7",
    "hushlands:-3,0": "694336ac4c26d834bdfd383883f50289fa86ba109f126b62f10a8b6ed6be2db1",
    "hushlands:-2,0": "25fb17ead8f9117b39d75203b6858cc7b6c22b95705282fb2ae4793adc223339",
    "hushlands:-1,0": "5580feab7591ec2cdfc3f8629397111131358bba83790445a1544f9db05f27db",
    "hushlands:0,0": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
    "hushlands:1,0": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
    "hushlands:2,0": "dc67269815353990f66dc7472d63ae9521941c87848d13b113538795e99bd008",
-   "hushlands:3,0": "a3f2399ef7b6b90ea3859ddf513c7e30a0aa7da264b8861bb730f726f433a8e8",
+   "hushlands:3,0": "7699cae0540ae3a29c7c71dff473674b8543cf8f08a637b275e804258a7e899f",
    "hushlands:-3,1": "dc46c9bf9e3e7333dcc23c182dba25b25afa2ab401011deb3082bda2c78e80f6",
    "hushlands:-2,1": "ab8733d84a5c1f9fcc80ed64b5d6809d15cbb728d1fee4610b1668b35828a1ee",
    "hushlands:-1,1": "c840449352c338497b55ae4e8a48f76712f2a212ba1466aee1512c426c448e6b",
@@ -2825,6 +2825,13 @@
    "hushlands:47": "0b305310cf0e799af97db3bfc8e9295629d87524c569792b6efd26ffc3dc01e8",
    "hushlands:48": "2041515299b6326e5c7e18ab604a7fb9c7b60a0264ba0b5fafbd4b59d6e39ce9",
    "hushlands:49": "8bb2735a69a93ba0013419e2356372839fa153d47ca85e112aba8853572f3acd"
+  }
+ },
+ "amended": {
+  "wildObjects": {
+   "hushlands:-2,-2": "a hamlet chunk, rebuilt by Phase 5b’s settlements",
+   "hushlands:3,-1": "a hamlet chunk, rebuilt by Phase 5b’s settlements",
+   "hushlands:3,0": "a hamlet chunk, rebuilt by Phase 5b’s settlements"
   }
  }
 }

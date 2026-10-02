@@ -109,6 +109,83 @@
     ],
     "yes": ["Then it’s settled. I’ll bring the cabbages. I’ll bring most of them."],
     "full": ["There’s no bed free. I sleep badly on a cabbage in any case. Send word when there’s room."],
-    "role": "Tends a cabbage patch by the fire."
+    "role": "Tends a cabbage patch by the fire.",
+    "leaves": "A row of cabbages nobody planted."
+  },
+  "sheet": {
+    "wants": {
+      "now": "A wheel for the cart.",
+      "next": "To get one load to the Tide Market whole.",
+      "really": "For someone to ask after him first and the cabbages second.",
+      "worry": "The hill."
+    },
+    "favourites": {
+      "food": "cabbage, boiled",
+      "weather": "flat weather with no wind",
+      "place": "the bottom of a hill, having arrived",
+      "topic": "the cart",
+      "person": "anyone who buys one cabbage"
+    },
+    "aversions": ["being told why he loses them", "advice about carts"],
+    "temperament": "Mournful, hopeful and never bitter.",
+    "strangers": "Offers a cabbage.",
+    "friends": "Keeps them a cabbage.",
+    "opensUp": "Being asked how he is.",
+    "goesQuiet": "The plain truth about the cart."
+  },
+  "voice": {
+    "rhythm": "A plain statement, then a smaller sadder one.",
+    "maxWords": 20,
+    "words": ["cabbages", "cart"],
+    "never": ["profit", "certainly"],
+    "tic": "counted twice",
+    "hello": "Says morning and warns about the leaves.",
+    "goodbye": "Expects to have lost something by tomorrow.",
+    "pleased": "Gives a cabbage.",
+    "putOut": "Says yes and nothing else."
+  },
+  "gifts": {
+    "loves": ["ash"],
+    "likes": ["birch", "herbs"],
+    "replies": {
+      "birch": ["Birch. That’s wheel wood. I’ll put it by the wheel."],
+      "ash": ["Ash. That’s an axle. I’ve wanted an axle since the second hill."],
+      "pine": ["Pine. It’s soft. The cart is hard on soft things."],
+      "minnow": ["A fish. I can’t sell a fish. I’ll try."],
+      "trout": ["A big fish. It’ll want its own cart."],
+      "berries": ["Berries. They’re small cabbages. No. I looked. They aren’t."],
+      "herbs": ["Herbs. Good with cabbage. Most things are."],
+      "stone": ["A stone. I’ll put it behind the wheel. That’s a brake now."],
+      "copper": ["Copper. I’ve nothing to mend with it. I’ll keep it with the cabbages."]
+    }
+  },
+  "day": {
+    "morning": "I count the cabbages in the morning. I counted twice. I got two numbers.",
+    "afternoon": "Afternoon is when the cart rolls, if it’s going to. I’m watching it.",
+    "evening": "It’s getting dark. The cabbages don’t mind. I asked.",
+    "night": "I sleep under the cart. It hasn’t rolled over me yet.",
+    "rain": "Rain’s good for cabbages. These ones are already picked. It’s wasted on them."
+  },
+  "thinks": {
+    "wendell": ["He stands in the road. The cart went round him. It’s never gone round anything before."],
+    "jonas": ["Two spoons. I offered him a cabbage. He asked if it was the second cabbage."],
+    "mags": ["She counted my cabbages for me. She got a third number."]
+  },
+  "recalls": {
+    "asked-after-him": ["You asked if I was all right. I am. I checked after you left."],
+    "counted-together": ["Eleven still hasn’t been lucky. I’m giving it another week."],
+    "honest-trade": ["An honest trade. I’ve told the cabbages."],
+    "brought-the-birch": ["The wheel’s on. It’s round. I’d forgotten they were round."]
+  },
+  "helloAfter": {
+    "wary": ["The wheel’s on. Cabbages? No. All right."],
+    "neutral": ["Morning. The cart has two wheels again. It’s thinking about the hill."],
+    "warm": ["Good. You’re here. The cart stayed. I’m as surprised as you are."],
+    "fond": ["You came back. So did the cart. That’s both of you."]
+  },
+  "arc": {
+    "want": "A wheel.",
+    "complication": "Every cart leaves him.",
+    "kindness": "Someone asks after him before the cabbages."
   }
 }

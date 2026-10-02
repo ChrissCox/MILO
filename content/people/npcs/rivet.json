@@ -1,0 +1,239 @@
+{
+  "id": "rivet",
+  "name": "Rivet Maddox",
+  "title": "sergeant of a tidy yard",
+  "after": {
+    "genre": "iron"
+  },
+  "where": {
+    "x": -4,
+    "y": 22
+  },
+  "why": "Beside the west gate. He fell through an overfull week, landed by a gate with stiff hinges, and has been oiling them since.",
+  "dye": {
+    "m": "z",
+    "b": "S",
+    "u": "R",
+    "U": "Q",
+    "Y": "Q",
+    "r": "u",
+    "R": "U",
+    "Q": "Y"
+  },
+  "threshold": 4,
+  "likes": {
+    "truth": 2,
+    "craft": 1
+  },
+  "dislikes": ["joke"],
+  "resists": ["kind"],
+  "examine": ["Rivet Maddox is a sergeant from a dieselpunk story. He has a whistle on a chain and an oil can.", "He has oiled the west gate’s hinges nine times today. The gate has not opened once.", "There is a chalk tally on the gatepost. It is a tally of things he has decided not to start."],
+  "meet": ["Halt. No. Carry on. I’m off duty. I’ve been off duty for a week and I’m very bad at it.", "Sergeant Maddox. Rivet. I ran a yard. The yard ran over."],
+  "hello": {
+    "wary": ["State how many jobs you have on. Don’t round down."],
+    "neutral": ["You’re back. The hinges are done. I’m doing them again."],
+    "warm": ["Good. Somebody who finishes things. Stand easy."],
+    "fond": ["There’s my best hand. I’ve kept your place on the roster. It’s the only place on it."]
+  },
+  "tired": ["That’s the whistle. Shift ends at six. I blew it early. Come back tomorrow."],
+  "finished": ["Nothing on the board. I’ve read it twice. It’s a good board."],
+  "topics": [
+    {
+      "id": "yard",
+      "say": ["My last yard had forty jobs going and none of them done. I counted the forty. Then somebody started a forty-first."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "Forty is too many.",
+          "reply": ["Yes. Nobody said so at the time. I’d have paid for it."],
+          "remember": "said-forty-was-too-many"
+        },
+        {
+          "approach": "craft",
+          "text": "How many should a yard run?",
+          "reply": ["Three. Four if one is nearly finished. It never is."]
+        },
+        {
+          "approach": "joke",
+          "text": "Was the forty-first any good?",
+          "reply": ["It was a bandstand."]
+        },
+        {
+          "approach": "kind",
+          "text": "That sounds hard.",
+          "reply": ["It was a yard. Yards are hard. That’s on the sign."]
+        }
+      ]
+    },
+    {
+      "id": "whistle",
+      "needs": 1,
+      "say": ["This whistle ends the shift. Shift ends at six. In my story it never blew. I’ve started blowing it here. Nobody stops working. Nobody was working."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "Then blow it for me.",
+          "reply": ["At six. Every day. You’ll stop when you hear it, or I’ll come and stand near you."],
+          "remember": "asked-for-the-whistle"
+        },
+        {
+          "approach": "craft",
+          "text": "What’s it made of?",
+          "reply": ["Brass. Two notes. The second one is for people who didn’t hear the first."]
+        },
+        {
+          "approach": "favour",
+          "text": "I could carry it for you.",
+          "reply": ["A whistle is issued to one man. I’ve read the form."]
+        }
+      ]
+    },
+    {
+      "id": "limit",
+      "needs": 3,
+      "say": ["I’ve been thinking about a limit. A number. You have that many jobs on, and then the next one waits at the gate. I’d hold the gate."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "I start too many things.",
+          "reply": ["I know. I’ve seen your board from here. It has a lean to it."],
+          "remember": "admitted-too-many"
+        },
+        {
+          "approach": "craft",
+          "text": "What number would you set?",
+          "reply": ["Five. I’ve drawn a line on the post at five. Six is above the line."]
+        },
+        {
+          "approach": "kind",
+          "text": "You’d be good at that.",
+          "reply": ["I would. Flattery isn’t needed. I’ve already said I’d do it."]
+        }
+      ]
+    }
+  ],
+  "errand": {
+    "id": "the-third-hinge",
+    "title": "The third hinge",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": ["There are four gates. I’ve only oiled this one. That’s one job nearly done and three not started, which is the right way round.", "Walk the other three for me. North, east and south-west. Tell me if they creak."],
+    "accept": "I’ll walk them.",
+    "steps": [
+      {
+        "kind": "visit",
+        "target": "gate:n",
+        "text": "Go out by the north gate."
+      },
+      {
+        "kind": "visit",
+        "target": "gate:e",
+        "text": "Go out by the east gate."
+      },
+      {
+        "kind": "visit",
+        "target": "gate:sw",
+        "text": "Go out by the south-west gate."
+      }
+    ],
+    "waiting": ["You haven’t been through all three. I can hear which ones from here. It’s a gift and I didn’t ask for it."],
+    "report": "I walked all three.",
+    "done": ["Three gates walked and reported. That’s a job finished. I’d forgotten what one looked like.", "Take the spare whistle. It only has the one note. It’s the important one."],
+    "remember": "walked-the-gates",
+    "approval": 2,
+    "keepsake": {
+      "name": "A spare whistle",
+      "text": "One note. Rivet says it is the important one."
+    }
+  },
+  "memories": {
+    "said-forty-was-too-many": "You told him forty jobs was too many. Nobody had said so at the time.",
+    "asked-for-the-whistle": "You asked him to blow the whistle for you at six. He has put you on the roster.",
+    "admitted-too-many": "You admitted you start too many things. He had seen your board from the gate.",
+    "walked-the-gates": "You walked the other three gates for him. It was the first job he has seen finished in a week."
+  },
+  "camp": {
+    "early": ["A camp needs a roster. I don’t put a name on a roster until I know it finishes things."],
+    "ask": ["Your camp. Has it a gate? Has the gate hinges?", "I’d keep the queue. One job goes in when one comes out. I’d be gentle about it. I’d have a whistle."],
+    "yes": ["Then I’ll report at six. That’s when shifts end. I’ll start by ending one."],
+    "full": ["No bunk. Understood. I’ll hold this gate until there is one. It’s well oiled."],
+    "role": "Keeps the camp’s jobs to a number, and blows the whistle at six.",
+    "leaves": "A line drawn on a post, at five."
+  },
+  "sheet": {
+    "wants": {
+      "now": "The other three gates walked and reported.",
+      "next": "A yard small enough to finish.",
+      "really": "To hear the whistle and see somebody actually stop.",
+      "worry": "A forty-first job."
+    },
+    "favourites": {
+      "food": "tea from a tin mug",
+      "weather": "dry, for the hinges",
+      "place": "a gate with nothing waiting at it",
+      "topic": "how many is too many",
+      "person": "anyone who finishes"
+    },
+    "aversions": ["a new job started before an old one ends", "being cheered up"],
+    "temperament": "Gruff, fair and tired in a tidy way.",
+    "strangers": "Asks how many jobs they have on.",
+    "friends": "Puts them on the roster.",
+    "opensUp": "Being told a number honestly.",
+    "goesQuiet": "Sympathy."
+  },
+  "voice": {
+    "rhythm": "Orders, then a correction to the order.",
+    "maxWords": 22,
+    "words": ["shift", "gate"],
+    "never": ["maybe", "hopefully"],
+    "tic": "Shift ends at six",
+    "hello": "Asks for a count.",
+    "goodbye": "Blows the whistle, or says he has.",
+    "pleased": "Says stand easy.",
+    "putOut": "Quotes the form."
+  },
+  "gifts": {
+    "loves": ["copper"],
+    "likes": ["stone", "ash"],
+    "replies": {
+      "birch": ["Birch. One log, received. I’m not starting anything with it."],
+      "ash": ["Ash. Good for a handle. I’ve a hammer that’s all head."],
+      "pine": ["Pine. It’ll want planing. That’s a second job. It can wait at the gate."],
+      "minnow": ["A minnow. I’ve had larger rations out of a thimble."],
+      "trout": ["A trout. That’s supper for one sergeant. Noted and accepted."],
+      "berries": ["Berries. I’ll have them at six. Shift ends at six."],
+      "herbs": ["Herbs. For the tea. The tin mug won’t know what’s happened to it."],
+      "stone": ["A stone. Good and square. It’ll hold the gate open, the day it opens."],
+      "copper": ["Copper. That’s a bushing for the bottom hinge. You’ve finished my morning for me."]
+    }
+  },
+  "day": {
+    "morning": "Morning inspection. One gate, four hinges. All present.",
+    "afternoon": "Afternoon is oiling. I did it this morning as well. It was on the list twice.",
+    "evening": "Nearly six. I’m watching the clock. The clock knows.",
+    "night": "I’m on the night watch. Nobody posted me. I posted myself and then complained.",
+    "rain": "Rain. That’s rust by Thursday. I’ve moved the oil can closer."
+  },
+  "thinks": {
+    "mags": ["The quartermaster. She counts. I’d have had her in the yard. We’d have had thirty-nine jobs."],
+    "wendell": ["The man in the road. One job, never finished, never added to. I respect that more than I can say."],
+    "pip": ["The small one. It took my list and made it eleven lists. Every one was shorter."]
+  },
+  "recalls": {
+    "said-forty-was-too-many": ["Forty. I said the number out loud again this morning. It’s still too many."],
+    "asked-for-the-whistle": ["I blew it at six yesterday. I looked your way. You’d better have stopped."],
+    "admitted-too-many": ["Your board’s still leaning. Less than it was. I’ve marked that down."],
+    "walked-the-gates": ["The north gate creaks again. That’s all right. That’s a new job, and the old one is done."]
+  },
+  "helloAfter": {
+    "wary": ["Three gates walked. I don’t forget a finished job. State your business."],
+    "neutral": ["You’re back. All four gates are oiled. I’ve nothing on. It’s very strange."],
+    "warm": ["Good. The gates are done. I’m looking for a small yard. Smaller than that."],
+    "fond": ["There’s my best hand. One job finished between us. I’d like to try for two."]
+  },
+  "arc": {
+    "want": "The other gates walked.",
+    "complication": "A man who ended every shift but his own.",
+    "kindness": "Someone admits they start too many things."
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "id": "odo",
+  "name": "Odo Marsh",
+  "title": "harbor clerk",
+  "where": {
+    "x": 110,
+    "y": 20
+  },
+  "why": "At the stone above Mistmere Harbor, where the east road ends. Every arrival has to be entered in the book, and he is the book.",
+  "dye": {
+    "m": "B",
+    "b": "b",
+    "u": "s",
+    "U": "S",
+    "Y": "z",
+    "r": "e",
+    "R": "E",
+    "Q": "N"
+  },
+  "threshold": 4,
+  "likes": {
+    "truth": 2,
+    "craft": 1
+  },
+  "dislikes": ["joke"],
+  "resists": ["kind"],
+  "examine": ["Odo Marsh is the harbor clerk. He has a book, a pencil on a string and a stool he does not use.", "He writes down everyone who arrives and the time. He has written you down. He has underlined the time.", "The harbor behind him is mostly fog. He has entered the fog in the book as “expected”."],
+  "meet": ["Name. Where from. Purpose. Don’t answer yet. You’re early. Nothing’s due until the fog lifts.", "Marsh. Harbor clerk. I keep the arrivals book for the Harbormaster. You’re in it now. Under “early”."],
+  "hello": {
+    "wary": ["You’re early. Again. I’ve had to start a second column."],
+    "neutral": ["You’re back. I’ve entered it. Stand to the left of the stone. That’s where arrivals stand."],
+    "warm": ["On time. Good. You’re the first one this week. I’ve drawn a small tick."],
+    "fond": ["There you are. I had you down for this hour. I didn’t tell you. You came anyway. That’s a clerk’s dream."]
+  },
+  "tired": ["That’s the book closed. I close it at the third entry. Come back when you’re due."],
+  "finished": ["Nothing further to enter. The page is full and it balances. I’m going to look at it for a while."],
+  "topics": [
+    {
+      "id": "book",
+      "say": ["Everything that’s coming is in this book. Ships, tides, the Harbormaster’s tea. If it’s got a time, it’s here. If it’s got no time, it isn’t coming. People don’t enjoy hearing that."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "Half my plans have no time on them.",
+          "reply": ["Then half your plans aren’t coming. I’m not being unkind. I’m being a book."],
+          "remember": "plans-with-no-time"
+        },
+        {
+          "approach": "craft",
+          "text": "How do you rule the columns?",
+          "reply": ["When, what, and whether it turned up. The third column’s the honest one."]
+        },
+        {
+          "approach": "joke",
+          "text": "Am I in it under “trouble”?",
+          "reply": ["There’s no such column."]
+        },
+        {
+          "approach": "kind",
+          "text": "It’s a fine book.",
+          "reply": ["It’s a ledger. It doesn’t want to be liked. It wants to be right."]
+        }
+      ]
+    },
+    {
+      "id": "fog",
+      "needs": 1,
+      "say": ["The fog’s what a harbor looks like when nobody’s told it what’s arriving. Give it a schedule and it clears. I’ve seen it clear. Once."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "I haven’t told it anything.",
+          "reply": ["No. You haven’t. That’s all right. It’s patient. I’m paid to be."],
+          "remember": "had-not-told-the-harbor"
+        },
+        {
+          "approach": "craft",
+          "text": "What did it look like, clear?",
+          "reply": ["Three boats and a quay. Every one where the book said. I’ve not been the same since."]
+        },
+        {
+          "approach": "favour",
+          "text": "I’ll wave the fog off for you.",
+          "reply": ["It doesn’t respond to waving. I’ve entered several attempts. Mine."]
+        }
+      ]
+    },
+    {
+      "id": "early",
+      "needs": 3,
+      "say": ["Late I can enter. There’s a column. Early upsets everything. A boat came in a day early in my father’s time. They’re still talking about it. He’s still talking about it."],
+      "options": [
+        {
+          "approach": "truth",
+          "text": "Early is better than late.",
+          "reply": ["For you. For the book it’s a correction. But I’d rather correct that way round. Don’t tell the Harbormaster."],
+          "remember": "early-beats-late"
+        },
+        {
+          "approach": "craft",
+          "text": "Add an “early” column.",
+          "reply": ["I have. It’s this one. It’s all you."]
+        },
+        {
+          "approach": "kind",
+          "text": "Your father sounds thorough.",
+          "reply": ["He was a clerk. Thorough was the floor."]
+        }
+      ]
+    }
+  ],
+  "memories": {
+    "plans-with-no-time": "You told him half your plans have no time on them. Then half of them are not coming, he said.",
+    "had-not-told-the-harbor": "You admitted you have not told the harbor what is arriving. He said the fog is patient.",
+    "early-beats-late": "You said early is better than late. He would rather correct the book that way round."
+  },
+  "camp": {
+    "never": ["Leave the stone? The book stays at the harbor. I stay with the book. That’s the whole post.", "Bring me a time for something. Any time. I’ll enter it. That’s how you visit a clerk."],
+    "role": "Stays at the harbor, with the arrivals book."
+  },
+  "sheet": {
+    "wants": {
+      "now": "One entry in the book that turns up when it said.",
+      "really": "To see the harbor clear again.",
+      "worry": "A page with no times on it."
+    },
+    "favourites": {
+      "food": "a sandwich at one, on the dot",
+      "weather": "whatever was forecast",
+      "place": "to the left of the stone",
+      "topic": "what is due, and when",
+      "person": "the Harbormaster, at a distance"
+    },
+    "aversions": ["surprises", "jokes about the book"],
+    "temperament": "Dry, exact and quietly devoted.",
+    "strangers": "Asks name, origin and purpose.",
+    "friends": "Draws a small tick.",
+    "opensUp": "Somebody being honest about what they have not scheduled.",
+    "goesQuiet": "Compliments."
+  },
+  "voice": {
+    "rhythm": "Entries. A short statement of record, then a shorter one of feeling.",
+    "maxWords": 22,
+    "words": ["book", "column"],
+    "never": ["roughly", "whenever"],
+    "tic": "You’re early",
+    "hello": "Tells you that you are early.",
+    "goodbye": "Closes the book at the third entry.",
+    "pleased": "Draws a tick.",
+    "putOut": "Says there is no such column."
+  },
+  "gifts": {
+    "loves": ["copper"],
+    "likes": ["ash", "stone"],
+    "replies": {
+      "birch": ["One birch log. Entered. Under “miscellaneous, wooden”."],
+      "ash": ["Ash. That’s a ruler, cut right. I rule a great many lines. Entered, with thanks."],
+      "pine": ["Pine. It drips. Not near the book. Entered at arm’s length."],
+      "minnow": ["A minnow. Arrived unannounced. I’ll enter it and say nothing to the Harbormaster."],
+      "trout": ["A trout. That’s cargo. I need a manifest. I’ll write one. One trout."],
+      "berries": ["Berries. I’ve counted them. Twenty-two. If I eat one the book’s wrong. I’ll amend it."],
+      "herbs": ["Herbs. For the Harbormaster’s tea, which is due at four. You’re early. So is the tea, now."],
+      "stone": ["A stone. A paperweight. The fog lifts the corners. This is a real improvement."],
+      "copper": ["Copper. A nib. I can make a nib of this. I’ve been on pencil since the spring. Entered, twice."]
+    }
+  },
+  "day": {
+    "morning": "Morning tide, six forty. It was on time. I’ve told it so.",
+    "afternoon": "One o’clock. That’s my sandwich. I’m eating it during this conversation. That’s entered too.",
+    "evening": "Evening. Nothing due. I’ve entered “nothing” and the time. It balances.",
+    "night": "I sleep at ten. It’s in the book. Don’t make me a liar.",
+    "rain": "Rain, forecast for three, arrived at three. I’ve underlined it. That’s how it’s done."
+  },
+  "thinks": {
+    "sloe": ["Captain Sloe. Sails when the thing’s finished. No times given. I have a page for him. It’s all question marks."],
+    "mae": ["The detective reads my book over my shoulder. She says the third column’s her favourite too."],
+    "gorrin": ["The cabbage man is expected at the market every Sunday. He’s in the “whether” column. I’ve stopped filling it in early."]
+  },
+  "recalls": {
+    "plans-with-no-time": ["You said half your plans had no time. I’ve left you a blank page. For when they do."],
+    "had-not-told-the-harbor": ["The fog’s the same. I looked at six forty. No blame attached. That’s entered."],
+    "early-beats-late": ["I’ve renamed your column. It says “ahead” now. It felt fairer."]
+  },
+  "arc": {
+    "want": "One thing arriving when it said.",
+    "complication": "A clerk of a harbor nobody has scheduled.",
+    "kindness": "Someone admits what they have not put a time on."
+  }
+}
