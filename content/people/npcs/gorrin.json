@@ -2,7 +2,8 @@
   "id": "gorrin",
   "name": "Gorrin Teague",
   "title": "the Cabbage Man",
-  "where": { "x": 34, "y": -9 },
+  "where": { "x": 80, "y": 13 },
+  "why": "Beside the east road to Mistmere Harbor. He was taking cabbages to the Tide Market, and this is where the cart stopped.",
   "dye": { "m": "B", "b": "b", "u": "l", "U": "L", "Y": "M", "r": "q", "R": "l", "Q": "L" },
   "threshold": 6,
   "likes": { "kind": 2, "favour": 1 },
@@ -14,7 +15,7 @@
     "Behind him on the road is a trail of cabbage leaves. He says it helps him find his way back."
   ],
   "meet": [
-    "Good morning. The cabbages were on the cart. The cart was on the road. I had assumed the road was on my side.",
+    "Good morning. I was taking cabbages to the Tide Market. The cabbages were on the cart. The cart was on the road. I had assumed the road was on my side.",
     "Gorrin Teague. Cabbages. Some days a cart."
   ],
   "hello": {

@@ -2,7 +2,8 @@
   "id": "jonas",
   "name": "Jonas Pennywhistle",
   "title": "inventor of the second spoon",
-  "where": { "x": 31, "y": -12 },
+  "where": { "x": 24, "y": 115 },
+  "why": "Outside the Ivory College. He filed for the second spoon here and is waiting to hear back.",
   "dye": { "m": "u", "b": "p", "u": "v", "U": "V", "Y": "V", "r": "s", "R": "S", "Q": "z" },
   "threshold": 6,
   "likes": { "craft": 2, "joke": 1 },
@@ -42,7 +43,7 @@
       "id": "patent",
       "needs": 1,
       "say": [
-        "I filed for the second spoon. The clerk asked, second to what? I said, the first. He said, then it’s a spoon. I said, a second spoon. We were there until dusk."
+        "I filed for the second spoon in there. The clerk asked, second to what? I said, the first. He said, then it’s a spoon. I said, a second spoon. We were there until dusk. I’m waiting to hear back."
       ],
       "options": [
         { "approach": "craft", "text": "Did you file the drawings?", "reply": ["Four. And a sketch of a soup."] },

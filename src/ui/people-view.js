@@ -7,6 +7,7 @@ import {
 } from '../people.js';
 import { errandOf, errandView, startErrand, giveStep, finishErrand } from '../errands.js';
 import { registerLook } from '../world/sprites-party.js';
+import { FOLK_DYES } from '../world/folk.js';
 import { portraitCanvas } from './dialogue.js';
 import { esc } from './panels.js';
 
@@ -113,6 +114,7 @@ export function mount(shell) {
     const offs = [];
     const content = () => shell.content?.() ?? null;
     for (const p of allPeople(content())) if (isRecord(p.dye)) registerLook('coat', p.id, p.dye);
+    FOLK_DYES.forEach((dye, i) => registerLook('coat', `folk-${i}`, dye));
     const ui = new Map(); // personId → { reply, camp, offer }
     const idOf = (panelId) => (typeof panelId === 'string' && panelId.startsWith(PREFIX) && NPC_ID.test(panelId.slice(PREFIX.length)) ? panelId.slice(PREFIX.length) : null);
     const person = (pid) => (pid ? personOf(content(), pid) : null);

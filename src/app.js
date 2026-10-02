@@ -3205,6 +3205,8 @@ function renderPoi(id) {
   const region = poi.region || safe(() => shellWilds.hushRegion(poi.x, poi.y)?.id, null, 'hushRegion');
   const result = poiResults.get(id) || [];
   const view = wildtextModule.poiView(poi, content?.wilds, state, { regionId: region, night: hour >= 20 || hour < 6, fresh: result.length > 0, phase4World: Boolean(phase4?.doors), economy: content?.economy });
+  const age = poi.type === 'hamlet' ? phase4?.hamletAge?.(poi) : '';
+  if (age && !view.lines.includes(age)) view.lines.push(age);
   return panelsModule.poiPanel({ id, type: poi.type, title: view.title, lines: view.lines, body: view.body, action: view.action, done: view.done, later: view.later, says: result[0] || '', result: result.slice(1) }, { miloSays: milosLine });
 }
 

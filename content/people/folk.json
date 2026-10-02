@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "about": "The folk of the hamlets: the world’s set pieces. Each hamlet gets two or three, made from a name, a job and the hamlet’s age (old: there before the road; new: went up after the lantern woke). They can’t be befriended or recruited. They say one thing at a time, and only what they would say: plain, deadpan, no stage directions.",
+  "ages": {
+    "old": "An old place. It was here before the road.",
+    "new": "A new place. It went up after the lantern woke."
+  },
+  "names": [
+    "Odalys", "Bertil", "Edda", "Hesper", "Rook", "Marnie", "Osk", "Fenna", "Ludo", "Pella", "Garrick", "Brisa",
+    "Corwen", "Dunna", "Hale", "Isolt", "Jory", "Merrin", "Nessa", "Orrin", "Petra", "Tilda", "Ulla", "Vern", "Wilf", "Yara"
+  ],
+  "roles": [
+    {
+      "id": "well-keeper",
+      "title": "keeps the well",
+      "any": [
+        "The well is fine. I check it every hour. It has never not been fine.",
+        "People drop coins in. I take them out. It evens up."
+      ],
+      "old": ["This well is older than the road. The road is sensitive about it."],
+      "new": ["We dug it in the spring. We hit water on the second day. Nobody was more surprised than the water."]
+    },
+    {
+      "id": "baker",
+      "title": "bakes",
+      "any": [
+        "There is bread. There is always bread. I don’t know how to stop.",
+        "I made too many loaves again. Take one. Take four."
+      ],
+      "old": ["This oven was my grandmother’s. She is still in charge of it. She has been gone nine years."],
+      "new": ["The oven is new. It hasn’t burned anything yet. I don’t trust it."]
+    },
+    {
+      "id": "lamplighter",
+      "title": "lights the lamps",
+      "any": [
+        "I light them at dusk. Then I put them out at dawn. It is a living.",
+        "One lamp won’t light. I talk to it. It hasn’t helped."
+      ],
+      "old": ["These lamps were here before the Hush. I only inherited the ladder."],
+      "new": ["We put the lamps up last month. We are very proud of both of them."]
+    },
+    {
+      "id": "goat-minder",
+      "title": "minds the goats",
+      "any": [
+        "There are six goats. I count seven most days. I have stopped asking.",
+        "The goats eat the laundry. We have less laundry now. It works out."
+      ],
+      "old": ["My family has minded these goats for a hundred years. The goats don’t seem grateful."],
+      "new": ["We brought the goats with us. They chose the spot. We built round them."]
+    },
+    {
+      "id": "road-watcher",
+      "title": "watches the road",
+      "any": [
+        "Nobody has come down this road today except you. I have written that down.",
+        "I watch the road. It doesn’t do much. I watch it anyway."
+      ],
+      "old": ["I’ve stood here thirty years. A great many people have walked past. Two of them stopped."],
+      "new": ["They gave me the job because I was already standing here."]
+    },
+    {
+      "id": "fisher",
+      "title": "fishes",
+      "any": [
+        "I haven’t caught anything. I’ve been here since morning. I’m not in a hurry.",
+        "The fish know me. That’s the problem."
+      ],
+      "old": ["My father fished this water. He didn’t catch anything either. It’s a family trade."],
+      "new": ["I was told there were fish here. I’m still looking into it."]
+    },
+    {
+      "id": "child",
+      "title": "is seven",
+      "any": [
+        "I’m seven. I’m in charge of the puddle.",
+        "I found a rock. You can look at it. You can’t have it."
+      ],
+      "old": ["My house is the old one. It leans. I lean too, so it looks straight."],
+      "new": ["We’re new. I have been here two weeks. I know where everything is."]
+    },
+    {
+      "id": "elder",
+      "title": "remembers when",
+      "any": [
+        "I remember when this was all fields. It is still mostly fields.",
+        "Sit down if you want. I was going to anyway."
+      ],
+      "old": ["I was born in that house. I’ve been meaning to leave."],
+      "new": ["I’m too old to start a village. I started one anyway."]
+    },
+    {
+      "id": "carpenter",
+      "title": "builds",
+      "any": [
+        "I’m building a fence. It’s to keep the other fence in.",
+        "Measure twice, cut once. I measured four times. I haven’t cut anything."
+      ],
+      "old": ["I mend what my father built. He built it badly. It keeps me in work."],
+      "new": ["Everything here is new. I made most of it. Don’t lean on anything yet."]
+    },
+    {
+      "id": "merchant",
+      "title": "sells things",
+      "any": [
+        "I sell rope, lamp oil and one hat. The hat is not for sale.",
+        "Business is slow. You are the business."
+      ],
+      "old": ["This stall has been in the family for six generations. We have sold the same rope twice."],
+      "new": ["I opened yesterday. You are my second customer. The first was me."]
+    }
+  ]
+}

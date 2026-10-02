@@ -4,6 +4,7 @@
   "title": "of the Bindery",
   "after": "first-rift",
   "where": { "x": 29, "y": -4 },
+  "why": "Just outside the north gate, where the first crack opened. She came from the Bindery to look at the seam.",
   "dye": { "m": "N", "b": "e", "u": "s", "U": "S", "Y": "z", "r": "u", "R": "U", "Q": "Y" },
   "threshold": 6,
   "likes": { "craft": 2, "truth": 1 },

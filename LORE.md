@@ -399,6 +399,17 @@ The Company's rules, callings and camp life are in [`COMBAT.md`](COMBAT.md) §2.
 
 ---
 
+### 9.0 Who lives where
+
+The Hushlands are settled. Not thickly, and not everywhere, but nobody you meet is standing about for no reason.
+
+- **Everyone is where their story is.** Wendell found the middle of the road, so he stands in it, halfway between Hearthvale's north gate and the Last Bridge. Gorrin Teague was taking cabbages to the Tide Market, so he is beside the east road where the cart stopped. Jonas Pennywhistle filed for the second spoon at the Ivory College, so he waits outside its gate. Mags Quire came about the first rift, so she is by the north gate where it opened. Write the place and the reason before the dialogue.
+- **Three kinds of people.** *Companions* may come to camp if they come to like you. *Named locals* can be befriended and will never leave their place (Mags Quire, Captain Sloe at his quay). *Folk* are everyone else: the baker, the lamplighter, the child in charge of the puddle. Folk have a name, a job and something to say, and that is all. They are the world's set pieces.
+- **Old places and new ones.** Some settlements were there before the road: stone, leaning, lantern-posts older than anyone living, and partly asleep in the Hush. Others went up after the lantern woke: fresh timber, tents, and a fence that isn't finished. Folk in an old place talk about how long they've been there. Folk in a new place talk about how they got there. Ruins are the places that didn't last, and what is left says why.
+- **New places follow the light.** When a lantern on the old roads is lit, its stretch of road wakes, and before long somebody pitches a tent beside it. Camps become hamlets. The map fills in where the lantern-bearer has walked.
+- **Regions have their own people.** Each region's folk build differently, eat differently and are suspicious of different things. A wood-village doesn't like an axe carried through it. A harbor doesn't like anyone who is early.
+- **Nobody is hostile.** A settlement can be cool towards you. Its people frown, and say so, and a shop may shut. That is the worst of it.
+
 ### 9.1 Approval and coming to camp
 
 Anyone with a name is a person first. Whether they ever come to camp is up to them, and plenty never will.

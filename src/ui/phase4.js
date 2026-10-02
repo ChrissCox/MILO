@@ -116,10 +116,10 @@ export async function setupPhase4(env) {
   const fights = !problem?.combat && !problem?.party;
   if (!groundwork && !fights) return null;
 
-  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod, questMod, peopleMod, blossomMod, errandMod, actsMod] = await Promise.all([
+  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod, questMod, peopleMod, blossomMod, errandMod, actsMod, folkMod] = await Promise.all([
     load('../state4.js'), load('../embers.js'), load('../lifeskills.js'), load('../party.js'),
     load('./fight.js'), load('./expedition.js'), load('./combat-hud.js'), load('./frontier.js'),
-    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'), load('../quests.js'), load('../people.js'), load('../world/blossoms.js'), load('../errands.js'), load('../acts.js'),
+    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'), load('../quests.js'), load('../people.js'), load('../world/blossoms.js'), load('../errands.js'), load('../acts.js'), load('../world/folk.js'),
   ]);
 
   const bus = createBus();
@@ -338,8 +338,44 @@ export async function setupPhase4(env) {
     } catch (error) { console.error('[MILO] a Riddle Note', error); }
   }
   // The Last Bridge or the Tollkeeper, clicked: his riddles once the trail is solved, else a look.
+  // ---- the folk of the hamlets near Milo: the world's set pieces ----
+  let folkKey = '';
+  let folkNow = [];
+  function nearFolk() {
+    try {
+      const words = bundle.people?.folk;
+      if (!folkMod?.folkFor || !words || env.getArea?.()?.area === 'elsewhere') return folkNow;
+      const wilds = env.wilds?.();
+      const tile = env.worldCall('miloTile');
+      if (!wilds || typeof wilds.entitiesIn !== 'function' || !tile || !Number.isFinite(tile.x)) return folkNow;
+      const cx = Math.floor(tile.x / 32);
+      const cy = Math.floor(tile.y / 32);
+      const key = `${cx},${cy}`;
+      if (key === folkKey) return folkNow;
+      for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) wilds.chunk?.(cx + dx, cy + dy);
+      const hamlets = wilds.entitiesIn({ x: (cx - 1) * 32, y: (cy - 1) * 32, w: 96, h: 96 }, { tier: 1, lit: [], opened: [], notes: [], glimmers: [], felled: [], day: 0 })
+        .filter((e) => (e.poiType ?? e.type) === 'hamlet');
+      const walkable = env.walkable?.();
+      // Folk stand beside the road, never on it: 16 and 20 are worldgen's road and bridge.
+      const onRoad = (x, y) => { const t = wilds.terrainAt?.(x, y); return t === 16 || t === 20; };
+      const free = (x, y) => (typeof walkable === 'function' ? walkable(x, y) === true && !onRoad(x, y) : false);
+      folkNow = hamlets.flatMap((h) => folkMod.folkFor(h, words, { free }));
+      folkKey = key;
+    } catch (error) { console.error('[MILO] the folk', error); }
+    return folkNow;
+  }
+  function folkSays(id) {
+    const p = folkNow.find((f) => f.id === id);
+    if (!p) return false;
+    const line = folkMod.folkLine(p, Math.floor(env.clockNow() / 86400000));
+    if (line) env.queueBubble({ kind: 'note', title: `${p.name}, who ${p.title}`, lines: [line], duration: 9000 });
+    return true;
+  }
+
   function landmarkClick(entity) {
     try {
+      const mark = String(entity?.id || '').replace(/^landmark:/, '');
+      if (/^folk-/.test(mark)) { folkSays(mark); return true; }
       if (entity?.landmark === 'npc' || /^landmark:npc-/.test(String(entity?.id || ''))) {
         const pid = String(entity.id).replace(/^landmark:npc-/, '');
         if (/^[a-z][a-z0-9-]{1,39}$/.test(pid)) { env.openPanel(`person:${pid}`); return true; }
@@ -374,13 +410,15 @@ export async function setupPhase4(env) {
       const bridge = getBridge();
       // The Last Bridge, the Tollkeeper, and the people standing out in the world (those not yet at camp).
       const standing = peopleMod?.standing ? peopleMod.standing(state, bundle) : [];
-      const landSig = `${joined}|${bridge ? 1 : 0}|${standing.map((p) => p.id).join(',')}`;
+      const folk = nearFolk();
+      const landSig = `${joined}|${bridge ? 1 : 0}|${standing.map((p) => p.id).join(',')}|${folk.map((p) => p.id).join(',')}`;
       if (force || landSig !== lastLandSig) {
         lastLandSig = landSig;
         lastJoined = joined;
         env.worldCall('setLandmarks', [
           ...(bridge && trailMod?.bridgeLandmarks ? trailMod.bridgeLandmarks(bridge, { joined }) : []),
           ...standing.map((p) => ({ id: `landmark:npc-${p.id}`, kind: 'npc', x: p.x, y: p.y, label: p.name, look: { who: p.id } })),
+          ...folk.map((p) => ({ id: `landmark:${p.id}`, kind: 'npc', x: p.x, y: p.y, label: `${p.name}, who ${p.title}`, look: { who: p.look.who } })),
         ]);
       }
       // The Blossomfield: a flower for every quest finished.
@@ -538,6 +576,7 @@ export async function setupPhase4(env) {
     },
     statusLine: () => statusLines.get('kindle') || null,
     onChest,
+    hamletAge: (poi) => { try { return folkMod?.ageLine ? folkMod.ageLine(poi, bundle.people?.folk) : ''; } catch { return ''; } },
     actStatus: () => { try { return actsMod?.actStatus ? actsMod.actStatus(env.getState(), bundle.story ?? null) : null; } catch { return null; } },
     landmarkClick,
     isFieldBoss: fieldBoss,
@@ -576,6 +615,8 @@ export async function setupPhase4(env) {
     onSceneStep: (step) => {
       try {
         // A visit is Milo's own step (the followers' steps arrive here too).
+        // A new chunk of the world may hold a hamlet, and its folk.
+        if (step?.scene === 'world' && (step.who === 'milo' || !step.who) && `${Math.floor(step.x / 32)},${Math.floor(step.y / 32)}` !== folkKey) syncWorld();
         if (step?.scene === 'world' && (step.who === 'milo' || !step.who) && trailMod?.placeAt) {
           const place = trailMod.placeAt({ x: step.x, y: step.y }, { bridge: getBridge() }) || nearGate(step);
           if (place && place !== lastVisit) { lastVisit = place; trailEvent({ kind: 'visit', target: place }); errandHappened({ kind: 'visit', target: place }); }

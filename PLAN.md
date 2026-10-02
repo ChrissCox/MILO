@@ -369,21 +369,57 @@ This is the gameplay phase, with combat as its spine. It ships in slices, each w
 - **Animation:** wave A3 starts and runs through Phase 9: each resident's overlays as they join, then Whisper and the team-up duets (about 200 hand-drawn frames).
 - **Moved to Phase 4:** the 50/15 focus timer (Kindle and Banked Coals) now arrives in slice 4.0, beside the Chronicle, because the company's rests and the focus pause need it.
 
-### Phase 5b: The Cast (every named person gets a life)
-Phase 5 puts the first people in the world and the machinery to win them over. This phase fills the world with them. Each named person is written as a **character**, not a dialogue tree, and the same sheet is used for the companions, the residents, the shopkeepers and the running-gag cast.
-- **A character sheet for everyone** (`content/people/npcs/<id>.json`, checked by a validator):
-  - **Wants:** what they are after right now (a want that an errand can serve), what they are really after (a need that only a long friendship reaches), and what worries them. Wants change as they are met, so a person you helped last month wants something new, and their talk moves on with them.
-  - **Likes and dislikes:** favourite foods, weather, places, topics and people, and the things that put them off. These feed approval (what a kind word, a joke, a favour, the truth or shared craft means to *them*) and gifts.
-  - **Personality:** a temperament, how they treat strangers and friends, what makes them open up, and what makes them go quiet. They are consistent: the same person reacts the same way on Tuesday.
-  - **Speech pattern and accent:** a **voice sheet** per person. Sentence length and rhythm, favourite words and words they never use, verbal tics (how often, and which), formality, how they greet and say goodbye, and how they sound when pleased or put out. Accents are carried by word choice and rhythm, with at most a light respelling (a dropped letter, never a wall of apostrophes), always readable and never mocking a real-world way of speaking. Every voice stays plain, deadpan and free of the habits in LORE §15.1.
-  - **Gifts:** a reaction of their own to every item Chris can give (as in *Endacopia*, where every object gets its own line from every character). Liked things earn approval; the rest still get an answer.
-  - **A day:** where they are at each time of day and in each weather, what they do there, and where they sleep once they live at camp.
-  - **Relationships:** what they think of each other. Friends, rivals, old grudges handled politely. Residents talk to each other at the fire, so a camp full of people is also a camp full of conversations.
-  - **Camp role:** what they bring when they live there (a small service, a meal, a chore, a bit of lore), and what they leave behind if they go home.
-  - **A small arc:** a want, a complication, and a kindness, with callbacks to what they remember about Chris. Finishing it earns Embers, a keepsake and a new line for the rest of the game.
-- **Tools that keep a big cast consistent:** a voice lint that checks every line against its speaker's sheet (forbidden words, tic rate, sentence length, no stage directions, no similes, no "it's not X, it's Y"); a check that no two people share a tic; a cast report that lists, for every person, which sheet fields are still empty; and a writing guide with a template and three finished examples (Wendell, Gorrin, Jonas).
-- **Who:** the three on the north road and the Tollkeeper first, then the other companions (Rivet, Pip, Dusty, Juno, Mae, Lumi, Tova, Nell, Vesperine), then the vale's own people (Nan Bristle, Hob the carpenter, Mags Quire) and the running-gag cast region by region as the regions open. About 20 fully written people by the end of the phase.
-- **Proof:** every person passes the validator and the voice lint; every gift in the satchel gets a reply from every person who can be given it; every pair of residents at the fire has a conversation; a person's talk changes after their want is met; and Chris can tell any two people apart by a single line.
+### Phase 5b: The Cast and the Settled World (every named person gets a life, and a place to live it)
+Phase 5 puts the first people in the world and the machinery to win them over. This phase fills the world with them and with the places they live. The reference for how it should feel is **Hytale**: a procedural world full of handmade places, where each region has its own people, its own buildings and its own ruins, and where most of the people you meet belong to where they are.
+
+**What MILO takes from Hytale**
+- **Regions are zones.** Each of the twelve regions has its own folk, its own way of building, its own weather and creatures, and its own ruins. Crossing a border should be obvious without reading the title bar.
+- **Handmade places in a generated world.** The land is generated; the places on it are written. Two sorts: **story places**, one of a kind and always in the same spot (the Last Bridge, the Middle of the Road, the Ivory College's gate), and **scattered places**, drawn from a set and placed by the world (hamlets, camps, ruins, shrines, wells).
+- **People belong to places.** Nobody stands somewhere for no reason. A person is where their story is: the man who found the middle of the road stands in the middle of the road.
+- **Most people are set pieces.** A settlement has a baker, a lamplighter, somebody minding goats and a child in charge of a puddle. They have a name, a job, a routine and a line, and they are not coming to your camp. They make the place a place.
+- **Settlements have roles.** Each one has a merchant, a keeper of something, an elder, and a bed you can rest in. Bigger ones add an inn, a notice board and a shrine.
+- **Old and new.** Some settlements are older than the road and half asleep in the Hush. Others went up after the lantern woke, fresh timber and all. The old ones have history and the new ones have opinions. Ruins are settlements that didn't make it, and what's left says why.
+- **A welcome that depends on you.** Hytale's villages have a disposition toward the player that can change with what the player does. The calm version here: a settlement's welcome follows your Reputation with its folk, and it reacts to what you carry and do (walk into a wood-village with an axe out and the shop shuts until you put it away). Nobody ever attacks. They frown, and they say so.
+- **Roads and rivers lead somewhere.** Every road ends at a place worth reaching, and settlements sit where roads meet water.
+- **A world that does things when you're not looking.** People sleep, wake, shelter from rain and gather at the fire. Simple routines that overlap are what make a place feel lived in.
+
+**Three kinds of people**
+1. **Companions.** A few. They have approval, errands, memories and a full sheet, and if they come to like you they can come to camp.
+2. **Named locals.** Many. They have the same sheet and can be befriended, and they will never leave their place: the ferry captain, the Bindery's quartermaster, the innkeeper. They are who you go back to a place to see.
+3. **Folk.** Most of the world. Generated for each settlement from a role, a name and the settlement's age. They can't be befriended or recruited. They are the world's set pieces, and they should be funny.
+
+**A character sheet for companions and named locals** (`content/people/npcs/<id>.json`, checked by a validator):
+- **Where and why:** the place they stand and the reason they stand there, in one line. No sheet is accepted without it.
+- **Wants:** what they are after right now (a want that an errand can serve), what they are really after (a need that only a long friendship reaches), and what worries them. Wants change as they are met, and their talk moves on with them.
+- **Likes and dislikes:** favourite foods, weather, places, topics and people, and the things that put them off. These feed approval and gifts.
+- **Personality:** a temperament, how they treat strangers and friends, what makes them open up, and what makes them go quiet. The same person reacts the same way on Tuesday.
+- **Speech pattern and accent:** a **voice sheet** per person. Sentence length and rhythm, favourite words and words they never use, verbal tics (how often, and which), formality, how they greet and say goodbye, and how they sound when pleased or put out. Accents are carried by word choice and rhythm, with at most a light respelling, always readable and never mocking a real-world way of speaking. Every voice stays plain, deadpan and free of the habits in LORE §15.1.
+- **Gifts:** a reaction of their own to every item Chris can give. Liked things earn approval; the rest still get an answer.
+- **A day:** where they are at each time of day and in each weather, what they do there, and where they sleep.
+- **Relationships:** what they think of each other. Residents talk to each other at the fire, and locals talk about their neighbours.
+- **Camp role** (companions only): what they bring when they live there, and what they leave behind if they go home.
+- **A small arc:** a want, a complication, and a kindness, with callbacks to what they remember about Chris.
+
+**Settlements**
+- **Kinds:** a camp (two tents and a fire), a hamlet (a few houses and a well), a village (an inn, a board, a shrine), a town (a market, a hall, walls), and one city in each of the great regions (Mistmere Harbor, the Ivory College, Cinderforge, the Stacks in the Archive Peaks).
+- **Ages:** *old* (there before the road: stone, lantern-posts, leaning houses, some of it asleep in the Hush), *new* (went up after the lantern woke: fresh timber, tents, unfinished fences), and *ruined* (Maker stones and Old Company camps, with what's left telling what happened).
+- **New places follow your light.** Lighting a lantern wakes its stretch of road, and within a few real days a camp appears beside it. A camp that is visited grows into a hamlet. So the map fills in where you've been, and the new settlements are, in a small way, yours.
+- **Built from parts.** Each region has a kit of houses, roofs, fences, wells and signs in its own style, and a settlement is laid out from the kit by rule. A city is laid out by hand.
+
+**Tools that keep a big cast consistent:** a voice lint that checks every line against its speaker's sheet (forbidden words, tic rate, sentence length, no stage directions, no similes, no "it's not X, it's Y"); a check that no two people share a tic; a cast report that lists, for every person, which sheet fields are still empty; a map report that shows who stands where and flags anyone standing somewhere for no reason; and a writing guide with a template and finished examples.
+
+**Order of work**
+1. Folk at the hamlets that already exist, old and new, and the first people moved to where their stories are. *(Started: see below.)*
+2. Sheets, voices and gifts for the people already written, then the other companions (Rivet, Pip, Dusty, Juno, Mae, Lumi, Tova, Nell, Vesperine), each placed where they are met.
+3. Named locals for the vale and the nearest regions: Nan Bristle, Hob the carpenter, Captain Sloe at his quay, an innkeeper, a harbor clerk.
+4. Settlement kits and layouts for the first three regions, routines, and the welcome that depends on you.
+5. New places that follow your light.
+6. The first city, Mistmere Harbor, with Phase 8.
+
+**Proof:** every person passes the validator and the voice lint; nobody stands anywhere without a reason on their sheet; every settlement has at least a keeper, a seller and a bed; every gift gets a reply from everyone who can be given it; a person's talk changes after their want is met; a lantern lit brings a camp; and Chris can tell any two people apart by a single line.
+
+**Built so far**
+- **5b.1 (2026-10-02), a scattered world:** the people stand where their stories are. Wendell is in the middle of the road, halfway between the north gate and the Last Bridge. Gorrin is beside the east road to Mistmere and its market, where the cart stopped. Jonas waits outside the Ivory College, where his patent is. Mags Quire stays by the north gate, where the first crack opened. Every hamlet now has two or three **folk**: a name, a job and something to say, different for an old hamlet and a new one. They can't be befriended or recruited. Each hamlet is old or new, and says so. `src/world/folk.js`, `content/people/folk.json`.
 
 ### Phase 6: Commissions (Dispatch)
 - **Useful:**

@@ -59,11 +59,12 @@ const stepsTo = (page, from, target, nearby) => page.evaluate(async ({ from, tar
   return [];
 }, { from, target, nearby });
 
-async function outTheNorthGate(kit) {
+async function outTheGate(kit, gate) {
   await kit.openPlacesList();
-  await kit.window.locator('#place-list [data-entity="gate:n"]').click();
+  await kit.window.locator(`#place-list [data-entity="${gate}"]`).click();
   return kit.standingAt();
 }
+const outTheNorthGate = (kit) => outTheGate(kit, 'gate:n');
 
 async function walk(kit, from, steps) {
   await kit.dismissBubbles(1500);
@@ -228,9 +229,30 @@ try {
       assert.equal(await page.locator('#panel .act-section [data-step="laser-awl"]').getAttribute('data-level-state'), 'next');
       await page.keyboard.press('Escape');
     });
-    await check('Gorrin’s errand: he asks for six birch, takes them, remembers it and gives a cabbage, and no Embers change hands', async () => {
+    await check('Mags Quire has arrived by the north gate, meeting her is the next chapter, and she will not come to camp', async () => {
       await outTheNorthGate(kit);
       await kit.dismissBubbles(1500);
+      await kit.openPlacesList();
+      assert.equal(await page.locator('#place-list [data-entity="landmark:npc-gorrin"]').count(), 0, 'the others are elsewhere in the world');
+      await page.locator('#place-list [data-entity="landmark:npc-mags"]').click();
+      await page.locator('#panel [data-action="person-meet"]').waitFor({ timeout: 30_000 });
+      await page.locator('#panel [data-action="person-meet"]').click();
+      await kit.poll(async () => (await state()).story?.act1?.done?.['laser-awl'], 'the chapter to be kept');
+      await page.locator('#panel [data-action="person-camp"]').click();
+      assert.match(await page.locator('#panel .person-talk').textContent(), /I’ll bring my own cup/);
+      assert.equal((await state()).people.mags.camp, null);
+      await page.locator('#panel [data-action="person-go"]').click();
+      await page.keyboard.press('Escape');
+    });
+    await check('Gorrin is beside the east road; his errand takes six birch, is remembered, gives a cabbage, and pays no Embers', async () => {
+      await kit.dismissBubbles(1000);
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-entity="home"]').click();
+      await kit.poll(async () => (await kit.area()) === 'vale', 'Milo to be home', 60_000);
+      await kit.dismissBubbles(1000);
+      const at = await outTheGate(kit, 'gate:e');
+      await walk(kit, at, await stepsTo(page, at, { x: 80, y: 13 }, [[0, 1], [1, 1], [-1, 1]]));
+      await kit.standingAt();
       await kit.openPlacesList();
       await page.locator('#place-list [data-entity="landmark:npc-gorrin"]').click();
       await page.locator('#panel [data-action="person-errand-ask"]').waitFor({ timeout: 30_000 });
@@ -251,15 +273,24 @@ try {
       await page.locator('#panel [data-action="person-next"]').click();
       await page.keyboard.press('Escape');
     });
-    await check('Mags Quire has arrived, meeting her is the next chapter, and she will not come to camp', async () => {
+    await check('a hamlet down the road has folk: set pieces who say one thing and can’t be befriended, and the hamlet says its age', async () => {
+      const at = await kit.standingAt();
+      await walk(kit, at, await stepsTo(page, at, { x: 106, y: -5 }, [[4, 3], [3, 3], [-2, 3], [4, 0], [-2, 0]]));
+      await kit.standingAt();
+      await kit.dismissBubbles(1500);
       await kit.openPlacesList();
-      await page.locator('#place-list [data-entity="landmark:npc-mags"]').click();
-      await page.locator('#panel [data-action="person-meet"]').waitFor({ timeout: 30_000 });
-      await page.locator('#panel [data-action="person-meet"]').click();
-      await kit.poll(async () => (await state()).story?.act1?.done?.['laser-awl'], 'the chapter to be kept');
-      await page.locator('#panel [data-action="person-camp"]').click();
-      assert.match(await page.locator('#panel .person-talk').textContent(), /I’ll bring my own cup/);
-      assert.equal((await state()).people.mags.camp, null);
+      const folk = page.locator('#place-list [data-entity^="landmark:folk-106_-5-"]');
+      const count = await folk.count();
+      assert.ok(count === 2 || count === 3, `two or three folk: ${count}`);
+      assert.match(await folk.first().textContent(), /, who /);
+      await folk.first().click();
+      await kit.poll(async () => /, who /.test(await bubbleText(page)), 'one of the folk to speak', 30_000);
+      assert.equal(await page.locator('#panel .person-view').count(), 0, 'no panel, no approval: a set piece');
+      await kit.dismissBubbles(1000);
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-entity="poi:hamlet:106,-5"]').click();
+      await kit.poll(async () => /An old place|A new place/.test(await page.locator('#panel').textContent()), 'the hamlet to say its age', 30_000);
+      await page.keyboard.press('Escape');
     });
     await noErrors(kit, 'errand');
     await kit.close();
@@ -272,8 +303,10 @@ try {
       s.people = { wendell: { points: 4, met: now - 86_400_000, seen: now - 86_400_000, done: ['plaque', 'middle', 'string'], turn: { day: '2000-01-01', n: 0, last: null }, found: { likes: ['truth', 'craft'], dislikes: [], resists: [] }, memories: [], camp: null } };
     });
     const page = kit.window;
-    await check('Wendell stands on the north road, is won over with the truth, will remember that, and comes to camp', async () => {
-      await outTheNorthGate(kit);
+    await check('Wendell stands in the middle of the north road, is won over with the truth, will remember that, and comes to camp', async () => {
+      const at = await outTheNorthGate(kit);
+      await walk(kit, at, await stepsTo(page, at, { x: 10, y: -17 }, [[1, 1], [0, 1], [-1, 1], [1, -1]]));
+      await kit.standingAt();
       await kit.dismissBubbles(1500);
       await kit.openPlacesList();
       await page.locator('#place-list [data-entity="landmark:npc-wendell"]').click();
