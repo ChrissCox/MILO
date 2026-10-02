@@ -363,12 +363,27 @@ export function storyPanel(view) {
   return html;
 }
 
-/** The small story card under the crew strip. view: { hidden, title, hint, doneCount, total, canRead } */
-export function trackerCard(view) {
-  if (view.hidden) {
-    return `<button type="button" class="tracker-pill" data-action="tracker-show" aria-label="${esc(`Show the story card. The Prologue, ${view.doneCount} of ${view.total} done`)}">The Prologue · ${esc(view.doneCount)} of ${esc(view.total)}</button>`;
+/** Act I under the Prologue in the story panel. act: acts.actStatus's. '' until it opens. */
+export function actSection(act) {
+  if (!act || !act.open || !Array.isArray(act.chapters)) return '';
+  let html = `<section class="group act-section" data-group="${esc(act.id)}"><h3>${esc(act.title)}</h3><ol class="levels story-steps">`;
+  for (const c of act.chapters) {
+    const state = c.done ? 'proven' : c.current ? 'next' : 'locked';
+    html += `<li data-step="${esc(c.id)}" data-level-state="${state}">${c.done ? CHECK : c.current ? DOT : LOCK}`
+      + `<span class="level-name">${esc(c.title)}</span><span class="level-tag">${c.done ? 'Done' : c.current ? 'Now' : 'Later'}</span>`
+      + (c.current ? `<p class="step-text">${esc(c.text)}</p><p class="step-hint">${esc(c.hint)}</p>` : '')
+      + '</li>';
   }
-  return `<p class="tracker-kicker">The Prologue · ${esc(view.doneCount)} of ${esc(view.total)}</p>`
+  return `${html}</ol></section>`;
+}
+
+/** The small story card under the crew strip. view: { hidden, title, hint, doneCount, total, canRead, kicker ('The Prologue' unless given) } */
+export function trackerCard(view) {
+  const kicker = typeof view.kicker === 'string' && view.kicker ? view.kicker : 'The Prologue';
+  if (view.hidden) {
+    return `<button type="button" class="tracker-pill" data-action="tracker-show" aria-label="${esc(`Show the story card. ${kicker}, ${view.doneCount} of ${view.total} done`)}">${esc(kicker)} · ${esc(view.doneCount)} of ${esc(view.total)}</button>`;
+  }
+  return `<p class="tracker-kicker">${esc(kicker)} · ${esc(view.doneCount)} of ${esc(view.total)}</p>`
     + `<p class="tracker-title">${esc(view.title)}</p>`
     + `<p class="tracker-hint">${esc(view.hint)}</p>`
     + '<div class="tracker-actions">'

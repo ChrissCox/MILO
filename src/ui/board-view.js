@@ -8,6 +8,7 @@ import {
 } from '../quests.js';
 import { QUEST_SKILLS, BOARD_LIMITS } from '../state5.js';
 import { trailView } from '../world/trail.js';
+import { errandList } from '../errands.js';
 import { esc } from './panels.js';
 
 export const id = 'board';
@@ -21,6 +22,8 @@ const STEP_ID = /^s-[0-9a-z]{1,12}$/;
 const PROJECT_ID = /^p-[0-9a-z]{1,12}$/;
 const THOUGHT_ID = /^t-[0-9a-z]{1,12}$/;
 const TABS = Object.freeze(['quests', 'projects', 'pocket']);
+/** Errands for people show as a fourth tab once there is one. */
+const ALL_TABS = Object.freeze([...TABS, 'errands']);
 const cap = (text) => (typeof text === 'string' && text ? text.charAt(0).toUpperCase() + text.slice(1) : '');
 
 export const COPY = Object.freeze({
@@ -102,9 +105,10 @@ const addForm = (name, form, placeholder, value) => `<form class="board-add" dat
   + `<button type="submit" class="px-btn primary" data-focus-key="${form}-add">${esc(COPY.add)}</button></form>`;
 
 function tabsHtml(view, ui) {
-  const counts = { quests: view.counts.open, projects: view.projects.filter((p) => p.status === 'active').length, pocket: view.thoughts.length };
+  const errands = Array.isArray(ui.errands) ? ui.errands : [];
+  const counts = { quests: view.counts.open, projects: view.projects.filter((p) => p.status === 'active').length, pocket: view.thoughts.length, errands: errands.filter((e) => e.state !== 'done').length };
   return '<div class="board-tabs" role="group" aria-label="Board">'
-    + TABS.map((tab) => `<button type="button" class="board-tab" data-action="board-tab" data-tab="${tab}" aria-pressed="${ui.tab === tab ? 'true' : 'false'}" data-focus-key="board-tab-${tab}">${cap(tab)}${counts[tab] ? ` <span class="count">${counts[tab]}</span>` : ''}</button>`).join('')
+    + (errands.length ? ALL_TABS : TABS).map((tab) => `<button type="button" class="board-tab" data-action="board-tab" data-tab="${tab}" aria-pressed="${ui.tab === tab ? 'true' : 'false'}" data-focus-key="board-tab-${tab}">${cap(tab)}${counts[tab] ? ` <span class="count">${counts[tab]}</span>` : ''}</button>`).join('')
     + '</div>';
 }
 
@@ -160,12 +164,22 @@ function pocketTab(view, ui) {
   return `${html}</ul>`;
 }
 
+function errandsTab(ui) {
+  const errands = Array.isArray(ui.errands) ? ui.errands : [];
+  if (!errands.length) return '<p class="quiet-note">None.</p>';
+  return `<ul class="quest-list">${errands.map((e) => `<li class="quest errand" data-errand-person="${esc(e.personId)}" data-status="${e.state === 'done' ? 'done' : 'doing'}">`
+    + `<span class="quest-title project-title">${esc(e.title)}</span><span class="quest-project">${esc(e.name)}</span>`
+    + (e.state === 'done' ? '' : `<ul class="quest-steps errand-steps">${e.steps.map((s) => `<li${s.done ? ' class="done-text"' : ''}>${esc(s.text)}</li>`).join('')}</ul>`)
+    + (e.state === 'ready' ? `<span class="quest-count">Go and tell ${esc(e.name.split(' ')[0])}.</span>` : '')
+    + '</li>').join('')}</ul>`;
+}
+
 /** The `board` panel. view: boardView's; ui: { tab, open, confirming, draft, projectDraft, thoughtDraft, says, showLetGo, trail }; nudge: nudgeView's. */
 export function buildBoard(view, ui = {}, nudge = { stale: [], crowded: false }) {
   const v = isRecord(view) ? view : boardView({});
-  const tab = TABS.includes(ui.tab) ? ui.tab : 'quests';
+  const tab = TABS.includes(ui.tab) || (ui.tab === 'errands' && Array.isArray(ui.errands) && ui.errands.length) ? ui.tab : 'quests';
   let html = `<div class="board-view" data-tab="${tab}">${tabsHtml(v, { ...ui, tab })}`;
-  html += tab === 'projects' ? projectsTab(v, ui) : tab === 'pocket' ? pocketTab(v, ui) : questsTab(v, ui, nudge);
+  html += tab === 'projects' ? projectsTab(v, ui) : tab === 'pocket' ? pocketTab(v, ui) : tab === 'errands' ? errandsTab(ui) : questsTab(v, ui, nudge);
   if (ui.trail) html += '<p class="board-foot"><button type="button" class="link-btn" data-action="board-trail" data-focus-key="board-trail">Riddle Notes</button></p>';
   return `${html}</div>`;
 }
@@ -183,7 +197,7 @@ export function mount(shell) {
     const rates = () => shell.content?.()?.xp ?? null;
     const panelEl = doc?.getElementById?.('panel');
     const open = () => [PANEL, HALL].includes(panelEl?.dataset?.place);
-    const render = () => buildBoard(boardView(shell.state), { ...ui, now: shell.now(), trail: Boolean(trailView(shell.state, shell.content?.()?.trails ?? null, shell.now()).trail) }, nudgeView(shell.state, shell.now()));
+    const render = () => buildBoard(boardView(shell.state), { ...ui, now: shell.now(), errands: errandList(shell.state, shell.content?.() ?? null, shell.now()), trail: Boolean(trailView(shell.state, shell.content?.()?.trails ?? null, shell.now()).trail) }, nudgeView(shell.state, shell.now()));
     const refresh = (opts = {}) => { if (open()) shell.refreshPanel(opts); };
     const commit = (next, focus) => { if (next !== shell.state) shell.set(next, { save: 300 }); refresh({ focus }); };
     const idOf = (el, attr, rule) => { const value = el?.getAttribute?.(attr) || ''; return rule.test(value) ? value : ''; };
@@ -203,7 +217,7 @@ export function mount(shell) {
       if (name === 'board-trail') { shell.openPanel?.('trail'); return true; }
       if (name === 'board-tab') {
         const tab = button.getAttribute('data-tab');
-        if (TABS.includes(tab)) { ui.tab = tab; ui.open = null; ui.confirming = null; refresh({ focus: `board-tab-${tab}` }); }
+        if (ALL_TABS.includes(tab)) { ui.tab = tab; ui.open = null; ui.confirming = null; refresh({ focus: `board-tab-${tab}` }); }
         return true;
       }
       if (name === 'board-showletgo') { ui.showLetGo = !ui.showLetGo; refresh({ focus: 'board-showletgo' }); return true; }
@@ -320,11 +334,13 @@ export function mount(shell) {
     }
     // Only a change to the board redraws the panel, so a crew snapshot never takes the cursor from the box.
     let lastBoard = shell.state?.board;
+    let lastPeople = shell.state?.people;
     if (typeof shell.on === 'function') {
       offs.push(shell.on('state', () => {
         const board = shell.state?.board;
-        if (board === lastBoard) return;
+        if (board === lastBoard && shell.state?.people === lastPeople) return;
         lastBoard = board;
+        lastPeople = shell.state?.people;
         if (open()) shell.refreshPanel({ passive: true });
       }));
     }

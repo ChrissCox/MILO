@@ -28,9 +28,10 @@ const wendell = () => personOf(content, 'wendell');
 const indexOf = (person, topicId, approach) => person.topics.find((t) => t.id === topicId).options.findIndex((o) => o.approach === approach);
 
 test('the three people are in the bundle, and the state starts with nobody met', () => {
-  assert.deepEqual(Object.keys(npcs).sort(), ['gorrin', 'jonas', 'wendell']);
+  assert.deepEqual(Object.keys(npcs).sort(), ['gorrin', 'jonas', 'mags', 'wendell']);
   assert.deepEqual(fresh().people, {});
-  assert.deepEqual(allPeople(content).map((p) => p.id).sort(), ['gorrin', 'jonas', 'wendell']);
+  assert.deepEqual(allPeople(content).map((p) => p.id).sort(), ['gorrin', 'jonas', 'mags', 'wendell']);
+  assert.deepEqual(standing(fresh(), content).map((p) => p.id).sort(), ['gorrin', 'jonas', 'wendell'], 'Mags arrives with the story');
 });
 
 test('every person file is complete, calm, and can be won', () => {
@@ -60,14 +61,24 @@ test('every person file is complete, calm, and can be won', () => {
       best += Math.max(...topic.options.map((o) => npc.likes[o.approach] || 0));
     }
     assert.ok(best >= npc.threshold + 2, `${where}: the best answers (${best}) comfortably reach Fond (${npc.threshold})`);
-    const strings = [...npc.meet, ...npc.tired, ...npc.finished, ...Object.values(npc.hello).flat(), ...npc.camp.early, ...npc.camp.ask, ...npc.camp.yes, ...npc.camp.full, ...Object.values(npc.memories),
+    const campLines = Array.isArray(npc.camp.never) ? npc.camp.never : [...npc.camp.early, ...npc.camp.ask, ...npc.camp.yes, ...npc.camp.full];
+    assert.ok(campLines.length > 0, `${where}: says something about the camp`);
+    const e = npc.errand || null;
+    const errandLines = e ? [e.ask, e.accept, e.report, ...e.offer, ...e.waiting, ...e.done] : [];
+    if (e) {
+      assert.match(e.id, /^[a-z][a-z0-9-]{0,39}$/);
+      assert.ok(e.steps.length >= 1 && e.steps.every((s) => ['visit', 'cook', 'give'].includes(s.kind) && s.text), `${where}: errand steps`);
+      assert.ok(npc.memories[e.remember], `${where}: the errand is remembered`);
+      assert.ok(e.keepsake.name && e.keepsake.text && e.approval >= 1, `${where}: the errand ends in a kindness`);
+    }
+    const strings = [...npc.meet, ...npc.tired, ...npc.finished, ...Object.values(npc.hello).flat(), ...campLines, ...errandLines, ...Object.values(npc.memories),
       ...npc.topics.flatMap((t) => [...t.say, ...t.options.flatMap((o) => [o.text, ...o.reply])]), ...npc.examine];
     for (const text of strings) {
       assert.ok(!text.includes('!') && !text.includes("'") && !/\bplease\b/i.test(text), `${where}: calm copy: ${text}`);
       assert.ok(text.length <= 220, `${where}: short enough: ${text}`);
     }
     // People only speak: no stage directions, no narration in what they say.
-    const spoken = [...npc.meet, ...npc.tired, ...npc.finished, ...Object.values(npc.hello).flat(), ...npc.camp.early, ...npc.camp.ask, ...npc.camp.yes, ...npc.camp.full,
+    const spoken = [...npc.meet, ...npc.tired, ...npc.finished, ...Object.values(npc.hello).flat(), ...campLines, ...errandLines,
       ...npc.topics.flatMap((t) => [...t.say, ...t.options.flatMap((o) => o.reply)])];
     for (const text of spoken) {
       assert.ok(!/^(?:He|She|They)\s+(?:is|does|doesn’t|looks|takes|sets|writes|considers|stares|nods|opens|closes|lets|turns|rearranges|says|goes|has|smiles|laughs|pauses)\b/.test(text), `${where}: that is narration, not speech: ${text}`);
@@ -82,7 +93,7 @@ test('every person file is complete, calm, and can be won', () => {
     for (const text of spoken) {
       assert.ok(!/\b(?:isn’t|is not|aren’t|are not|not)\b[^.?!]{0,60}[.,]\s*(?:it’s|it is|that’s|that is|they’re|they are)\b/i.test(text), `${where}: no "it’s not X, it’s Y": ${text}`);
     }
-    assertCalm(npc.camp.role, `${where}.role`, { proper: ['Gorrin', 'Wendell', 'Jonas'] });
+    assertCalm(npc.camp.role, `${where}.role`, { proper: ['Gorrin', 'Wendell', 'Jonas', 'Mags'] });
   }
 });
 

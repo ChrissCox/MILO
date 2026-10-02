@@ -110,6 +110,13 @@ export function emptyPeople() {
 const slugs = (list, max) => [...new Set((Array.isArray(list) ? list : []).filter((id) => typeof id === 'string' && SLUG.test(id)))].slice(-max);
 const approaches = (list) => [...new Set((Array.isArray(list) ? list : []).filter((a) => APPROACHES.includes(a)))].slice(0, PEOPLE_LIMITS.found);
 
+function cleanErrand(value) {
+  if (!isRecord(value) || typeof value.id !== 'string' || !SLUG.test(value.id)) return null;
+  const at = toTime(value.at);
+  if (!at) return null;
+  return { id: value.id, at, steps: (Array.isArray(value.steps) ? value.steps : []).slice(0, 8).map((t) => toTime(t)), done: toTime(value.done) };
+}
+
 function cleanPerson(value, now) {
   if (!isRecord(value)) return null;
   const turn = isRecord(value.turn) ? value.turn : {};
@@ -129,6 +136,7 @@ function cleanPerson(value, now) {
     found: { likes: approaches(found.likes), dislikes: approaches(found.dislikes), resists: approaches(found.resists) },
     memories: memories.slice(-PEOPLE_LIMITS.memories),
     camp: toTime(value.camp),
+    errand: cleanErrand(value.errand),
   };
 }
 

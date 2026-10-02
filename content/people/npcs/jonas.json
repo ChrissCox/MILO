@@ -54,9 +54,7 @@
     {
       "id": "third",
       "needs": 3,
-      "say": [
-        "People ask about a third spoon. I tell them not to be greedy."
-      ],
+      "say": ["People ask about a third spoon. I tell them not to be greedy."],
       "options": [
         { "approach": "craft", "text": "What if the third is a ladle?", "reply": ["A ladle is a large spoon. I had never thought of it."], "remember": "suggested-the-ladle" },
         { "approach": "joke", "text": "Third time lucky?", "reply": ["Luck doesn’t live in a spoon. Third time, though."] },
@@ -66,9 +64,7 @@
     {
       "id": "soup",
       "needs": 5,
-      "say": [
-        "I would like to test the second spoon on a soup hot enough to deserve it. Do you know of one?"
-      ],
+      "say": ["I would like to test the second spoon on a soup hot enough to deserve it. Do you know of one?"],
       "options": [
         { "approach": "craft", "text": "Camp stew. Tomorrow.", "reply": ["It’s a date. I will write it on the spoon."], "remember": "promised-soup" },
         { "approach": "joke", "text": "Make it a cold soup.", "reply": ["Gazpacho. I had forgotten gazpacho."] },
@@ -76,11 +72,35 @@
       ]
     }
   ],
+  "errand": {
+    "id": "a-soup",
+    "title": "A soup hot enough",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": [
+      "The second spoon has never been used. It needs a soup that deserves it.",
+      "Cook a minnow supper at your fire. I’ll know. A spoon knows."
+    ],
+    "accept": "I’ll cook one.",
+    "steps": [
+      { "kind": "cook", "target": "minnow-supper", "text": "Cook a minnow supper at the fire." }
+    ],
+    "waiting": ["No supper yet. The spoon is patient. I am less patient than the spoon."],
+    "report": "I cooked the supper.",
+    "done": [
+      "Then it has been tested. I wasn’t there, and the spoon wasn’t there, but it has been tested.",
+      "Take the first spoon. I only need the second."
+    ],
+    "remember": "cooked-the-supper",
+    "approval": 2,
+    "keepsake": { "name": "The first spoon", "text": "Jonas gave it away. He only needs the second." }
+  },
   "memories": {
     "asked-about-the-second": "You asked how the second spoon is different from the first. His answer was “it’s second”. He considers the matter closed.",
     "stamped-also": "You guessed the clerk stamped “ALSO” on the form. He had.",
     "suggested-the-ladle": "You suggested the third spoon might be a ladle. He has gone quiet and thoughtful.",
-    "promised-soup": "You promised him a camp stew to test the second spoon on. He wrote it on the spoon."
+    "promised-soup": "You promised him a camp stew to test the second spoon on. He wrote it on the spoon.",
+    "cooked-the-supper": "You cooked a minnow supper so the second spoon could be tested. He wasn’t there. Neither was the spoon."
   },
   "camp": {
     "early": ["A camp is a lot to ask of a man with two spoons. Give me a reason to put one down."],

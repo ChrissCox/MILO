@@ -54,6 +54,7 @@ export function mount(shell) {
       if (r.ok) {
         says = `Made ${recipe.name.toLowerCase()}.${r.xp ? ` Cooking +${r.xp}.` : ''}`;
         shell.set(r.state, { save: 300 });
+        shell.did?.({ kind: 'cook', target: rid });
         shell.log?.({ tab: 'milo', text: says, at: shell.now(), detail: null, action: null });
       } else says = r.why || '';
       shell.refreshPanel?.({ focus: `fire-cook-${rid}` });

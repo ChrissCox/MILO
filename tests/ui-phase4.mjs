@@ -208,6 +208,63 @@ try {
     await kit.close();
   }
 
+  // ---- An errand, Mags, and Act I --------------------------------------------------------------
+  {
+    const now = Date.now();
+    const kit = await launchWith('errand', (s) => {
+      s.embers = { balance: 0, lifetime: 0 };
+      s.story = { ...s.story, prologue: { done: { ...(s.story?.prologue?.done || {}), 'first-crack': now - 86_400_000 } } };
+      s.rifts = { ...s.rifts, stitched: { ...(s.rifts?.stitched || {}), real: 1 } };
+      s.people = { gorrin: { points: 3, met: now - 86_400_000, seen: now - 86_400_000, done: ['x'], turn: { day: '2000-01-01', n: 0, last: null }, found: { likes: [], dislikes: [], resists: [] }, memories: [], camp: null } };
+      s.satchel = { ...s.satchel, materials: { ...s.satchel.materials, birch: 8 } };
+    });
+    const page = kit.window;
+    const state = () => page.evaluate(() => window.milo.loadState());
+    await check('Act I opens after the crack, a sealed rift is its first chapter, and it shows in the story', async () => {
+      await kit.poll(async () => (await state()).story?.act1?.done?.['first-rift'], 'the first chapter to be kept');
+      await page.locator('#tracker [data-action="tracker-open"]').click();
+      await page.locator('#panel .act-section').waitFor({ timeout: 10_000 });
+      assert.equal(await page.locator('#panel .act-section [data-step="first-rift"]').getAttribute('data-level-state'), 'proven');
+      assert.equal(await page.locator('#panel .act-section [data-step="laser-awl"]').getAttribute('data-level-state'), 'next');
+      await page.keyboard.press('Escape');
+    });
+    await check('Gorrin’s errand: he asks for six birch, takes them, remembers it and gives a cabbage, and no Embers change hands', async () => {
+      await outTheNorthGate(kit);
+      await kit.dismissBubbles(1500);
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-entity="landmark:npc-gorrin"]').click();
+      await page.locator('#panel [data-action="person-errand-ask"]').waitFor({ timeout: 30_000 });
+      const before = (await state()).embers.lifetime;
+      await page.locator('#panel [data-action="person-errand-ask"]').click();
+      await page.locator('#panel [data-action="person-errand-accept"]').click();
+      await page.locator('#panel [data-action="person-errand-give"]').click();
+      await page.locator('#panel [data-action="person-errand-done"]').click();
+      const notes = (await page.locator('#panel .person-note').allTextContents()).join(' | ');
+      assert.match(notes, /Gorrin approves/);
+      assert.match(notes, /Gorrin will remember that/);
+      assert.match(notes, /Gorrin gave you a cabbage/);
+      await kit.poll(async () => (await state()).people?.gorrin?.errand?.done, 'the errand to be saved as done');
+      const st = await state();
+      assert.equal(st.satchel.materials.birch, 2);
+      assert.deepEqual(st.satchel.relics.map((r) => r.name), ['A cabbage']);
+      assert.equal(st.embers.lifetime, before, 'an errand pays no Embers');
+      await page.locator('#panel [data-action="person-next"]').click();
+      await page.keyboard.press('Escape');
+    });
+    await check('Mags Quire has arrived, meeting her is the next chapter, and she will not come to camp', async () => {
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-entity="landmark:npc-mags"]').click();
+      await page.locator('#panel [data-action="person-meet"]').waitFor({ timeout: 30_000 });
+      await page.locator('#panel [data-action="person-meet"]').click();
+      await kit.poll(async () => (await state()).story?.act1?.done?.['laser-awl'], 'the chapter to be kept');
+      await page.locator('#panel [data-action="person-camp"]').click();
+      assert.match(await page.locator('#panel .person-talk').textContent(), /I’ll bring my own cup/);
+      assert.equal((await state()).people.mags.camp, null);
+    });
+    await noErrors(kit, 'errand');
+    await kit.close();
+  }
+
   // ---- A person on the road --------------------------------------------------------------------
   {
     const now = Date.now();

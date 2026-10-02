@@ -2340,6 +2340,14 @@ async function startPhase4(bundle) {
     // The task rifts rest on the Board, so a change to it asks the rift loop for a fresh look.
     let lastBoard = state.board;
     phase4?.shell.on('state', () => { if (state.board !== lastBoard) { lastBoard = state.board; queueRiftLoop(); } });
+    // The story card and the story panel follow Act I's chapters.
+    let lastStory = state.story;
+    phase4?.shell.on('state', () => {
+      if (state.story === lastStory) return;
+      lastStory = state.story;
+      renderTracker();
+      if (!els.panel.hidden && els.panel.dataset.place === 'story') refreshPanel({ passive: true });
+    });
   } catch (error) {
     console.warn('[MILO] Phase 4 did not start: ' + error.message);
     phase4 = null;
@@ -3176,7 +3184,7 @@ function renderStory() {
     title: status.title, steps: status.steps, doneCount: status.steps.filter(step => step.done).length,
     letter: letter && Array.isArray(letter.lines) ? letter : null,
     showLetter: storyUi.showLetter, letterRead: Boolean(letterStep?.done),
-  });
+  }) + (safe(() => panelsModule.actSection?.(phase4?.actStatus?.() ?? null), '', 'actSection') || '');
 }
 
 function renderLantern(id) {
@@ -3841,7 +3849,10 @@ function setEveningBell(value) {
 
 function renderTracker() {
   if (!phase3) { els.tracker.hidden = true; return; }
-  const status = storyStatus();
+  const prologue = storyStatus();
+  // Once the Prologue is told, the card follows Act I.
+  const act = prologue?.complete ? phase4?.actStatus?.() ?? null : null;
+  const status = act?.open ? { steps: act.chapters, complete: act.complete } : prologue;
   const current = status?.steps.find(step => step.current);
   if (!status || status.complete || !current) {
     els.tracker.hidden = true;
@@ -3850,7 +3861,7 @@ function renderTracker() {
   const hidden = state.story?.trackerHidden === true;
   const html = panelsModule.trackerCard({
     hidden, title: current.title, hint: current.hint, doneCount: status.steps.filter(step => step.done).length,
-    total: status.steps.length, canRead: current.id === 'letter',
+    total: status.steps.length, canRead: !act && current.id === 'letter', kicker: act?.open ? 'Act I' : undefined,
   });
   if (html !== trackerHtml) {
     const focusedAction = els.tracker.contains(document.activeElement) ? document.activeElement.dataset.action : null;

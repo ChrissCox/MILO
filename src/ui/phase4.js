@@ -116,10 +116,10 @@ export async function setupPhase4(env) {
   const fights = !problem?.combat && !problem?.party;
   if (!groundwork && !fights) return null;
 
-  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod, questMod, peopleMod, blossomMod] = await Promise.all([
+  const [state4, embers, lifeskills, party, fightMod, expeditionMod, hudMod, frontier, trailMod, skyMod, fieldMod, campMod, worldgenMod, questMod, peopleMod, blossomMod, errandMod, actsMod] = await Promise.all([
     load('../state4.js'), load('../embers.js'), load('../lifeskills.js'), load('../party.js'),
     load('./fight.js'), load('./expedition.js'), load('./combat-hud.js'), load('./frontier.js'),
-    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'), load('../quests.js'), load('../people.js'), load('../world/blossoms.js'),
+    load('../world/trail.js'), load('../sky.js'), load('../world/fieldboss.js'), load('../camp.js'), load('../world/worldgen.js'), load('../quests.js'), load('../people.js'), load('../world/blossoms.js'), load('../errands.js'), load('../acts.js'),
   ]);
 
   const bus = createBus();
@@ -170,6 +170,11 @@ export async function setupPhase4(env) {
         if (next !== env.getState()) shell.set(next, { save: 400 });
       }
       trailEvent({ kind: 'feature', target: featureId });
+    },
+    // Something happened in the world that a trail or an errand may be waiting on: { kind, target }.
+    did(event) {
+      trailEvent(event);
+      errandHappened(event);
     },
     // A line for the title bar from one source ('kindle'); app.js shows it first.
     status(source, text) {
@@ -424,6 +429,44 @@ export async function setupPhase4(env) {
       env.worldCall('setCamp', { night: ['evening', 'night', 'asleep'].includes(day.part), members, props: [] });
     } catch (error) { console.error('[MILO] the world’s sync', error); }
   }
+  // ---- errands: a step that waits on a visit or on the fire is marked when it happens ----
+  function errandHappened(event) {
+    try {
+      if (!errandMod?.errandEvent) return;
+      const before = env.getState();
+      const now = env.clockNow();
+      const next = errandMod.errandEvent(before, bundle, event, now);
+      if (next === before) return;
+      shell.set(next, { save: 400 });
+      const was = new Map(errandMod.errandList(before, bundle, now).map((e) => [e.personId, e]));
+      for (const e of errandMod.errandList(next, bundle, now)) {
+        const step = e.steps.find((s) => s.done && !was.get(e.personId)?.steps[s.index]?.done);
+        if (step) shell.log({ tab: 'world', text: `Done · ${step.text}`, at: now, detail: null, action: null });
+      }
+    } catch (error) { console.error('[MILO] an errand', error); }
+  }
+
+  // ---- Act I: a chapter that came true is kept, and Milo says so ----
+  function settleActs() {
+    try {
+      if (!actsMod?.settleAct) return;
+      const now = env.clockNow();
+      const r = actsMod.settleAct(env.getState(), bundle.story ?? null, now);
+      if (!r.completed.length) return;
+      shell.set(r.state, { save: 400 });
+      const status = actsMod.actStatus(r.state, bundle.story ?? null);
+      const titles = r.completed.map((id) => status.chapters.find((c) => c.id === id)?.title).filter(Boolean);
+      const next = status.chapters.find((c) => c.current);
+      env.queueBubble({
+        kind: 'story', title: 'Act I moves on',
+        lines: [`${titles.map((t) => `“${t}”`).join(' and ')} ${titles.length > 1 ? 'are' : 'is'} done.`, next ? `Next: ${next.hint}` : 'That’s the whole of Act I so far.'],
+        place: 'story', duration: 10000, actions: [{ id: 'show', label: 'Show me' }, { id: 'later', label: 'Later' }],
+      });
+    } catch (error) { console.error('[MILO] Act I', error); }
+  }
+  offs.push(bus.on('state', () => settleActs()));
+  setTimeout(settleActs, 0);
+
   offs.push(bus.on('state', () => syncWorld()));
   offs.push(bus.on('area', () => { sneakOn = false; syncWorld(true); }));
   setTimeout(() => syncWorld(true), 0);
@@ -495,6 +538,7 @@ export async function setupPhase4(env) {
     },
     statusLine: () => statusLines.get('kindle') || null,
     onChest,
+    actStatus: () => { try { return actsMod?.actStatus ? actsMod.actStatus(env.getState(), bundle.story ?? null) : null; } catch { return null; } },
     landmarkClick,
     isFieldBoss: fieldBoss,
     costsFor,
@@ -534,7 +578,7 @@ export async function setupPhase4(env) {
         // A visit is Milo's own step (the followers' steps arrive here too).
         if (step?.scene === 'world' && (step.who === 'milo' || !step.who) && trailMod?.placeAt) {
           const place = trailMod.placeAt({ x: step.x, y: step.y }, { bridge: getBridge() }) || nearGate(step);
-          if (place && place !== lastVisit) { lastVisit = place; trailEvent({ kind: 'visit', target: place }); }
+          if (place && place !== lastVisit) { lastVisit = place; trailEvent({ kind: 'visit', target: place }); errandHappened({ kind: 'visit', target: place }); }
           else if (!place) lastVisit = null;
         }
         return doors?.onStep?.(step) ?? null;

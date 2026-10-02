@@ -5,6 +5,7 @@
 import {
   personOf, personView, choose, meet, inviteToCamp, bedsFor, residentsOf, knownWords, allPeople,
 } from '../people.js';
+import { errandOf, errandView, startErrand, giveStep, finishErrand } from '../errands.js';
 import { registerLook } from '../world/sprites-party.js';
 import { portraitCanvas } from './dialogue.js';
 import { esc } from './panels.js';
@@ -25,7 +26,7 @@ export const COPY = Object.freeze({
 });
 
 const lookOf = (personId) => ({ kind: 'rig', rig: 'coat', who: personId, likeness: null });
-const NOTE_ICON = Object.freeze({ approves: '+', frowns: '−', remembers: '·', shrugs: '·', levelled: '+' });
+const NOTE_ICON = Object.freeze({ approves: '+', frowns: '−', remembers: '·', shrugs: '·', levelled: '+', gift: '+' });
 
 /** The journal page: what has been learned (likes, what puts them off, what slides off) and what they remember. */
 export function journalHtml(view) {
@@ -44,14 +45,34 @@ export function journalHtml(view) {
 
 const lines = (list, cls = 'person-line') => (Array.isArray(list) ? list : []).map((l) => `<p class="${cls}">${esc(l)}</p>`).join('');
 
-/** The `person:<id>` panel. ui: { reply: { lines, notes } | null, camp: { lines } | null }. */
-export function buildPerson(view, ui = {}) {
+/** A running errand in the person's panel: its steps, anything to hand over, and the words that finish it. */
+function errandHtml(view, errand) {
+  const steps = errand.steps.map((s) => `<li data-step="${s.index}" data-done="${s.done ? 'true' : 'false'}"><span${s.done ? ' class="done-text"' : ''}>${esc(s.text)}</span>`
+    + (s.kind === 'give' && !s.done ? ` <button type="button" class="px-btn small${s.have >= s.n ? ' primary' : ''}" data-action="person-errand-give" data-person="${esc(view.id)}" data-index="${s.index}" data-focus-key="person-errand-give-${s.index}"${s.have >= s.n ? '' : ' disabled'}>Give ${esc(s.n)} ${esc(s.item)} (${esc(s.have)})</button>` : '')
+    + '</li>').join('');
+  return `<section class="group person-errand" data-group="errand" data-errand="${esc(errand.id)}" data-state="${esc(errand.state)}"><h3>${esc(errand.title)}</h3>`
+    // "Not yet" is only said when there's nothing in hand to give.
+    + (errand.state === 'doing' && !errand.steps.some((s) => s.kind === 'give' && !s.done && s.have >= s.n) ? lines(errand.waiting) : '')
+    + `<ul class="person-steps">${steps}</ul>`
+    + (errand.state === 'ready' ? `<p class="person-actions"><button type="button" class="px-btn primary" data-action="person-errand-done" data-person="${esc(view.id)}" data-focus-key="person-errand-done">${esc(errand.report)}</button></p>` : '')
+    + '</section>';
+}
+
+/**
+ * The `person:<id>` panel. ui: { reply: { lines, notes } | null, camp: { lines } | null, offer: { lines } | null };
+ * errand: errandView's, with the person's own words for it (ask, accept, report, waiting), or null.
+ */
+export function buildPerson(view, ui = {}, errand = null) {
   if (!view) return '<p class="quiet-note">There’s nobody here.</p>';
   let html = `<div class="person-view" data-person="${esc(view.id)}" data-level="${esc(view.level)}">`;
   html += `<header class="person-head">${portraitCanvas(lookOf(view.id), { label: view.name, size: 56 })}`
     + `<div class="person-who"><p class="person-title">${esc(view.title)}</p><span class="person-level" title="How they feel about you." data-level="${esc(view.level)}">${esc(view.levelWord)}</span></div></header>`;
   html += '<section class="group person-talk" data-group="talk">';
-  if (ui.camp) {
+  if (ui.offer && errand) {
+    html += lines(ui.offer.lines);
+    html += `<p class="person-actions"><button type="button" class="px-btn primary" data-action="person-errand-accept" data-person="${esc(view.id)}" data-focus-key="person-errand-accept">${esc(errand.accept)}</button> `
+      + `<button type="button" class="link-btn" data-action="person-errand-no" data-person="${esc(view.id)}" data-focus-key="person-errand-no">Not now.</button></p>`;
+  } else if (ui.camp) {
     html += lines(ui.camp.lines);
     html += `<p class="person-actions"><button type="button" class="px-btn" data-action="person-go" data-person="${esc(view.id)}" data-focus-key="person-go">${esc(COPY.go)}</button></p>`;
   } else if (ui.reply) {
@@ -71,7 +92,10 @@ export function buildPerson(view, ui = {}) {
     html += lines(view.tired || view.finished);
   }
   html += '</section>';
-  if (view.met && !ui.reply && !ui.camp) {
+  const quiet = view.met && !ui.reply && !ui.camp && !ui.offer;
+  if (quiet && errand?.state === 'offer') html += `<p class="person-actions"><button type="button" class="person-option" data-action="person-errand-ask" data-person="${esc(view.id)}" data-focus-key="person-errand-ask">${esc(errand.ask)}</button></p>`;
+  if (quiet && (errand?.state === 'doing' || errand?.state === 'ready')) html += errandHtml(view, errand);
+  if (quiet) {
     if (view.camp.state === 'in') html += '<p class="plot-note person-camp" data-note="camp">They live at your camp.</p>';
     else if (view.camp.state === 'ask' || view.camp.state === 'full') html += `<p class="person-actions person-camp"><button type="button" class="px-btn primary" data-action="person-camp" data-person="${esc(view.id)}" data-focus-key="person-camp">${esc(COPY.camp)}</button></p>`;
     else html += `<p class="person-actions person-camp"><button type="button" class="link-btn" data-action="person-camp" data-person="${esc(view.id)}" data-focus-key="person-camp">${esc(COPY.askCamp)}</button></p>`;
@@ -89,19 +113,27 @@ export function mount(shell) {
     const offs = [];
     const content = () => shell.content?.() ?? null;
     for (const p of allPeople(content())) if (isRecord(p.dye)) registerLook('coat', p.id, p.dye);
-    const ui = new Map(); // personId → { reply, camp }
+    const ui = new Map(); // personId → { reply, camp, offer }
     const idOf = (panelId) => (typeof panelId === 'string' && panelId.startsWith(PREFIX) && NPC_ID.test(panelId.slice(PREFIX.length)) ? panelId.slice(PREFIX.length) : null);
     const person = (pid) => (pid ? personOf(content(), pid) : null);
     const beds = () => bedsFor(shell.state?.hearth?.tier);
     const view = (pid) => { const p = person(pid); return p ? personView(shell.state, p, shell.now(), { beds: beds() }) : null; };
     const refresh = (focus) => shell.refreshPanel?.({ focus });
     const say = (text) => shell.log?.({ tab: 'world', text, at: shell.now(), detail: null, action: null });
+    // The errand as the panel shows it: where it stands, with the person's own words for asking and finishing.
+    const errandInfo = (pid) => {
+      const p = person(pid);
+      const errand = p ? errandOf(p) : null;
+      const v = errand ? errandView(shell.state, p, shell.now()) : null;
+      return v ? { ...v, ask: String(errand.ask || ''), accept: String(errand.accept || ''), report: String(errand.report || ''), waiting: Array.isArray(errand.waiting) ? errand.waiting : [] } : null;
+    };
+    const first = (p) => p.name.split(' ')[0];
 
     const spec = {
       title: (panelId) => person(idOf(panelId))?.name || 'Someone',
       exists: (panelId) => Boolean(person(idOf(panelId))),
       render: (panelId) => {
-        try { return buildPerson(view(idOf(panelId)), ui.get(idOf(panelId)) || {}); } catch (err) { console.error(err); return '<p class="quiet-note">They’re not here just now.</p>'; }
+        try { return buildPerson(view(idOf(panelId)), ui.get(idOf(panelId)) || {}, errandInfo(idOf(panelId))); } catch (err) { console.error(err); return '<p class="quiet-note">They’re not here just now.</p>'; }
       },
       action: (button, panelId) => {
         const pid = idOf(panelId);
@@ -109,7 +141,6 @@ export function mount(shell) {
         const act = button?.dataset?.action || '';
         if (!p || !act.startsWith('person-')) return false;
         const now = shell.now();
-        const mine = ui.get(pid) || {};
         switch (act) {
           case 'person-meet': shell.set(meet(shell.state, p, now), { save: 300 }); refresh(null); break;
           case 'person-pick': {
@@ -126,18 +157,43 @@ export function mount(shell) {
           case 'person-next': ui.set(pid, {}); refresh(null); break;
           case 'person-go': ui.set(pid, {}); refresh(null); break;
           case 'person-camp': {
-            const v = view(pid);
-            const asking = v?.camp.state === 'ask' || v?.camp.state === 'full';
             const r = inviteToCamp(shell.state, p, now, { beds: beds() });
-            const hint = [];
-            if (!asking && !mine.camp) {
-              const known = knownWords(v);
-              if (known.likes.length) hint.push(`${p.name.split(' ')[0]} seems to warm to ${known.likes.join(' and ')}.`);
-            }
-            const spoken = r.ok ? [...(p.camp?.ask || []), ...r.lines] : r.why === 'early' ? [...r.lines, ...hint] : [...(p.camp?.ask || []), ...r.lines];
+            // Only their own words: the ask and the answer, or the polite no.
+            const spoken = r.ok || r.why === 'full' ? [...(p.camp?.ask || []), ...r.lines] : r.lines;
             ui.set(pid, { camp: { lines: spoken } });
             if (r.ok) { shell.set(r.state, { save: 300 }); say(`${p.name.split(' ')[0]} came to camp.`); }
             refresh('person-go');
+            break;
+          }
+          case 'person-errand-ask': {
+            const errand = errandOf(p);
+            if (errand && errandView(shell.state, p, now)?.state === 'offer') ui.set(pid, { offer: { lines: Array.isArray(errand.offer) ? errand.offer : [] } });
+            refresh('person-errand-accept');
+            break;
+          }
+          case 'person-errand-no': ui.set(pid, {}); refresh('person-errand-ask'); break;
+          case 'person-errand-accept': {
+            const next = startErrand(shell.state, p, now);
+            ui.set(pid, {});
+            if (next !== shell.state) { shell.set(next, { save: 300 }); say(`Errand for ${first(p)}: ${errandOf(p).title}.`); }
+            refresh(null);
+            break;
+          }
+          case 'person-errand-give': {
+            const r = giveStep(shell.state, p, Number(button.dataset.index), now);
+            if (r.ok) shell.set(r.state, { save: 300 });
+            refresh('person-errand-done');
+            break;
+          }
+          case 'person-errand-done': {
+            const r = finishErrand(shell.state, p, now);
+            if (!r.ok) { refresh(null); break; }
+            const notes = [...r.notes];
+            if (r.levelled) notes.push({ kind: 'levelled', text: r.level === 'warm' ? `${first(p)} warms to you.` : `${first(p)} is fond of you now.` });
+            ui.set(pid, { reply: { lines: r.lines, notes } });
+            for (const n of notes) say(n.text);
+            shell.set(r.state, { save: 300 });
+            refresh('person-next');
             break;
           }
           default: return false;
@@ -148,10 +204,12 @@ export function mount(shell) {
     const off = shell.registerPanel(PREFIX, spec);
     if (typeof off === 'function') offs.push(off);
     let last = shell.state?.people;
+    let lastSatchel = shell.state?.satchel;
     if (typeof shell.on === 'function') {
       offs.push(shell.on('state', () => {
-        if (shell.state?.people === last) return;
+        if (shell.state?.people === last && shell.state?.satchel === lastSatchel) return;
         last = shell.state?.people;
+        lastSatchel = shell.state?.satchel;
         if (String(shell.state?.panel || '').startsWith(PREFIX)) shell.refreshPanel?.({ passive: true });
       }));
     }

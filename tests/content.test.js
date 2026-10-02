@@ -42,7 +42,7 @@ const REGION_WORDS = {
 const PROPER = new Set([
   'Claude', 'Code', 'Codex', 'Milo', 'MILO', 'Chris', 'PC', 'I', 'I’m', 'I’ve', 'I’ll', 'I’d',
   // the Old Company and friends
-  'Tamsin', 'Wick', 'Oriel', 'Brannoch', 'Deepcoal', 'Pell', 'Marrow', 'Sister', 'Nan', 'Bristle', 'Hob', 'Sloe', 'Captain',
+  'Tamsin', 'Wick', 'Oriel', 'Brannoch', 'Deepcoal', 'Pell', 'Marrow', 'Sister', 'Nan', 'Bristle', 'Hob', 'Sloe', 'Captain', 'Mags', 'Quire', 'Bindery', 'Tollkeeper', 'Riddle', 'Notes', 'Act',
   // places and things
   'Hearthvale', 'Whisperwood', 'Mistmere', 'Harbor', 'Painted', 'Hills', 'Ivory', 'College', 'Dicing', 'Downs', 'Cinderforge',
   'Glass', 'Fen', 'Archive', 'Peaks', 'Greyreach', 'Skyward', 'Isles', 'Far', 'Shore', 'Stacks', 'Westwatch', 'Great',
@@ -341,7 +341,7 @@ test('every word of the wilds and the story is calm copy with curly quotes', () 
         continue;
       }
       if (/\.from$/.test(path)) continue;
-      if (/^prologue\.(title|steps\[\d+\]\.title)$/.test(path)) assertTitle(text, `${file}.${path}`);
+      if (/^prologue\.(title|steps\[\d+\]\.title)$/.test(path) || /^act1\.(title|chapters\[\d+\]\.title)$/.test(path)) assertTitle(text, `${file}.${path}`);
       else if (/\.missing$/.test(path)) assertFragment(text, `${file}.${path}`);
       else if (/\.sign$/.test(path)) assert.match(text, /^— \p{Lu}\.$/u, `${file}.${path}`);
       else assertCalm(text, `${file}.${path}`);

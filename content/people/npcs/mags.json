@@ -1,0 +1,90 @@
+{
+  "id": "mags",
+  "name": "Mags Quire",
+  "title": "of the Bindery",
+  "after": "first-rift",
+  "where": { "x": 29, "y": -4 },
+  "dye": { "m": "N", "b": "e", "u": "s", "U": "S", "Y": "z", "r": "u", "R": "U", "Q": "Y" },
+  "threshold": 6,
+  "likes": { "craft": 2, "truth": 1 },
+  "dislikes": ["favour"],
+  "resists": ["joke"],
+  "examine": [
+    "Mags Quire wears a very small spaceship badge. She has not explained it.",
+    "She carries a laser-awl in a holster and a ledger under one arm. The ledger is older than the road.",
+    "She counts things as she passes them. So far today, forty trees."
+  ],
+  "meet": [
+    "Mags Quire, the Bindery. I got your paper bird. It was folded wrong.",
+    "You closed a rift. I counted it. That makes one."
+  ],
+  "hello": {
+    "wary": ["State your business. Keep it short."],
+    "neutral": ["You’re back. Good. I have a list."],
+    "warm": ["I saved you a place in the ledger. It’s a small place."],
+    "fond": ["I’ve put you down as crew. Don’t make me cross it out."]
+  },
+  "tired": ["That’s three items. I stop at three. Come back tomorrow."],
+  "finished": ["The list is empty. I don’t trust an empty list. I’ll write a new one."],
+  "topics": [
+    {
+      "id": "awl",
+      "say": [
+        "This is a laser-awl. It mends seams. I was issued it sixty years ago and nobody has asked for it back."
+      ],
+      "options": [
+        { "approach": "craft", "text": "How does it mend a seam?", "reply": ["You find the thread and pull gently. The awl does the hot part."], "remember": "asked-about-the-awl" },
+        { "approach": "truth", "text": "Sixty years is a long time to keep a tool.", "reply": ["It is. I’ve kept the receipt as well."] },
+        { "approach": "joke", "text": "Does it do buttons?", "reply": ["No."] },
+        { "approach": "kind", "text": "It looks well cared for.", "reply": ["It’s cleaned on Thursdays. Today isn’t Thursday."] }
+      ]
+    },
+    {
+      "id": "inventory",
+      "needs": 1,
+      "say": [
+        "I fell through a rift in the middle of an inventory. I was on crate nine hundred and four. I still don’t know what was in nine hundred and five."
+      ],
+      "options": [
+        { "approach": "truth", "text": "You’ll never know.", "reply": ["No. I’ve made my peace with it. Mostly on Thursdays."], "remember": "crate-905" },
+        { "approach": "craft", "text": "What was in nine hundred and four?", "reply": ["Spoons. Two hundred of them. All first spoons."] },
+        { "approach": "kind", "text": "That must have been frightening.", "reply": ["It was inconvenient. I hadn’t initialled the page."] },
+        { "approach": "favour", "text": "I could help you look for it.", "reply": ["No. The ship is in another book. I don’t take favours. I issue them."] }
+      ]
+    },
+    {
+      "id": "strays",
+      "needs": 3,
+      "say": [
+        "Rule one about strays. They’re more lost than you are. Rule two. Offer tea."
+      ],
+      "options": [
+        { "approach": "craft", "text": "Is there a rule three?", "reply": ["Count them afterwards. They wander."] },
+        { "approach": "truth", "text": "Some of them bite.", "reply": ["Some of them do. Offer tea anyway. Stand back while you do it."], "remember": "offer-tea-anyway" },
+        { "approach": "joke", "text": "What if I don’t have tea?", "reply": ["Then you aren’t ready."] }
+      ]
+    },
+    {
+      "id": "badge",
+      "needs": 5,
+      "say": [
+        "People ask about the badge. It’s my ship. The real one was a great deal larger."
+      ],
+      "options": [
+        { "approach": "truth", "text": "You miss it.", "reply": ["Yes. I’ve logged that too."], "remember": "the-ship" },
+        { "approach": "craft", "text": "What was she called?", "reply": ["The Quire. I was named after the job. So was the ship."] },
+        { "approach": "kind", "text": "It’s a nice badge.", "reply": ["It’s to scale. A very small scale."] }
+      ]
+    }
+  ],
+  "memories": {
+    "asked-about-the-awl": "You asked how the laser-awl mends a seam. She told you. She doesn’t tell everyone.",
+    "crate-905": "You said she will never know what was in crate nine hundred and five. She agreed.",
+    "offer-tea-anyway": "You said some strays bite. She said to offer tea anyway.",
+    "the-ship": "You said she misses her ship. She has logged it."
+  },
+  "camp": {
+    "never": ["No. The Bindery needs a quartermaster, and that’s me. I’ll visit. I’ll bring my own cup."],
+    "role": "Visits, and brings her own cup."
+  }
+}

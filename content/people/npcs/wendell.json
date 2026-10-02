@@ -41,9 +41,7 @@
     {
       "id": "middle",
       "needs": 1,
-      "say": [
-        "I’ve begun to wonder whether the middle is a place or an idea. I’ve stood on it for a year. It hasn’t said."
-      ],
+      "say": ["I’ve begun to wonder whether the middle is a place or an idea. I’ve stood on it for a year. It hasn’t said."],
       "options": [
         { "approach": "truth", "text": "It’s wherever the most feet go.", "reply": ["That contradicts the tortoise. You’re right, though."], "remember": "the-feet-answer" },
         { "approach": "craft", "text": "Stand still and let the road tell you.", "reply": ["I have. It said nothing. I respect that."] },
@@ -54,9 +52,7 @@
     {
       "id": "string",
       "needs": 3,
-      "say": [
-        "I’ve measured the road eleven times. I have eleven middles. I’m keeping all of them, in case the road has moods."
-      ],
+      "say": ["I’ve measured the road eleven times. I have eleven middles. I’m keeping all of them, in case the road has moods."],
       "options": [
         { "approach": "craft", "text": "Average them.", "reply": ["Yes. All right."] },
         { "approach": "truth", "text": "The road gets wider at the bend.", "reply": ["Yes. It does. I’ve been avoiding the bend."], "remember": "the-bend" },
@@ -67,9 +63,7 @@
     {
       "id": "apology",
       "needs": 4,
-      "say": [
-        "I think I owe the road an apology. I put a plaque on it without asking. I didn’t ask the plaque either."
-      ],
+      "say": ["I think I owe the road an apology. I put a plaque on it without asking. I didn’t ask the plaque either."],
       "options": [
         { "approach": "truth", "text": "Roads don’t mind. But the plaque could say “near the middle”.", "reply": ["“Near the middle.”", "I can live with that correction. Nobody has offered me one."], "remember": "near-the-middle" },
         { "approach": "craft", "text": "I’ll help you re-letter it.", "reply": ["I’ll bring the brush.", "I would like to say something here. I’ve decided not to."], "remember": "re-lettered-the-plaque" },
@@ -77,12 +71,37 @@
       ]
     }
   ],
+  "errand": {
+    "id": "the-other-end",
+    "title": "The other end of the string",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": [
+      "I’ve only measured from this end. Somebody has to stand at the other end. It can’t be me. I’m here.",
+      "Stand at the Last Bridge. Then stand at the Town hall door. Then come back and tell me you did."
+    ],
+    "accept": "I’ll stand there.",
+    "steps": [
+      { "kind": "visit", "target": "landmark:last-bridge", "text": "Stand at the Last Bridge." },
+      { "kind": "visit", "target": "townhall", "text": "Stand at the Town hall door." }
+    ],
+    "waiting": ["You haven’t stood in both places yet. I can tell. The string is slack."],
+    "report": "I stood in both places.",
+    "done": [
+      "Good. Then the road has two ends. I had suspected as much.",
+      "Take the spare string. There are eleven knots in it. One of them is the middle."
+    ],
+    "remember": "stood-at-both-ends",
+    "approval": 2,
+    "keepsake": { "name": "A length of string", "text": "Eleven knots. Wendell says one of them is the middle." }
+  },
   "memories": {
     "said-it-aloud": "You told him the plaque is a little off-centre. He had known for a month.",
     "the-feet-answer": "You said the middle is wherever the most feet go. He has added it to the notebook, on page nine.",
     "the-bend": "You pointed out that the road widens at the bend. He had been avoiding the bend.",
     "near-the-middle": "You suggested the plaque say “near the middle”. He has written it down.",
-    "re-lettered-the-plaque": "You offered to help re-letter the plaque. He hasn’t forgotten, and hasn’t said so."
+    "re-lettered-the-plaque": "You offered to help re-letter the plaque. He hasn’t forgotten, and hasn’t said so.",
+    "stood-at-both-ends": "You stood at both ends of the road for him. He has written down that the road has two ends."
   },
   "camp": {
     "early": ["I’d be glad of the company. I haven’t found your middle yet. Tell me something true first."],

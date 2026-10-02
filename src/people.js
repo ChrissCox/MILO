@@ -7,6 +7,7 @@
 // A person's file is content/people/npcs/<id>.json; their saved side is `state.people[id]`.
 import { isRecord, dayKey, cleanCount } from './clean.js';
 import { APPROACHES, PEOPLE_LIMITS } from './state5.js';
+import { chapterDone } from './acts.js';
 
 const finite = (value) => typeof value === 'number' && Number.isFinite(value);
 const DAY = 24 * 60 * 60 * 1000;
@@ -105,6 +106,7 @@ export function personView(state, person, now, { beds = BEDS[0], residents = nul
   const lived = residents ?? Object.values(isRecord(state?.people) ? state.people : {}).filter((p) => isRecord(p) && p.camp).length;
   let camp;
   if (e.camp) camp = { state: 'in' };
+  else if (Array.isArray(person.camp?.never)) camp = { state: 'never' };
   else if (level === 'fond' || level === 'devoted') camp = { state: lived >= beds ? 'full' : 'ask' };
   else camp = { state: 'none' };
   return {
@@ -180,6 +182,8 @@ export function inviteToCamp(state, person, now, { beds = BEDS[0] } = {}) {
   const entry = entryOf(state, person.id) || blank();
   if (entry.camp) return { state, ok: false, lines: [], why: null };
   const camp = isRecord(person.camp) ? person.camp : {};
+  // Some people have a life they won't leave. They say so, kindly, whenever they're asked.
+  if (Array.isArray(camp.never)) return { state, ok: false, lines: camp.never, why: 'never' };
   const level = levelOf(person, pointsNow(person, entry, now));
   if (level !== 'fond' && level !== 'devoted') return { state, ok: false, lines: camp.early || [], why: 'early' };
   if (residentsOf(state) >= beds) return { state, ok: false, lines: camp.full || [], why: 'full' };
@@ -203,10 +207,13 @@ export function residents(state, content) {
     .map(({ p }) => ({ id: p.id, name: p.name, look: { kind: 'rig', rig: 'coat', who: p.id, likeness: null }, role: p.camp?.role || '' }));
 }
 
+/** Some people arrive with the story: `after` names the Act I chapter that brings them. */
+export const hasArrived = (state, person) => typeof person.after !== 'string' || chapterDone(state, person.after);
+
 /** The people standing out in the world (not at camp yet): [{ id, name, title, x, y, look }]. */
 export function standing(state, content) {
   return allPeople(content)
-    .filter((p) => isRecord(p.where) && Number.isInteger(p.where.x) && Number.isInteger(p.where.y) && !entryOf(state, p.id)?.camp)
+    .filter((p) => isRecord(p.where) && Number.isInteger(p.where.x) && Number.isInteger(p.where.y) && !entryOf(state, p.id)?.camp && hasArrived(state, p))
     .map((p) => ({ id: p.id, name: p.name, title: p.title || '', x: p.where.x, y: p.where.y, look: { kind: 'rig', rig: 'coat', who: p.id, likeness: null } }));
 }
 

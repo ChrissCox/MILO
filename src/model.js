@@ -689,6 +689,8 @@ function cleanStory(value) {
     prologue: { ...safeCopy(prologue), done: cleanMap(prologue.done, (key) => SLUG.test(key), toTime) },
     letterReadAt: toTime(source.letterReadAt),
     trackerHidden: source.trackerHidden === true,
+    // Act I's chapters (src/acts.js), present once one is done.
+    ...(isRecord(source.act1) ? { act1: { ...safeCopy(source.act1), done: cleanMap(source.act1.done, (key) => SLUG.test(key), toTime) } } : {}),
     ...phase4Part(() => cleanStory4(source), emptyStory4),
   };
 }

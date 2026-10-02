@@ -1850,7 +1850,9 @@ try {
     assert.match(await raised.textContent(), /Gate Bell and the banners stand by the north gate/);
     assert.doesNotMatch(await raised.textContent(), /watchtower|in its gatehouse/);
     await poll(async () => /Tier 2/.test(await page.locator('#panel .hearth-tier').textContent()), 'the Hearth panel to show the Stockade');
-    assert.equal(await page.locator('#tracker').isHidden(), true, 'with the Stockade up once, the Prologue is done and its card tucked away');
+    // With the Stockade up the Prologue is done, and the story card moves on to Act I.
+    await poll(async () => /^Act I · /.test((await page.locator('#tracker').textContent()).trim()), 'the story card to show Act I');
+    assert.doesNotMatch(await page.locator('#tracker').textContent(), /The Prologue/);
     await openPlacesList();
     assert.equal(await page.locator('#place-list [data-place="war-table"]').count(), 1, 'the War Table stands now');
     await page.locator('#places-toggle').click();

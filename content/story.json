@@ -49,6 +49,17 @@
       }
     ]
   },
+  "act1": {
+    "id": "act1",
+    "title": "Act I: Hearthvale Rekindled",
+    "chapters": [
+      { "id": "first-rift", "title": "The First Rift", "text": "Something on the quest board has waited a long time, and a rift has opened over it. Milo checks the lantern twice.", "hint": "Mend what a rift is about, and it seals." },
+      { "id": "laser-awl", "title": "A Laser-Awl by Paper Bird", "text": "Mags Quire of the Bindery has come down the north road. She counted every tree on the way.", "hint": "Meet Mags Quire, just outside the north gate." },
+      { "id": "invitation", "title": "An Invitation to Stay", "text": "There is room at the fire for one more.", "hint": "Bring someone to camp, or let a stray stay." },
+      { "id": "nans-seeds", "title": "Nan’s Seeds", "text": "Nan Bristle left seeds in the meadow south of the camp. One comes up for every quest you finish.", "hint": "Finish five quests." },
+      { "id": "tollkeeper", "title": "The Tollkeeper’s Riddles", "text": "Tamsin’s notes lead north, to a bridge that hums.", "hint": "Follow the Riddle Notes to the Last Bridge." }
+    ]
+  },
   "letters": {
     "oriel": {
       "from": "Oriel",

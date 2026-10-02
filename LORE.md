@@ -421,6 +421,7 @@ Anyone with a name is a person first. Whether they ever come to camp is up to th
     - *Never a trap.* A memory can be awkward, but it is never cruel and never permanent: coming back, apologising or doing something kind adds a newer memory beside the old one, and they will say so ("Wendell will remember that you came back.").
     - *Also for companions.* The camp's company and the Wayfarers use the same note, so the fire's conversations can reach back to the road.
   - **Reputation is separate.** Factions (the Tide Market, the Gallery, the Bindery, the Ivory College) keep a standing with you in the same spirit as Pathfinder's Reputation: earned by deeds for the whole group, it opens their doors and shops, and it does not decide whether any one person comes to camp. A person can like you while their faction is cool, and the other way round.
+- **Errands.** Once someone is Warm they may ask for something small (PLAN Phase 5.5). The errand is theirs: it comes from what they want, uses only what the world already does, and ends with a kindness and a keepsake. It never pays Embers.
 - **Hard limits:** camp room is finite (the Hearth's tier decides how many beds), and nobody is ever forced to leave. Sending someone back to their post is gentle, and they remember you kindly.
 
 ## 10. Bestiary

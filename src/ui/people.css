@@ -41,3 +41,10 @@
 .person-sub { margin: 8px 0 2px; font-size: 11px; color: var(--muted); font-weight: 700; }
 .person-known, .person-memories { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 12px; }
 .person-memories li { color: var(--ink-soft); }
+
+/* An errand in a person's panel (Phase 5.5) */
+.person-errand { margin: 0; }
+.person-steps { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.person-steps li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.person-steps .done-text, .errand-steps .done-text { text-decoration: line-through; color: var(--muted); }
+.errand .errand-steps { flex: 1 0 100%; font-size: 12px; }

@@ -28,9 +28,7 @@
   "topics": [
     {
       "id": "cart",
-      "say": [
-        "It was a good cart. Two wheels, most of a bench, and no brakes. Then the hill. Then the hill again."
-      ],
+      "say": ["It was a good cart. Two wheels, most of a bench, and no brakes. Then the hill. Then the hill again."],
       "options": [
         { "approach": "kind", "text": "Oh no. Are you all right?", "reply": ["Nobody asks that. They ask after the cabbages."], "remember": "asked-after-him" },
         { "approach": "favour", "text": "I’ll watch the cart while you look.", "reply": ["Do. Watch it closely. It has been known to leave."] },
@@ -41,9 +39,7 @@
     {
       "id": "count",
       "needs": 1,
-      "say": [
-        "I lost four hundred and eleven cabbages this year. I count them. Somebody should."
-      ],
+      "say": ["I lost four hundred and eleven cabbages this year. I count them. Somebody should."],
       "options": [
         { "approach": "kind", "text": "That’s a lot to carry.", "reply": ["It is. Thank you. Most people say it’s a lot to lose."] },
         { "approach": "favour", "text": "I’ll count the next batch with you.", "reply": ["Eleven.", "Eleven is my lucky number. It hasn’t been lucky yet."], "remember": "counted-together" },
@@ -54,9 +50,7 @@
     {
       "id": "sunday",
       "needs": 3,
-      "say": [
-        "Every Sunday I think, this week the cabbages arrive. Every Sunday they arrive in a different way."
-      ],
+      "say": ["Every Sunday I think, this week the cabbages arrive. Every Sunday they arrive in a different way."],
       "options": [
         { "approach": "kind", "text": "What are they like when they arrive?", "reply": ["Round, mostly. Sometimes they roll.", "I plan around the rolling."], "remember": "asked-about-the-arrivals" },
         { "approach": "favour", "text": "Let me carry the next load.", "reply": ["You’re lighter than the cart. You also don’t roll."] },
@@ -76,11 +70,35 @@
       ]
     }
   ],
+  "errand": {
+    "id": "a-wheel",
+    "title": "A wheel for the cart",
+    "needs": "warm",
+    "ask": "Do you need anything?",
+    "offer": [
+      "The cart needs a wheel. A wheel is mostly wood. I have cabbages.",
+      "Six birch would do it. I’d get them myself, but I’d have to leave the cart, and then it would leave too."
+    ],
+    "accept": "I’ll bring the birch.",
+    "steps": [
+      { "kind": "give", "item": "birch", "n": 6, "text": "Bring Gorrin 6 birch." }
+    ],
+    "waiting": ["No birch yet. That’s all right. The cart can’t go anywhere. It has one wheel."],
+    "report": "That’s six.",
+    "done": [
+      "Six. I counted twice and got six both times. That has never happened.",
+      "Have a cabbage. It’s from the good batch."
+    ],
+    "remember": "brought-the-birch",
+    "approval": 2,
+    "keepsake": { "name": "A cabbage", "text": "From the good batch. The good batch stayed on the cart." }
+  },
   "memories": {
     "asked-after-him": "You asked if he was all right before you asked about the cabbages. He is still thinking about it.",
     "counted-together": "You offered to count the next batch with him. Eleven is his lucky number. It hasn’t been lucky yet.",
     "asked-about-the-arrivals": "You asked what the cabbages are like when they arrive. He had not been asked before.",
-    "honest-trade": "You called selling cabbages an honest trade. He has written it on the cart."
+    "honest-trade": "You called selling cabbages an honest trade. He has written it on the cart.",
+    "brought-the-birch": "You brought him six birch for a wheel. He counted twice and got six both times."
   },
   "camp": {
     "early": ["A camp. I only have cabbages to bring. Ask me when we know each other better. Or when I’ve sold some."],
