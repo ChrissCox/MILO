@@ -50,7 +50,7 @@ const PROPER = new Set([
   'Examination', 'Tower', 'Tidebook', 'Small', 'Spell', 'Hush', 'Old', 'Company', 'Maker', 'Makers', 'Cinderfolk',
   'Wayfarers', 'Glimmers', 'Stockade', 'Hearth', 'Hearthward', 'Notice', 'Board', 'Adventurer', 'Kit', 'Act', 'VI',
   'Construction', 'Phase', 'Nocturne', 'Titan', 'Elsewhere', 'Bindery', 'Quiet', 'Order', 'Syndics', 'Kingdom', 'Spire',
-  'War', 'Table', 'Gate', 'Bell', 'Friday', 'Saturday', 'Monday', 'Stillday', 'Hold', 'Hangar', 'Observatory', 'Chronicle',
+  'War', 'Table', 'Gate', 'Bell', 'Friday', 'Saturday', 'Sunday', 'Monday', 'Stillday', 'Hold', 'Hangar', 'Observatory', 'Chronicle',
   'Titans', 'Beginner', 'Margin', 'IV', 'VII', 'Prologue', 'WORLD.md', 'LORE.md', 'D', // a low D: a Brannoch bridge
 ]);
 
@@ -473,15 +473,17 @@ test('fortress.json reads as calm copy with curly apostrophes', () => {
   assert.ok(checked > 60, `${checked} strings checked`);
 });
 
-test('the ward-post rules in src/rifts.js are the three the Stockade describes, by the same names', async () => {
+test('the ward-post rules in src/rifts.js are the five the Stockade and the Hold describe, by the same names', async () => {
   const { WARD_POST_RULES } = await import('../src/rifts.js');
   assert.ok(Array.isArray(WARD_POST_RULES), 'src/rifts.js exports WARD_POST_RULES');
-  assert.deepEqual(WARD_POST_RULES.map((r) => r.id).sort(), ['capacity-95', 'nights-off', 'patient-knock']);
+  assert.deepEqual(WARD_POST_RULES.map((r) => r.id).sort(), ['capacity-95', 'crowd-monday', 'nights-off', 'patient-knock', 'stillday-nights']);
   const post = fortress.tiers[1].defences.find((d) => d.name === 'The first ward-post').real;
-  // The Hearth's defence text and the War Table's chooser call each rule by one name.
+  const towers = fortress.tiers[2].defences.find((d) => d.name === 'Ward-towers').real;
+  // The Hearth's defence text and the War Table's chooser call each rule by one name: the Stockade's three, then the Hold's two.
   for (const rule of WARD_POST_RULES) {
+    const text = ['stillday-nights', 'crowd-monday'].includes(rule.id) ? towers : post;
     const name = String(rule.name);
-    assert.ok(post.includes(name[0].toLowerCase() + name.slice(1)), `the ward-post names “${name}”: ${post}`);
+    assert.ok(text.includes(name[0].toLowerCase() + name.slice(1)), `the Hearth names “${name}”: ${text}`);
   }
 });
 

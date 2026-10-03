@@ -3,7 +3,7 @@
 // Chris writes the brief, picks the folder and the ward, and presses Send himself, every time.
 // The rules are in src/commissions.js; the crew is run by the main process (src/commission/runner.js).
 import {
-  view as commissionsView, draftForBuilding, draftFree, updateDraft, remove, send, comeBack, accept, again, running, setCheck, recordCheck,
+  view as commissionsView, draftForBuilding, draftFree, updateDraft, remove, send, comeBack, accept, again, running, setCheck, recordCheck, unqueue, startNext, waiting,
   CREW, CREW_WORDS, WARDS, WARD_WORDS, WARD_HINTS, LIMITS, wardWrites,
 } from '../commissions.js';
 import { payForCommission, paidWords } from '../commission/pay.js';
@@ -23,6 +23,11 @@ export const COPY = Object.freeze({
   add: 'Draft it',
   empty: 'Nobody is out, and nothing is drafted.',
   send: 'Send',
+  queue: 'Queue it',
+  queued: 'Waiting their turn',
+  queueHint: 'The Sally Port: it sets out when the one ahead is back.',
+  outOfQueue: 'Take out',
+  setAside: 'The queue was set aside. Send them again when you’re ready.',
   sendSure: 'Send them',
   notYet: 'Not yet',
   callBack: 'Call back',
@@ -83,7 +88,7 @@ function draftHtml(c, ui) {
   } else {
     if (c.canSend && c.who === 'codex' && ui.lowMana) html += `<p class="plot-note" data-note="mana">${esc(COPY.lowMana)}</p>`;
     if (c.canSend) html += `<p class="shares-note">${esc(COPY.shares(c.whoWord))}</p>`;
-    html += `<div class="ask-actions"><button type="button" class="px-btn primary" data-action="commission-send" data-commission="${esc(c.id)}" data-focus-key="commission-send-${esc(c.id)}"${c.canSend ? '' : ` disabled title="${esc(c.problem)}"`}>${esc(COPY.send)}</button>`
+    html += `<div class="ask-actions"><button type="button" class="px-btn primary" data-action="commission-send" data-commission="${esc(c.id)}" data-focus-key="commission-send-${esc(c.id)}"${c.canSend ? (c.queues ? ` title="${esc(COPY.queueHint)}"` : '') : ` disabled title="${esc(c.problem)}"`}>${esc(c.queues ? COPY.queue : COPY.send)}</button>`
       + `<button type="button" class="link-btn" data-action="commission-remove" data-commission="${esc(c.id)}" data-focus-key="commission-remove-${esc(c.id)}">${esc(COPY.remove)}</button></div>`;
     if (!c.canSend && c.problem) html += `<p class="quiet-note commission-problem">${esc(c.problem)}</p>`;
   }
@@ -96,6 +101,11 @@ function checkHtml(c, ui) {
   const tail = c.check && c.lastCheck?.tail ? `<details class="commission-tail"><summary>What it printed</summary><pre>${esc(c.lastCheck.tail)}</pre></details>` : '';
   return `<div class="commission-check" data-check="${c.check ? (c.check.ok ? 'passed' : 'failed') : 'none'}"><p class="commission-meta">${esc(COPY.check)}: <code>${esc(c.checkCmd)}</code>${last ? ` · ${esc(last)}` : ''}</p>${tail}`
     + `<button type="button" class="px-btn small" data-action="commission-run-check" data-commission="${esc(c.id)}" data-focus-key="commission-run-check-${esc(c.id)}"${ui.checking ? ' disabled' : ''}>${esc(ui.checking === c.id ? COPY.checking : COPY.runCheck)}</button></div>`;
+}
+
+function queuedHtml(c, index) {
+  return `<li class="commission" data-commission="${esc(c.id)}" data-status="waiting"><p class="commission-title">${esc(c.title)} ${meta(c)}</p>`
+    + `<div class="ask-actions"><button type="button" class="link-btn" data-action="commission-unqueue" data-commission="${esc(c.id)}" data-focus-key="commission-unqueue-${esc(c.id)}">${esc(COPY.outOfQueue)}</button></div></li>`;
 }
 
 function reviewHtml(c, ui = {}) {
@@ -137,13 +147,14 @@ export function buildCommissions(v, ui = {}, env = {}, now = 0) {
       + `<div class="ask-actions"><button type="button" class="px-btn" data-action="commission-cancel" data-commission="${esc(out.id)}" data-focus-key="commission-cancel">${esc(COPY.callBack)}</button></div></div></section>`;
   }
   const group = (key, title, list, each) => (list.length ? `<section class="group" data-group="${key}"><h3>${esc(title)}</h3><ul class="commission-list">${list.map(each).join('')}</ul></section>` : '');
+  html += group('queue', COPY.queued, rows.filter((c) => c.status === 'waiting'), queuedHtml);
   html += group('review', COPY.toRead, rows.filter((c) => c.status === 'review'), (c) => reviewHtml(c, ui));
   html += `<form class="board-add" data-form="commission-add"><input type="text" name="commission" value="${esc(ui.draft || '')}" maxlength="${LIMITS.title}" placeholder="${esc(COPY.placeholder)}" autocomplete="off" aria-label="${esc(COPY.placeholder)}" data-focus-key="commission-add-input"><button type="submit" class="px-btn" data-focus-key="commission-add">${esc(COPY.add)}</button></form>`;
   const buildable = Array.isArray(v?.buildable) ? v.buildable : [];
   if (buildable.length) {
     html += `<p class="commission-buildable">${buildable.map((b) => `<button type="button" class="link-btn" data-action="commission-building" data-plot="${esc(b.plotId)}" data-focus-key="commission-building-${esc(b.plotId)}">${esc(b.name)}, level ${esc(b.level)}</button>`).join(' ')}</p>`;
   }
-  html += group('drafts', COPY.drafts, rows.filter((c) => c.status === 'draft' || c.status === 'waiting'), (c) => draftHtml(c, ui));
+  html += group('drafts', COPY.drafts, rows.filter((c) => c.status === 'draft'), (c) => draftHtml(c, ui));
   html += group('earlier', COPY.earlier, rows.filter((c) => ['done', 'failed', 'stopped'].includes(c.status)), earlierHtml);
   if (!rows.length) html += `<p class="quiet-note">${esc(COPY.empty)}</p>`;
   return `${html}</div>`;
@@ -180,6 +191,17 @@ export function mount(shell, { doc = globalThis.document } = {}) {
       const c = r.state.commissions.list.find((x) => x.id === cid);
       ui.confirming = null; ui.open = null; note(null, '');
       shell.set(r.state, { save: 150 });
+      if (r.queued) {
+        log(`${CREW_WORDS[c.who]} will go next: ${c.title}.`);
+        refresh({ focus: 'commission-add-input' });
+        return;
+      }
+      await execute(cid);
+    }
+
+    // Someone is out: the commission has set out, and what comes back is read when they are.
+    async function execute(cid) {
+      const c = find(cid);
       log(`${CREW_WORDS[c.who]} set out: ${c.title}.`);
       refresh({ focus: 'commission-cancel' });
       let outcome;
@@ -189,12 +211,17 @@ export function mount(shell, { doc = globalThis.document } = {}) {
         console.error('[MILO] a commission', error);
         outcome = { ok: false, why: 'MILO lost track of them.' };
       }
+      const waitingBefore = waiting(shell.state).length;
       shell.set(comeBack(shell.state, cid, outcome, shell.now()), { save: 150 });
       const back = find(cid);
       if (back?.status === 'review') {
         shell.bubble?.({ kind: 'note', title: `${CREW_WORDS[c.who]} is back`, lines: [c.title], duration: 9000, actions: [{ id: 'later', label: 'Okay' }] });
       } else if (back) log(`${CREW_WORDS[c.who]} came back early: ${back.result?.why || c.title}`);
       refresh({ focus: back?.status === 'review' ? `commission-accept-${cid}` : 'commission-add-input' });
+      // The Sally Port: the next in the queue sets out. A run that didn't finish has already sent the queue back to the drafts.
+      const next = startNext(shell.state, shell.now(), env);
+      if (next.id) { shell.set(next.state, { save: 150 }); await execute(next.id); }
+      else if (back && back.status !== 'review' && (waitingBefore > 0)) log(COPY.setAside);
     }
 
     const action = (button) => {
@@ -211,6 +238,7 @@ export function mount(shell, { doc = globalThis.document } = {}) {
       if (!c) return true;
       switch (name) {
         case 'commission-open': ui.open = ui.open === cid ? null : cid; ui.confirming = null; note(null, ''); refresh({ focus: `commission-open-${cid}` }); break;
+        case 'commission-unqueue': commit(unqueue(shell.state, cid), 'commission-add-input'); break;
         case 'commission-remove': if (ui.open === cid) ui.open = null; commit(remove(shell.state, cid), 'commission-add-input'); break;
         case 'commission-folder': {
           if (!api?.pickFolder) { note(cid, 'MILO can’t open the folder picker here.'); refresh({}); break; }

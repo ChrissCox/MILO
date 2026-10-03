@@ -377,3 +377,111 @@ test('the panel: who is out, what is back to read, and what went before', () => 
     assert.ok(!text.includes('!') && !/\bplease\b|successfully/i.test(text), `calm copy: ${text}`);
   }
 });
+
+// ---- the Sally Port ----
+
+import { queueRoom, waiting, unqueue, startNext, QUEUE_ROOM, QUEUE_FROM_TIER } from '../src/commissions.js';
+
+const atHold = (state) => ({ ...state, hearth: { ...state.hearth, tier: QUEUE_FROM_TIER } });
+const ready = (state, title) => { const d = draftFree(state, title, T0); return { id: d.id, state: updateDraft(d.state, d.id, { folder: FOLDER }) }; };
+
+test('the Sally Port opens with the Hold: before it one commission goes at a time, after it three more may wait', () => {
+  assert.deepEqual([QUEUE_FROM_TIER, QUEUE_ROOM], [3, 3]);
+  assert.equal(queueRoom(fresh()), 0);
+  assert.equal(queueRoom({ hearth: { tier: 2 } }), 0);
+  assert.equal(queueRoom({ hearth: { tier: 3 } }), 3);
+  assert.equal(queueRoom({ hearth: { tier: 8 } }), 3);
+  assert.equal(queueRoom(null), 0);
+  let a = ready(atHold(fresh()), 'First');
+  const out = send(a.state, a.id, T0, ENV);
+  assert.deepEqual([out.ok, out.queued], [true, false], 'nobody is out: it simply sets out');
+  let state = out.state;
+  const queued = [];
+  for (const title of ['Second', 'Third', 'Fourth']) {
+    const d = ready(state, title);
+    const r = send(d.state, d.id, T0 + 1000, ENV);
+    assert.deepEqual([r.ok, r.queued], [true, true], `${title} waits`);
+    assert.equal(sendProblem(d.state, d.id, ENV), '', 'and it could');
+    assert.equal(view(d.state, ENV).rows.find((x) => x.id === d.id).queues, true, 'the button says Queue it');
+    queued.push(d.id);
+    state = r.state;
+  }
+  assert.deepEqual(waiting(state).map((c) => c.id), queued, 'in the order they were sent');
+  const fifth = ready(state, 'Fifth');
+  assert.match(sendProblem(fifth.state, fifth.id, ENV), /queue is full/);
+  assert.equal(send(fifth.state, fifth.id, T0 + 2000, ENV).ok, false);
+  // before the Hold: the old rule
+  const early = ready(fresh(), 'Early');
+  const e1 = send(early.state, early.id, T0, ENV).state;
+  const e2 = ready(e1, 'Late');
+  assert.match(sendProblem(e2.state, e2.id, ENV), /One at a time/);
+  assert.equal(view(e2.state, ENV).rows.find((x) => x.id === e2.id).queues, false);
+});
+
+test('when the one ahead comes back, the next in the queue sets out, one after another', () => {
+  let state = atHold(fresh());
+  const ids = [];
+  for (const title of ['A', 'B', 'C']) {
+    const d = ready(state, title);
+    state = send(d.state, d.id, T0 + ids.length * 1000, ENV).state;
+    ids.push(d.id);
+  }
+  assert.deepEqual([running(state).id, waiting(state).length], [ids[0], 2]);
+  assert.deepEqual(startNext(state, T0 + 5000, ENV), { state, id: null }, 'not while someone is out');
+  state = comeBack(state, ids[0], { ok: true, summary: 'Done.' }, T0 + 6000);
+  assert.equal(state.commissions.list.find((c) => c.id === ids[1]).status, 'waiting', 'still waiting until MILO sends the next');
+  let n = startNext(state, T0 + 7000, ENV);
+  assert.equal(n.id, ids[1], 'the one that has waited longest');
+  assert.deepEqual([running(n.state).id, running(n.state).sentAt, waiting(n.state).map((c) => c.id)], [ids[1], T0 + 7000, [ids[2]]]);
+  state = comeBack(n.state, ids[1], { ok: true, summary: 'Done.' }, T0 + 8000);
+  n = startNext(state, T0 + 9000, ENV);
+  assert.equal(n.id, ids[2]);
+  assert.equal(startNext(comeBack(n.state, ids[2], { ok: true, summary: 'ok' }, T0 + 10_000), T0 + 11_000, ENV).id, null, 'the queue is empty');
+});
+
+test('one that comes back unfinished, or is called back, sends the queue back to the drafts', () => {
+  for (const outcome of [{ ok: false, why: 'They need signing in again.' }, { ok: false, stopped: true, why: 'You called them back.' }]) {
+    let state = atHold(fresh());
+    const a = ready(state, 'A');
+    state = send(a.state, a.id, T0, ENV).state;
+    const b = ready(state, 'B');
+    state = send(b.state, b.id, T0 + 1, ENV).state;
+    assert.equal(waiting(state).length, 1);
+    state = comeBack(state, a.id, outcome, T0 + 2);
+    assert.deepEqual(waiting(state), []);
+    const back = state.commissions.list.find((c) => c.id === b.id);
+    assert.deepEqual([back.status, back.queuedAt], ['draft', null]);
+    assert.equal(startNext(state, T0 + 3, ENV).id, null);
+  }
+});
+
+test('a queued commission can be taken out, and the queue does not outlive MILO', () => {
+  let state = atHold(fresh());
+  const a = ready(state, 'A');
+  state = send(a.state, a.id, T0, ENV).state;
+  const b = ready(state, 'B');
+  state = send(b.state, b.id, T0 + 1, ENV).state;
+  assert.equal(sendProblem(state, b.id, ENV), 'It is in the queue.');
+  assert.equal(unqueue(state, b.id).commissions.list.find((c) => c.id === b.id).status, 'draft');
+  assert.equal(unqueue(state, a.id), state, 'whoever is out stays out');
+  const reopened = normalizeState(JSON.parse(JSON.stringify(state)), T0 + 5000);
+  assert.deepEqual(reopened.commissions.list.map((c) => c.status), ['stopped', 'draft'], 'what was out was stopped with MILO, what waited is a draft again');
+  // and a queued one whose folder is no longer fine is dropped to the drafts, not sent
+  let bad = send(updateDraft(state, b.id, { folder: HOME }), b.id, T0, ENV);
+  assert.equal(bad.ok, false);
+});
+
+test('the panel at the Hold: Queue it, who waits, and Take out', () => {
+  let state = atHold(fresh());
+  const a = ready(state, 'First');
+  state = send(a.state, a.id, T0, ENV).state;
+  const b = ready(state, 'Second');
+  let html = buildCommissions(view(b.state, ENV), { open: b.id }, {}, T0);
+  assert.match(html, /data-action="commission-send"[^>]*title="The Sally Port[^"]*">Queue it</);
+  state = send(b.state, b.id, T0 + 1, ENV).state;
+  html = buildCommissions(view(state, ENV), {}, {}, T0 + 2);
+  assert.match(html, /data-group="queue"/);
+  assert.match(html, /Waiting their turn/);
+  assert.match(html, /data-action="commission-unqueue"/);
+  assert.match(html, /data-group="out"/);
+});

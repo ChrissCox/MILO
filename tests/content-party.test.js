@@ -570,8 +570,8 @@ test('all fifteen companion files exist with the fields §9.6 asks for, and none
   for (const id of COMPANION_IDS.slice(5)) {
     assert.ok(companions[id].joins.phase > 4, `${id} joins after Phase 4`);
     assert.ok(['rift', 'hearth', 'story', 'bell'].includes(companions[id].joins.how), `${id} joins by ${companions[id].joins.how}`);
-    // Phase 6's four fight now: their moves are real and only their heart feats wait. Everyone later is still a stub.
-    const phase6 = companions[id].joins.phase === 6;
+    // Everyone who joins by Phase 6 fights now: their moves are real and only their heart feats wait. Everyone later is still a stub.
+    const phase6 = companions[id].joins.phase <= 6;
     for (const a of companions[id].abilityDefs) assert.equal(a.stub, phase6 ? a.id === companions[id].heartFeat : true, `${id}’s ${a.id} is ${phase6 && a.id !== companions[id].heartFeat ? 'real' : 'a stub'}`);
   }
   // The Scribe's own reaction defaults (COMBAT §3.7 plays her Shoulder on Always).

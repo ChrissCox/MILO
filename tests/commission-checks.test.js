@@ -287,3 +287,40 @@ test('the Hold counts what Phases 5 and 6 made real: proven levels, finished que
   assert.deepEqual(mat.stone, [200, true, false]);
   assert.deepEqual(mat.copperstone, [60, true, false], 'the copper Milo mines is copperstone');
 });
+
+// ---- the Hold's ward-towers ----
+import { activeWardRules, wardTowersOpen, WARD_POST_RULES } from '../src/rifts.js';
+
+test('the ward-towers: the post from the Stockade, two more rules from the Hold, five to choose from', () => {
+  assert.deepEqual(WARD_POST_RULES.map((r) => r.id), ['nights-off', 'patient-knock', 'capacity-95', 'stillday-nights', 'crowd-monday']);
+  for (const r of WARD_POST_RULES) assert.ok(!r.text.includes('!') && r.text.length <= 110, r.text);
+  const at = (tier, settings) => ({ hearth: { tier }, settings });
+  const settings = { wardPost: 'nights-off', wardTowers: ['crowd-monday', 'stillday-nights', 'capacity-95'] };
+  assert.deepEqual([...activeWardRules(at(1, settings))], [], 'nothing before the Stockade');
+  assert.deepEqual([...activeWardRules(at(2, settings))], ['nights-off'], 'the post only');
+  assert.deepEqual([...activeWardRules(at(3, settings))], ['nights-off', 'crowd-monday', 'stillday-nights'], 'and two towers, no more');
+  assert.deepEqual([...activeWardRules(at(3, { wardPost: 'junk', wardTowers: 'x' }))], []);
+  assert.deepEqual([wardTowersOpen(at(2)), wardTowersOpen(at(3)), wardTowersOpen(null)], [false, true, false]);
+});
+
+test('A quiet Sunday holds a Sunday night’s Nocturne rift, and Admin until Monday holds a crowded board on a weekend', () => {
+  const HOUR = 3600_000;
+  const settings = (rules) => ({ wardPost: null, wardTowers: rules });
+  // Sunday 11 October 2026, a little after the 22:00 bell, a session still working
+  const sunday = new Date(2026, 9, 11, 23, 30).getTime();
+  const late = (now) => ({ scannedAt: now, sources: { claude: { ok: true }, codex: { ok: true } }, sessions: [{ id: 'claude:late', agent: 'claude', title: 'Late', status: 'working', lastActivityAt: now - 60_000, startedAt: now - 3 * HOUR }] });
+  const night = (rules, now = sunday) => deriveSignals({ snapshot: late(now), state: { ...createState(now), hearth: { tier: 3 }, settings: { ...createState(now).settings, ...settings(rules) } }, now }).find((s) => s.kind === 'nocturne');
+  assert.equal(night([])?.held ?? null, null, 'a Sunday night opens a rift as it comes');
+  assert.equal(night(['stillday-nights']).held, 'stillday-nights');
+  const monday = new Date(2026, 9, 12, 23, 30).getTime();
+  assert.equal(night(['stillday-nights'], monday)?.held ?? null, null, 'Monday night is not held');
+  // a crowded board: eight quests in progress for over a day
+  const doing = (now) => Array.from({ length: 8 }, (_, i) => ({ id: `q-${i}`, title: `Quest ${i}`, status: 'doing', kind: 'side', skill: 'stewardship', steps: [], createdAt: now - 5 * 24 * HOUR, touchedAt: now - 2 * 24 * HOUR, startedAt: now - 2 * HOUR * 24 }));
+  const crowded = (rules, now) => deriveSignals({ snapshot: null, state: { ...createState(now), hearth: { tier: 3 }, settings: { ...createState(now).settings, ...settings(rules) }, board: { ...createState(now).board, quests: doing(now) } }, now }).find((s) => s.key === 'crowded:board');
+  const saturday = new Date(2026, 9, 10, 12).getTime();
+  const tuesday = new Date(2026, 9, 13, 12).getTime();
+  assert.ok(crowded([], saturday), 'the crowded rift is there to be held');
+  assert.equal(crowded([], saturday).held, null);
+  assert.equal(crowded(['crowd-monday'], saturday).held, 'crowd-monday');
+  assert.equal(crowded(['crowd-monday'], tuesday).held ?? null, null, 'on a Tuesday it opens');
+});

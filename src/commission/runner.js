@@ -22,7 +22,7 @@ import { folderProblem, briefFor, wardWrites, WARDS, CREW, LIMITS, CHECK_LIMIT_M
 
 /** How long a commission may be out. */
 export const RUN_LIMIT_MS = 20 * 60 * 1000;
-const FAKE_MS = 400;
+const FAKE_MS = 400; // the test crew's pace; MILO_COMMISSION_MS slows it so a queue can form
 const WALK_LIMIT = 6000;
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build', 'out', '.next', 'target']);
 
@@ -127,7 +127,8 @@ export function createRunner({ env = process.env, home = os.homedir(), own = '',
   let stopped = false;
 
   async function fake(c, folder) {
-    await new Promise((resolve) => { const t = setTimeout(resolve, FAKE_MS); kill = () => { clearTimeout(t); resolve(); }; });
+    const pace = Number(env.MILO_COMMISSION_MS) > 0 ? Math.min(Number(env.MILO_COMMISSION_MS), 30_000) : FAKE_MS;
+    await new Promise((resolve) => { const t = setTimeout(resolve, pace); kill = () => { clearTimeout(t); resolve(); }; });
     if (stopped) return { ok: false, stopped: true };
     const names = (await fsp.readdir(folder, { withFileTypes: true })).map((e) => (e.isDirectory() ? `${e.name}/` : e.name)).sort().slice(0, 8);
     if (wardWrites(c.ward)) await fsp.writeFile(path.join(folder, 'COMMISSION.txt'), `${c.title}\n`);

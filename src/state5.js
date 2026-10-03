@@ -165,10 +165,12 @@ export const ITEM_IDS = Object.freeze(['birch', 'ash', 'pine', 'minnow', 'trout'
 export const RECIPE_IDS = Object.freeze(['cordial', 'brew', 'minnow-supper', 'trout-stew']);
 
 export function emptyCamplife() {
-  return { gather: null, last: null, cooked: {}, places: {} };
+  return { gather: null, last: null, cooked: {}, places: {}, outposts: {} };
 }
 
 const PLACE_ID = /^(?:poi:hamlet|camp:lantern):-?\d{1,7},-?\d{1,7}$/;
+const OUTPOST_ID = /^lantern:-?\d{1,7},-?\d{1,7}$/;
+const MAX_OUTPOSTS = 16;
 const MAX_PLACES = 200;
 
 /** Any input → a valid camplife section: { gather, last: { session, at, activity, items } | null, cooked, places: { [hamlet id]: { days, last } } }. */
@@ -189,7 +191,12 @@ export function cleanCamplife(value) {
       if (PLACE_ID.test(id) && last) places[id] = { days: Math.max(1, cleanCount(entry.days, 99999)), last };
     }
   }
-  return { gather: GATHER_IDS.includes(src.gather) ? src.gather : null, last: session && at ? { session, at, activity: lastSrc.activity, items } : null, cooked, places };
+  // The lanterns Chris has claimed as outposts (outposts.js): when.
+  const outposts = {};
+  if (isRecord(src.outposts)) {
+    for (const [id, when] of Object.entries(src.outposts).slice(-MAX_OUTPOSTS)) if (OUTPOST_ID.test(id) && toTime(when)) outposts[id] = toTime(when);
+  }
+  return { gather: GATHER_IDS.includes(src.gather) ? src.gather : null, last: session && at ? { session, at, activity: lastSrc.activity, items } : null, cooked, places, outposts };
 }
 
 /** Any input → a valid board. Newest entries win when a list is over its limit. */

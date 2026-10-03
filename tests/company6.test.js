@@ -18,13 +18,13 @@ const content = {
   trails: read('trails.json'),
 };
 const T0 = new Date(2026, 9, 5, 12, 0, 0).getTime();
-const FOUR = ['juno', 'mae', 'lumi', 'tova'];
+const FOUR = ['juno', 'mae', 'lumi', 'tova', 'rivet', 'pip', 'dusty'];
 
-test('the four from Phase 6 have every move written, each a valid ability; their heart feats wait for their quests', () => {
+test('the seven who join by Phase 6 have every move written, each a valid ability; their heart feats wait for their quests', () => {
   assert.equal(FIGHTING_PHASE, 6);
   for (const id of FOUR) {
     const c = companions[id];
-    assert.equal(c.joins.phase, 6);
+    assert.ok(c.joins.phase <= 6);
     assert.equal(movesReady(c), true, `${id}’s moves are written`);
     for (const m of c.moves) {
       const a = c.abilityDefs.find((x) => x.id === m);
@@ -51,7 +51,7 @@ test('one of the four who has come to camp joins the roster; someone whose moves
     assert.ok(next.party.roster[id], `${id} joins`);
     assert.equal(recruit(next, id, T0, { content }), next, 'once');
   }
-  for (const id of ['rivet', 'pip', 'dusty', 'nell', 'vesperine', 'whisper']) {
+  for (const id of ['nell', 'vesperine', 'whisper']) {
     assert.equal(movesReady(companions[id]), false, `${id}’s moves are still stubs`);
     assert.equal(recruit(state, id, T0, { content }), state, `${id} waits`);
   }
@@ -122,4 +122,23 @@ test('Lumi on her bicycle strides further than she would on foot', () => {
   const make = (moves) => createBattle(fightSpec({ foes: [stray('f0', { x: 14, y: 2 })], arenaOpts: { entry: [{ x: 2, y: 2 }] } }), [hero('milo', { abilityIds: moves })], calm, ctx);
   const speed = (b) => speedOf(b, b.units.find((x) => x.id === 'milo'), ctx);
   assert.ok(speed(make(['on-her-bicycle'])) >= speed(make([])) + 4, 'four tiles further');
+});
+
+test('Dusty’s Wanted singles a foe out, Pip’s Many small things lands hits, and Rivet’s whistle patches an ally who is hurt', () => {
+  const conditions = (battle) => (battle.units.find((u) => u.id === 'f0')?.conditions || []).map((c) => c.id);
+  let singled = 0;
+  let small = 0;
+  for (let seed = 1; seed <= 12; seed += 1) {
+    if (conditions(round(['wanted'], [A.use('wanted', { unit: 'f0' })], { seed, at: { x: 6, y: 2 } }).battle).includes('singled-out')) singled += 1;
+    if (round(['many-small-things'], [A.use('many-small-things', { unit: 'f0' }, { cost: 2 })], { seed, at: { x: 5, y: 2 } }).events.some((e) => e.t === 'damage' && e.target === 'f0')) small += 1;
+  }
+  assert.ok(singled >= 4, `Wanted singles out (${singled} of 12)`);
+  assert.ok(small >= 8, `three small hits land most of the time (${small} of 12)`);
+  // Rivet's Shift change: Claude is hurt, Milo is Rivet, and the whistle patches her.
+  const ctx = engineCtx(1);
+  const hurt = createBattle(fightSpec({ foes: [stray('f0', { x: 12, y: 2 })], arenaOpts: { entry: [{ x: 2, y: 2 }, { x: 3, y: 2 }] } }),
+    [hero('milo', { abilityIds: ['shift-change'] }), hero('claude', { integrity: 4 })], calm, ctx);
+  const c = play(hurt, [{ t: 'plan', unitId: 'milo', plan: plan('milo', [A.use('shift-change', { unit: 'claude' })]) }, { t: 'commit' }], ctx);
+  const after = playRound(c.battle, ctx).battle;
+  assert.ok(after.units.find((u) => u.id === 'claude').integrity > 4, 'she is patched');
 });

@@ -23,6 +23,8 @@ export const WARD_POST_RULES = Object.freeze([
   Object.freeze({ id: 'nights-off', name: 'Weekend nights off', text: 'Working late on a Friday or Saturday night doesn’t open a rift.' }),
   Object.freeze({ id: 'patient-knock', name: 'A patient knock', text: 'A session waiting on you opens a rift after 48 hours instead of 24.' }),
   Object.freeze({ id: 'capacity-95', name: 'Room to run', text: 'Codex opens a capacity rift at 95% of its allowance instead of 85%.' }),
+  Object.freeze({ id: 'stillday-nights', name: 'A quiet Sunday', text: 'Working late on a Sunday night doesn’t open a rift.' }),
+  Object.freeze({ id: 'crowd-monday', name: 'Admin until Monday', text: 'On a Saturday or Sunday, too much in progress doesn’t open a rift until Monday.' }),
 ]);
 const WARD_POST_IDS = WARD_POST_RULES.map((rule) => rule.id);
 
@@ -276,6 +278,18 @@ function sessionsOf(snapshot) {
   return Array.isArray(snapshot?.sessions) ? snapshot.sessions.filter((s) => isRecord(s) && typeof s.id === 'string' && s.id) : [];
 }
 
+/** The Hold's ward-towers (Hearth tier 3): two more rules beside the first ward-post. */
+export const wardTowersOpen = (state) => tierOf(state) >= 3;
+
+/** Every ward rule standing: the post's from the Stockade, the towers' from the Hold. → Set of rule ids */
+export function activeWardRules(state) {
+  const settings = isRecord(state) && isRecord(state.settings) ? state.settings : {};
+  const out = new Set();
+  if (tierOf(state) >= 2 && WARD_POST_IDS.includes(settings.wardPost)) out.add(settings.wardPost);
+  if (tierOf(state) >= 3 && Array.isArray(settings.wardTowers)) for (const id of settings.wardTowers.slice(0, 2)) if (WARD_POST_IDS.includes(id)) out.add(id);
+  return out;
+}
+
 function tierOf(state) {
   const tier = isRecord(state) && isRecord(state.hearth) && finite(state.hearth.tier) ? Math.floor(state.hearth.tier) : 1;
   return Math.min(8, Math.max(1, tier));
@@ -344,7 +358,7 @@ function nocturneSignal(state, sessions, now, post) {
   const recent = late.filter((entry) => entry.at >= latest - 5 * MIN);
   const names = [...new Set(recent.map((entry) => agentWord(entry.session.agent)))];
   const eveningDay = new Date(dayStart(night.evening, 12 * 60)).getDay();
-  const held = post === 'nights-off' && (eveningDay === 5 || eveningDay === 6) ? 'nights-off' : null;
+  const held = post.has('nights-off') && (eveningDay === 5 || eveningDay === 6) ? 'nights-off' : post.has('stillday-nights') && eveningDay === 0 ? 'stillday-nights' : null;
   // Everyone who has worked late in this episode, so a hiccup in any of their sources carries it.
   const before = wasOpen && Array.isArray(openEntryNow.agents) ? openEntryNow.agents : [];
   const agents = [...new Set([...before.filter((a) => typeof a === 'string' && AGENT_ID.test(a)), ...late.map((entry) => agentOf(entry.session)).filter(Boolean)])].sort().slice(0, 4);
@@ -372,7 +386,7 @@ function knockSignals(state, sessions, now, post) {
     if (!since || since > now) continue;
     const hours = (now - since) / HOUR;
     if (hours < RIFT_RULES.knockHours) continue;
-    const held = post === 'patient-knock' && hours < RIFT_RULES.patientKnockHours ? 'patient-knock' : null;
+    const held = post.has('patient-knock') && hours < RIFT_RULES.patientKnockHours ? 'patient-knock' : null;
     const subject = quoteTitle(session.title);
     out.push(signal({
       key: `knock:${session.id}`,
@@ -473,7 +487,7 @@ function capacitySignal(state, snapshot, now, post) {
   // later than the one its episode was keyed on): that episode is over, and nothing new opens.
   if (capacityRefill(key) <= now) return null;
   const since = knownSince(state, key) ?? Math.max(Math.min(toTime(reading.at) ?? now, now), lastClosed(state, key, ENDED_HOWS) + 1);
-  const held = post === 'capacity-95' && used < RIFT_RULES.capacityHighPercent ? 'capacity-95' : null;
+  const held = post.has('capacity-95') && used < RIFT_RULES.capacityHighPercent ? 'capacity-95' : null;
   return signal({
     key,
     kind: 'capacity',
@@ -537,7 +551,7 @@ function builtSignals(state, now) {
 // the state alone. Their causes never name a quest. A rift keeps the `since` it opened with while its
 // trouble lasts, so one episode seals once however many quests it was about.
 
-function taskSignals(state, now) {
+function taskSignals(state, now, post = new Set()) {
   const facts = taskFacts(state, now);
   const open = mapOf(riftsOf(state), 'open');
   const since = (key) => {
@@ -564,6 +578,7 @@ function taskSignals(state, now) {
     out.push(signal({
       key: 'crowded:board', kind: 'crowded', signals: ['too-much-in-progress'], subject: 'the quest board',
       urgency: Math.min(0.7, 0.3 + 0.08 * (crowded.length - 5)),
+      held: post.has('crowd-monday') && [0, 6].includes(new Date(now).getDay()) ? 'crowd-monday' : null,
       cause: `${crowded.length} quests have been in progress for a day.`,
       stitch: 'Finish one, or put some back at the Town hall.',
       since: since('crowded:board'), echo: { place: 'townhall', icon: 'spark' },
@@ -714,7 +729,7 @@ export function deriveSignals({ snapshot = null, state = null, now = Date.now(),
   const clock = clockOf(now);
   const s = isRecord(state) ? state : {};
   const settings = isRecord(s.settings) ? s.settings : {};
-  const post = tierOf(s) >= 2 && WARD_POST_IDS.includes(settings.wardPost) ? settings.wardPost : null;
+  const post = activeWardRules(s);
   const out = [];
   const usable = snapshotUsable(snapshot);
   // Without a usable snapshot MILO can't tell whether the crew is there; a story rift already
@@ -739,7 +754,7 @@ export function deriveSignals({ snapshot = null, state = null, now = Date.now(),
     out.push(...carriedSignals(s, clock));
   }
   out.push(...builtSignals(s, clock));
-  out.push(...taskSignals(s, clock));
+  out.push(...taskSignals(s, clock, post));
   out.push(...commissionSignals(s, clock));
   const crack = storySignal(s, story, clock, hasSessions);
   if (crack) out.push(crack);

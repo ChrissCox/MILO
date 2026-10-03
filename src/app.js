@@ -105,10 +105,10 @@ const [modelModule, recapModule, skillsModule, mapModule, engineModule, kitModul
 ]);
 // Phase 3: the Hearth, the frontier and the wilds. If any of these can't load, the shell runs as
 // before (vale only) and the Phase 3 chrome stays hidden.
-const [riftsModule, hearthModule, storyModule, worldgenModule, riftgenModule, wildsModule, navModule, wildsartModule, frontierModule, wildtextModule, panelsModule, panelartModule, phase4Module] = await Promise.all([
+const [riftsModule, hearthModule, storyModule, worldgenModule, riftgenModule, wildsModule, navModule, wildsartModule, frontierModule, wildtextModule, panelsModule, panelartModule, phase4Module, outpostsModule] = await Promise.all([
   load('./rifts.js'), load('./hearth.js'), load('./story.js'), load('./world/worldgen.js'), load('./world/riftgen.js'),
   load('./world/wilds.js'), load('./world/nav.js'), load('./world/wildsart.js'), load('./ui/frontier.js'), load('./ui/wildtext.js'),
-  load('./ui/panels.js'), load('./ui/panelart.js'), load('./ui/phase4.js'),
+  load('./ui/panels.js'), load('./ui/panelart.js'), load('./ui/phase4.js'), load('./outposts.js'),
 ]);
 const PHASE3_MODULES = [riftsModule, hearthModule, storyModule, worldgenModule, riftgenModule, wildsModule, navModule, frontierModule, wildtextModule, panelsModule];
 // The map view is its own module (src/ui/mapview.js); it loads only when first opened.
@@ -2088,6 +2088,8 @@ els.panel.addEventListener('change', event => {
   // The ward-post rule and the evening bell (the War Table, and the bell at camp too).
   const post = event.target.closest('[data-ward-post]');
   if (post && post.checked) { setWardPost(post.value); return; }
+  const tower = event.target.closest('[data-ward-tower]');
+  if (tower) { setWardTower(Number(tower.dataset.wardTower), tower.value); return; }
   const bell = event.target.closest('[data-evening-bell]');
   if (bell) { setEveningBell(bell.value); return; }
   const choice = event.target.closest('[data-designer]');
@@ -2470,9 +2472,13 @@ function isWalkableTile(x, y) {
 // Free for a real rift: walkable, and not in a pocket closed off by trees, water or rock, so
 // Step through can always walk Milo there.
 const ROAD_TERRAIN = new Set([16, 20]); // worldgen TERRAIN.ROAD and BRIDGE
+// Wild rifts keep clear of an outpost's ward the same way.
+const isRiftTile = (x, y) => isWalkableTile(x, y) && !(outpostsModule?.nearOutpost(state, x, y));
+
 function isFreeTile(x, y) {
   checkTier();
   if (!isWalkableTile(x, y)) return false;
+  if (outpostsModule?.nearOutpost(state, x, y)) return false;
   if (!freeTiles.reach) {
     const roads = worldgenModule?.TERRAIN ? new Set([worldgenModule.TERRAIN.ROAD, worldgenModule.TERRAIN.BRIDGE]) : ROAD_TERRAIN;
     freeTiles.reach = frontierModule.createReachTest({
@@ -2848,7 +2854,7 @@ function riftFromEntity(entity) {
   const day = riftsModule.dayNumber(clockNow());
   for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
     const list = safe(() => riftsModule.wildRiftsForChunk({
-      worldgen, riftgen, cx: cx + dx, cy: cy + dy, day, wardRadius: wardRadiusNow(), closed: state.rifts?.closedWild, isFree: isWalkableTile,
+      worldgen, riftgen, cx: cx + dx, cy: cy + dy, day, wardRadius: wardRadiusNow(), closed: state.rifts?.closedWild, isFree: isRiftTile,
     }), [], 'wild rifts') || [];
     for (const rift of list) riftIndex.set(rift.id, rift);
     if (riftIndex.has(id)) return riftIndex.get(id);
@@ -3142,6 +3148,8 @@ function bellSettings() {
     eveningBell: bell || '',
     bellOptions: frontierModule.eveningBellOptions(bell || ''),
     rules: riftsModule.WARD_POST_RULES.map(rule => ({ id: rule.id, name: rule.name, text: rule.text })),
+    // The Hold's ward-towers: two more rules.
+    towers: riftsModule.wardTowersOpen?.(state) ? { chosen: Array.isArray(state.settings?.wardTowers) ? state.settings.wardTowers : [] } : null,
   };
 }
 
@@ -3209,7 +3217,8 @@ function renderLantern(id) {
   const says = poiResults.get(id)?.[0] || '';
   // Never the same sentence twice, one under the other.
   const lines = view.lines.filter(line => line !== says);
-  return panelsModule.lanternPanel({ id, title: view.title, lines, lit: view.lit, wake: view.wake, travel: travelTo, says }, { miloSays: milosLine });
+  const outpost = safe(() => outpostsModule?.outpostView(state, id), null, 'outpostView');
+  return panelsModule.lanternPanel({ id, title: view.title, lines, lit: view.lit, wake: view.wake, travel: travelTo, says, outpost }, { miloSays: milosLine });
 }
 
 function renderPoi(id) {
@@ -3330,7 +3339,7 @@ function poiGround(poi) {
   for (let dy = -1; dy <= 1; dy += 1) {
     for (let dx = -1; dx <= 1; dx += 1) {
       const wild = safe(() => riftsModule.wildRiftsForChunk({
-        worldgen, riftgen, cx: cx + dx, cy: cy + dy, day, wardRadius: wardRadiusNow(), closed: state.rifts?.closedWild, isFree: isWalkableTile,
+        worldgen, riftgen, cx: cx + dx, cy: cy + dy, day, wardRadius: wardRadiusNow(), closed: state.rifts?.closedWild, isFree: isRiftTile,
       }), [], 'wild rifts') || [];
       nearby.push(...wild.filter(near));
     }
@@ -3487,6 +3496,7 @@ function handlePhase3Action(button) {
     case 'raise': raiseAction(); return true;
     case 'light': lightAction(open); return true;
     case 'rest': restAction(open); return true;
+    case 'claim-outpost': claimOutpostAction(open); return true;
     case 'travel': travel(button.dataset.target === 'home' ? 'home' : button.dataset.target); return true;
     case 'poi-open': chestAction(open); return true;
     case 'poi-enter-cave': enterCaveAction(open); return true;
@@ -3763,6 +3773,18 @@ function raiseAction() {
   els.panelTitle.focus({ preventScroll: true });
 }
 
+// The Hold (Hearth tier 3): a lit lantern becomes an outpost, with a little ward of its own.
+function claimOutpostAction(id) {
+  if (!id.startsWith('lantern:') || !outpostsModule) return;
+  const r = outpostsModule.claimOutpost(state, id, clockNow());
+  if (!r.ok) { poiResults.set(id, [r.why]); refreshPanel({ focus: 'claim-outpost' }); return; }
+  state = r.state;
+  poiResults.set(id, ['Milo hangs a second lamp and drives a stake. It’s yours now.']);
+  scheduleSave(150);
+  riftLoop();
+  refreshPanel({ focus: 'rest' });
+}
+
 function lightAction(id) {
   if (!id.startsWith('lantern:')) return;
   const next = modelModule.lightLantern(state, id, clockNow());
@@ -3849,9 +3871,23 @@ function readLetterAction() {
   riftLoop();
 }
 
+// A rule stands in one place only: the post and the two towers never hold the same one.
+function setWardTower(index, value) {
+  const rule = riftsModule.WARD_POST_RULES.some(r => r.id === value) ? value : null;
+  const towers = [...(Array.isArray(state.settings?.wardTowers) ? state.settings.wardTowers : [])];
+  if (index === 0 || index === 1) towers[index] = rule;
+  const kept = [...new Set([towers[0], towers[1]].filter(Boolean))];
+  const wardPost = rule && state.settings?.wardPost === rule ? null : state.settings?.wardPost ?? null;
+  state.settings = { ...state.settings, wardPost, wardTowers: kept };
+  scheduleSave(150);
+  riftLoop();
+  refreshPanel({ focus: `ward-tower-${index}` });
+}
+
 function setWardPost(value) {
   const rule = riftsModule.WARD_POST_RULES.some(r => r.id === value) ? value : null;
-  state.settings = { ...state.settings, wardPost: rule };
+  const towers = Array.isArray(state.settings?.wardTowers) ? state.settings.wardTowers.filter(id => id !== rule) : undefined;
+  state.settings = { ...state.settings, wardPost: rule, ...(towers ? { wardTowers: towers } : {}) };
   scheduleSave(150);
   riftLoop();
   refreshPanel({ focus: `ward-post-${rule || 'none'}` });
@@ -3997,7 +4033,7 @@ function mapMarkers() {
     for (let dy = -3; dy <= 3; dy += 1) {
       for (let dx = -3; dx <= 3; dx += 1) {
         if (!explored.has(`${mcx + dx},${mcy + dy}`)) continue;
-        const wild = safe(() => riftsModule.wildRiftsForChunk({ worldgen, riftgen, cx: mcx + dx, cy: mcy + dy, day, wardRadius: wardRadiusNow(), closed: state.rifts?.closedWild, isFree: isWalkableTile }), [], 'wild rifts') || [];
+        const wild = safe(() => riftsModule.wildRiftsForChunk({ worldgen, riftgen, cx: mcx + dx, cy: mcy + dy, day, wardRadius: wardRadiusNow(), closed: state.rifts?.closedWild, isFree: isRiftTile }), [], 'wild rifts') || [];
         for (const rift of wild) out.push({ kind: 'rift', id: rift.id, x: rift.x, y: rift.y, label: `${rift.spec?.name || 'A rift'} · wild`, genres: rift.spec?.genres || [], colour: riftColour(rift), stage: rift.stage, wild: true });
       }
     }

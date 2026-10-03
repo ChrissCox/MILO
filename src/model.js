@@ -18,7 +18,8 @@ export { markFact, markFeature, tallyAnswered } from './state4.js';
 export const STATE_VERSION = 1;
 export const DESIGNERS = Object.freeze(['auto', 'claude', 'codex', 'kit']);
 // Phase 3: the ward-post holds one kind of signal back before it opens a rift (src/rifts.js).
-export const WARD_POSTS = Object.freeze(['nights-off', 'patient-knock', 'capacity-95']);
+// Phase 6: the Hold's two ward-towers each take one more of these, so there are five rules in all.
+export const WARD_POSTS = Object.freeze(['nights-off', 'patient-knock', 'capacity-95', 'stillday-nights', 'crowd-monday']);
 // Phase 4: the HUD's two modes (Adventure is the default) and the Kindle bell.
 export const HUD_MODES = Object.freeze(['adventure', 'quiet']);
 export const DEFAULT_SETTINGS = Object.freeze({
@@ -175,6 +176,10 @@ function cleanSettings(value) {
   // A missing bell rings at the default hour; an explicit null means Chris turned it off.
   out.eveningBell = Object.hasOwn(out, 'eveningBell') ? cleanEveningBell(out.eveningBell) : DEFAULT_SETTINGS.eveningBell;
   out.wardPost = WARD_POSTS.includes(out.wardPost) ? out.wardPost : null;
+  // The Hold's ward-towers: up to two more rules, never the one the post already holds. Absent until chosen.
+  if (Object.hasOwn(out, 'wardTowers')) {
+    out.wardTowers = [...new Set((Array.isArray(out.wardTowers) ? out.wardTowers : []).filter((id) => WARD_POSTS.includes(id) && id !== out.wardPost))].slice(0, 2);
+  }
   out.hud = HUD_MODES.includes(out.hud) ? out.hud : DEFAULT_SETTINGS.hud;
   return out;
 }

@@ -123,7 +123,7 @@ test('the saved section repairs itself', () => {
     assert.ok(c.gather === null && c.last === null && typeof c.cooked === 'object');
   }
   const ok = cleanCamplife({ gather: 'mining', last: { session: T0, at: T0 + 1, activity: 'mining', items: { stone: 3, bogus: 9 } }, cooked: { cordial: 2, nope: 4 } });
-  assert.deepEqual(ok, { gather: 'mining', last: { session: T0, at: T0 + 1, activity: 'mining', items: { stone: 3 } }, cooked: { cordial: 2 }, places: {} });
+  assert.deepEqual(ok, { gather: 'mining', last: { session: T0, at: T0 + 1, activity: 'mining', items: { stone: 3 } }, cooked: { cordial: 2 }, places: {}, outposts: {} });
 });
 
 test('the Blossomfield: a flower for every finished quest, only ever adding to the field', async () => {

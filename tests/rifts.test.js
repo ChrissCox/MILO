@@ -131,7 +131,7 @@ function withTimeZone(zone, run) {
 test('the rules and the ward-post rules are the contract’s, frozen and calm', () => {
   assert.deepEqual(RIFT_RULES, { nightEndsHour: 6, nightRecentMin: 20, nightQuietMin: 45, knockHours: 24, patientKnockHours: 48, loopHours: 3, capacityPercent: 85, capacityHighPercent: 95, brightHours: 72, wardDays: 3, wallsUrgency: 0.9 });
   assert.ok(Object.isFrozen(RIFT_RULES) && Object.isFrozen(WARD_POST_RULES) && Object.isFrozen(WARD_POST_RULES[0]));
-  assert.deepEqual(WARD_POST_RULES.map((r) => r.id), ['nights-off', 'patient-knock', 'capacity-95']);
+  assert.deepEqual(WARD_POST_RULES.map((r) => r.id), ['nights-off', 'patient-knock', 'capacity-95', 'stillday-nights', 'crowd-monday']);
   for (const rule of WARD_POST_RULES) {
     assertCalm(rule.name, `${rule.id} name`);
     assertCalm(rule.text, `${rule.id} text`);

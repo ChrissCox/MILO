@@ -215,7 +215,7 @@ const fallbackModel = {
       expedition: null,
       board: { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null },
       people: {},
-      camplife: { gather: null, last: null, cooked: {}, places: {} },
+      camplife: { gather: null, last: null, cooked: {}, places: {}, outposts: {} },
       commissions: { list: [], seq: 0, folders: {}, levels: {}, checks: {}, checked: {} },
     };
   },

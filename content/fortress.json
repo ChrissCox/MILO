@@ -52,7 +52,7 @@
       "materials": { "birch": 150, "stone": 200, "copperstone": 60 },
       "construction": 15,
       "defences": [
-        { "name": "Ward-towers", "real": "Two more rules you choose, such as: hold Nocturne rifts on a Stillday, or snooze admin rifts until Monday." },
+        { "name": "Ward-towers", "real": "Two more rules you choose from the same list, and can take down again: a quiet Sunday (late Sunday nights don’t open a Nocturne rift) or admin until Monday (too much in progress waits until Monday on a weekend)." },
         { "name": "The Sally Port", "real": "Send the crew out from the gate: a queue for commissions, so they never pile up." },
         { "name": "The Barracks", "real": "Residents who stay live here, each with their real service." }
       ],

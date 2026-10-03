@@ -297,6 +297,8 @@ try {
     // The folk keep a day (indoors at night and in the rain), so this runs on a clear afternoon.
     const noon = await clearAfternoon();
     const kit = await launchWith('settled', (s) => {
+      s.hearth = { ...s.hearth, tier: 3 };
+      s.satchel = { ...s.satchel, materials: { ...s.satchel.materials, birch: 60, stone: 30 } };
       s.wilds = { ...s.wilds, lanterns: { ...(s.wilds?.lanterns || {}), 'lantern:28,-14': noon - 3 * 86_400_000 } };
     }, { MILO_NOW: new Date(noon).toISOString() });
     const page = kit.window;
@@ -314,6 +316,18 @@ try {
       await kit.poll(async () => /Somebody pitched it after you lit the lantern/.test(await bubbleText(page)), 'the camp to say what it is', 30_000);
       await kit.poll(async () => (await state()).camplife?.places?.['camp:lantern:28,-14']?.days === 1, 'the visit to be counted');
       await kit.dismissBubbles(1000);
+    });
+    await check('at the Hold a lit lantern becomes an outpost for birch and stone, with a ward of its own', async () => {
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-entity="lantern:28,-14"]').click();
+      await page.locator('#panel [data-action="claim-outpost"]').waitFor({ timeout: 30_000 });
+      assert.match(await page.locator('#panel [data-note="outpost-cost"]').textContent(), /60 of 20 birch, 30 of 10 stone/);
+      await page.locator('#panel [data-action="claim-outpost"]').click();
+      await kit.poll(async () => /An outpost of yours/.test(await page.locator('#panel').textContent()), 'the lantern to be an outpost');
+      await kit.poll(async () => Object.keys((await state()).camplife?.outposts || {}).join() === 'lantern:28,-14', 'the outpost to be saved');
+      const st = await state();
+      assert.deepEqual([st.satchel.materials.birch, st.satchel.materials.stone], [40, 20]);
+      await page.keyboard.press('Escape');
     });
     await check('a hamlet down the east road is a settlement: a seller and a keeper among its folk, what stands in it, and a bed for the company once a day', async () => {
       await kit.openPlacesList();
@@ -357,9 +371,10 @@ try {
     await writeFile(path.join(project, 'src', 'main.js'), 'console.log(1);\n');
     // A building standing on the Long meadow, with its level tree, for the last check.
     const kit = await launchWith('commissions', (s) => {
+      s.hearth = { ...s.hearth, tier: 3 };
       const at = Date.now() - 86_400_000;
       s.plots = { ...s.plots, 'plot-meadow': { ...s.plots['plot-meadow'], status: 'built', suggestions: [], asked: null, idea: null, blueprint: GOOD_BLUEPRINT, designedBy: 'codex', builtAt: at, firstBuiltAt: at, name: null } };
-    }, { MILO_PICK_FOLDER: project });
+    }, { MILO_PICK_FOLDER: project, MILO_COMMISSION_MS: '2500' });
     const page = kit.window;
     const runs = () => kit.application.evaluate(() => globalThis.__miloCommissionRuns.map((r) => [r.who, r.ward, r.folder]));
     await check('the Crew tab drafts a commission, and it can’t be sent until a folder is picked', async () => {
@@ -428,6 +443,45 @@ try {
       assert.ok(await kit.application.evaluate(() => globalThis.__miloCommissionRuns.some((r) => r.check === 'npm test')), 'MILO ran the check, through the main process');
       // and the building remembers its folder for its next level
       assert.match((await page.evaluate(() => window.milo.loadState())).commissions.folders['plot-meadow'], /milo-ui4-project-/);
+    });
+    await check('at the Hold a second commission waits in the Sally Port and sets out by itself when the first is back', async () => {
+      await page.keyboard.press('Escape');
+      await page.locator('[data-action="hud-tab"][data-tab="crew"]').click();
+      await page.locator('#panel .commissions-view').waitFor({ timeout: 20_000 });
+      const draft = async (title) => {
+        await page.locator('#panel [data-form="commission-add"] input').fill(title);
+        await page.locator('#panel [data-form="commission-add"] button[type="submit"]').click();
+        await page.locator('#panel [data-action="commission-folder"]').click();
+        await kit.poll(async () => /milo-ui4-project-/.test(await page.locator('#panel .commission-path').textContent()), 'the folder to be picked');
+      };
+      const before = (await runs()).length;
+      await draft('First, a look');
+      await page.locator('#panel [data-action="commission-send"]').click();
+      await page.locator('#panel [data-action="commission-cancel"]').waitFor({ timeout: 10_000 });
+      await draft('Second, a look');
+      assert.match(await page.locator('#panel [data-action="commission-send"]').textContent(), /Queue it/);
+      await page.locator('#panel [data-action="commission-send"]').click();
+      await page.locator('#panel [data-group="queue"]').waitFor({ timeout: 10_000 });
+      assert.match(await page.locator('#panel [data-group="queue"]').textContent(), /Second, a look/);
+      assert.equal((await runs()).length, before + 1, 'only the first has set out');
+      await kit.poll(async () => (await page.locator('#panel [data-group="review"] .commission').count()) === 2, 'both to come back, one after the other', 30_000);
+      const mine = (await runs()).slice(before).map((r) => r[1]);
+      assert.deepEqual(mine, ['look', 'look']);
+      const saved = (await page.evaluate(() => window.milo.loadState())).commissions.list;
+      const [first, second] = saved.filter((c) => /^(First|Second), a look$/.test(c.title));
+      assert.ok(first.endedAt <= second.sentAt, 'the second set out after the first was back');
+    });
+    await check('the War Table offers two ward-towers at the Hold, and a rule stands in one place only', async () => {
+      await page.keyboard.press('Escape');
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-place="war-table"]').click();
+      await page.locator('#panel [data-ward-tower="0"]').waitFor({ timeout: 20_000 });
+      await page.locator('#panel [data-ward-tower="0"]').selectOption('crowd-monday');
+      await page.locator('#panel [data-ward-tower="1"]').selectOption('stillday-nights');
+      await kit.poll(async () => JSON.stringify((await page.evaluate(() => window.milo.loadState())).settings.wardTowers) === '["crowd-monday","stillday-nights"]', 'both towers to be kept');
+      await page.locator('#panel [data-ward-post="stillday-nights"]').check();
+      await kit.poll(async () => { const st = (await page.evaluate(() => window.milo.loadState())).settings; return st.wardPost === 'stillday-nights' && JSON.stringify(st.wardTowers) === '["crowd-monday"]'; }, 'the post to take the rule from the tower');
+      await page.keyboard.press('Escape');
     });
     await noErrors(kit, 'commissions');
     await kit.close();

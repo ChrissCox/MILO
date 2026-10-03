@@ -128,7 +128,7 @@ test('createState has the contract shape and calm defaults', () => {
     expedition: null,
     board: { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null },
     people: {},
-    camplife: { gather: null, last: null, cooked: {}, places: {} },
+    camplife: { gather: null, last: null, cooked: {}, places: {}, outposts: {} },
     commissions: { list: [], seq: 0, folders: {}, levels: {}, checks: {}, checked: {} },
   });
   assert.deepEqual(Object.keys(state).slice(9), ['firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story',
@@ -1343,7 +1343,11 @@ test('Phase 3 settings: the evening bell, the Gate Bell and the ward-post', () =
   assert.equal(cleanEveningBell('nope', null), null);
   assert.equal(normalizeState({ settings: { gateBell: false } }, NOW).settings.gateBell, false);
   assert.equal(normalizeState({ settings: { gateBell: 'no' } }, NOW).settings.gateBell, true);
-  assert.deepEqual(WARD_POSTS, ['nights-off', 'patient-knock', 'capacity-95']);
+  assert.deepEqual(WARD_POSTS, ['nights-off', 'patient-knock', 'capacity-95', 'stillday-nights', 'crowd-monday']);
+  // The Hold's ward-towers: up to two more rules, never the post's own, and absent until chosen.
+  assert.ok(!Object.hasOwn(normalizeState({ settings: {} }, NOW).settings, 'wardTowers'));
+  assert.deepEqual(normalizeState({ settings: { wardPost: 'nights-off', wardTowers: ['nights-off', 'crowd-monday', 'crowd-monday', 'capacity-95', 'stillday-nights', 'junk', 5] } }, NOW).settings.wardTowers, ['crowd-monday', 'capacity-95']);
+  assert.deepEqual(normalizeState({ settings: { wardTowers: 'x' } }, NOW).settings.wardTowers, []);
   for (const post of WARD_POSTS) assert.equal(normalizeState({ settings: { wardPost: post } }, NOW).settings.wardPost, post);
   for (const junk of ['Nights-off', 'someday', 3, {}, true]) assert.equal(normalizeState({ settings: { wardPost: junk } }, NOW).settings.wardPost, null, String(junk));
   assert.ok(Object.isFrozen(DEFAULT_SETTINGS) && Object.isFrozen(WARD_POSTS));

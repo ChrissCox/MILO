@@ -183,6 +183,15 @@ export function warTablePanel(view) {
       + `<span class="designer-text"><span class="designer-name">${esc(rule.name)}</span><span class="designer-hint">${esc(rule.text)}</span></span></label>`;
   }
   html += '</div></div>';
+  // The Hold's two ward-towers: one more rule in each.
+  if (s.towers) {
+    html += '<div class="setting setting-block"><p class="setting-name" id="ward-tower-label">The ward-towers</p><p class="setting-hint">Two more rules at the Hold. A rule can stand in only one place.</p>';
+    for (const i of [0, 1]) {
+      const chosen = s.towers.chosen[i] || '';
+      html += `<label class="setting-field">Tower ${i + 1} <select class="px-select" data-ward-tower="${i}" data-focus-key="ward-tower-${i}" aria-labelledby="ward-tower-label"><option value="">No rule</option>${s.rules.map((rule) => `<option value="${esc(rule.id)}" title="${esc(rule.text)}"${chosen === rule.id ? ' selected' : ''}>${esc(rule.name)}</option>`).join('')}</select></label>`;
+    }
+    html += '</div>';
+  }
   html += eveningBellSetting(s);
   return `${html}</section>`;
 }
@@ -300,7 +309,10 @@ export function lanternPanel(view, { miloSays = plainSays } = {}) {
   html += '<section class="building-actions" data-group="actions"><div class="ask-actions">';
   if (!view.lit) html += '<button type="button" class="px-btn primary" data-action="light" data-focus-key="light">Light it</button>';
   else html += `<button type="button" class="px-btn${view.wake ? '' : ' primary'}" data-action="rest" data-focus-key="rest"${view.wake ? ' disabled' : ''}>${view.wake ? 'Resting here' : 'Rest here'}</button>`;
+  if (view.outpost?.state === 'open') html += `<button type="button" class="px-btn" data-action="claim-outpost" data-focus-key="claim-outpost"${view.outpost.can ? '' : ` disabled title="${esc(view.outpost.problem)}"`}>Make it an outpost</button>`;
   html += '</div>';
+  if (view.outpost?.state === 'claimed') html += '<p class="plot-note" data-note="outpost">An outpost of yours. No rift opens near it.</p>';
+  else if (view.outpost?.state === 'open') html += `<p class="setting-hint" data-note="outpost-cost">${esc(view.outpost.cost.map((c) => `${c.have} of ${c.need} ${c.id}`).join(', '))}. A small ward of its own, and a camp for later.</p>`;
   if (view.lit) html += `<p class="setting-hint">${view.wake ? 'Milo rested here last. It’s right after home on his travel lists.' : 'Sit a while by its light. The lantern Milo rests at comes right after home on his travel lists.'}</p>`;
   html += '</section>';
   if (view.lit && view.travel?.length) {

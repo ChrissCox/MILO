@@ -24,39 +24,55 @@
   "moves": ["noon", "wanted"],
   "abilityDefs": [
     {
+      "circle": 0,
+      "attack": true,
+      "big": false,
+      "consumes": null,
+      "meets": "guard",
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": false,
+      "spoken": false,
+      "costs": [],
+      "uses": {
+        "per": "round",
+        "n": 1
+      },
+      "sustained": null,
+      "requires": [],
+      "reaction": {
+        "when": "foe-moves-in-sight",
+        "range": 12
+      },
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "foe",
+        "range": 12,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "act",
+          "action": "strike"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "stub": false,
+      "from": null,
+      "kind": "reaction",
+      "text": "Reaction, once a round: Strike the first foe that moves in sight.",
       "id": "noon",
       "name": "Noon",
-      "kind": "move",
-      "circle": 0,
-      "attack": false,
-      "big": false,
-      "consumes": null,
-      "meets": null,
-      "helpful": false,
-      "cannotMiss": false,
-      "outcome": false,
-      "spoken": false,
-      "costs": [1],
-      "uses": null,
-      "sustained": null,
-      "requires": [],
-      "reaction": null,
-      "passive": null,
-      "choices": null,
-      "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
-      "crit": [],
-      "upcast": false,
-      "words": "Noon",
-      "text": "Two actions: overwatch that Strikes the first foe to move in sight.",
-      "stub": true,
-      "from": "Phase 5"
+      "words": "Noon"
     },
     {
-      "id": "wanted",
-      "name": "Wanted",
-      "kind": "move",
       "circle": 0,
       "attack": false,
       "big": false,
@@ -64,9 +80,11 @@
       "meets": null,
       "helpful": false,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -74,14 +92,30 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "foe",
+        "range": 8,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "condition",
+          "id": "singled-out"
+        }
+      ],
       "crit": [],
       "upcast": false,
-      "words": "Wanted",
-      "text": "One action: singles out the next foe to act.",
-      "stub": true,
-      "from": "Phase 5"
+      "stub": false,
+      "from": null,
+      "kind": "move",
+      "text": "One action: a foe within 8 is singled out, wanted by everyone.",
+      "id": "wanted",
+      "name": "Wanted",
+      "words": "Wanted"
     },
     {
       "id": "nobodys-in-trouble-yet",
@@ -96,7 +130,9 @@
       "cannotMiss": false,
       "outcome": false,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -104,8 +140,21 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "heat",
+          "by": -10
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Nobody’s in trouble yet",

@@ -102,8 +102,10 @@ function cleanCommission(value, now) {
   const title = clip(String(value.title ?? '').replace(/\s+/g, ' ').trim(), LIMITS.title);
   if (!title) return null;
   let status = STATUSES.includes(value.status) ? value.status : 'draft';
-  // A run can't outlive the app: whatever was running when MILO closed was stopped with it.
+  // A run can't outlive the app: whatever was running when MILO closed was stopped with it. Nor
+  // can the Sally Port's queue: what was waiting goes back to the drafts, to be sent again.
   if (status === 'running') status = 'stopped';
+  if (status === 'waiting') status = 'draft';
   return {
     id: value.id,
     title,
@@ -114,6 +116,7 @@ function cleanCommission(value, now) {
     source: sourceOf(value.source),
     status,
     createdAt: toTime(value.createdAt) ?? Math.round(now),
+    queuedAt: toTime(value.queuedAt),
     sentAt: toTime(value.sentAt),
     endedAt: toTime(value.endedAt),
     result: cleanResult(value.result),
@@ -335,23 +338,64 @@ export function remove(state, id) {
 /** Whether anything is out right now. */
 export const running = (state) => sectionOf(state).list.find((c) => c.status === 'running') || null;
 
-/** Why a draft can't be sent yet, in words, or '' when it can. */
+// ---------------------------------------------------------------------------
+// The Sally Port (the Hold, Hearth tier 3): a queue for commissions, so they never pile up. One is
+// out at a time still; up to three more wait their turn and set out one after another, each as
+// sent (and, for Change files, confirmed) by Chris. It lasts while MILO is open, and if one comes
+// back unfinished or is called back, what is waiting goes back to the drafts.
+
+/** The Hearth tier that opens the Sally Port. */
+export const QUEUE_FROM_TIER = 3;
+/** How many may wait. */
+export const QUEUE_ROOM = 3;
+
+/** How many commissions may wait at the Hearth's tier (none before the Hold). */
+export const queueRoom = (state) => (Number.isFinite(state?.hearth?.tier) && state.hearth.tier >= QUEUE_FROM_TIER ? QUEUE_ROOM : 0);
+
+/** The commissions waiting their turn, the one that has waited longest first. */
+export const waiting = (state) => sectionOf(state).list.filter((c) => c.status === 'waiting').sort((a, b) => (a.queuedAt ?? 0) - (b.queuedAt ?? 0));
+
+/** Why a draft can't be sent yet, in words, or '' when it can (it may wait its turn, at the Hold). */
 export function sendProblem(state, id, env = {}) {
   const c = find(state, id);
   if (!c) return 'That commission is gone.';
-  if (c.status !== 'draft' && c.status !== 'waiting') return 'It has already been sent.';
+  if (c.status === 'waiting') return 'It is in the queue.';
+  if (c.status !== 'draft') return 'It has already been sent.';
   if (!text(c.brief)) return 'Say what you want done.';
   const folder = folderProblem(c.folder, env);
   if (folder) return folder;
-  if (running(state)) return 'One at a time. Another commission is still out.';
+  if (running(state)) {
+    if (!queueRoom(state)) return 'One at a time. Another commission is still out.';
+    if (waiting(state).length >= queueRoom(state)) return 'The queue is full.';
+  }
   return '';
 }
 
-/** The crew member sets out. → { state, ok, why } */
+const start = (state, id, now) => replace(state, id, { status: 'running', sentAt: Math.round(now), endedAt: null, queuedAt: null, result: null, proved: false });
+
+/** The crew member sets out, or, with someone already out and the Sally Port open, waits. → { state, ok, queued, why } */
 export function send(state, id, now, env = {}) {
   const why = sendProblem(state, id, env);
-  if (why || !finite(now)) return { state, ok: false, why: why || 'Not now.' };
-  return { state: replace(state, id, { status: 'running', sentAt: Math.round(now), endedAt: null, result: null, proved: false }), ok: true, why: '' };
+  if (why || !finite(now)) return { state, ok: false, queued: false, why: why || 'Not now.' };
+  if (running(state)) return { state: replace(state, id, { status: 'waiting', queuedAt: Math.round(now) }), ok: true, queued: true, why: '' };
+  return { state: start(state, id, now), ok: true, queued: false, why: '' };
+}
+
+/** Takes a commission out of the queue, back to the drafts. */
+export function unqueue(state, id) {
+  const c = find(state, id);
+  return c && c.status === 'waiting' ? replace(state, id, { status: 'draft', queuedAt: null }) : state;
+}
+
+/** Nobody is out: the commission that has waited longest sets out, if it can still go. → { state, id } */
+export function startNext(state, now, env = {}) {
+  if (running(state) || !finite(now)) return { state, id: null };
+  for (const c of waiting(state)) {
+    const draft = replace(state, c.id, { status: 'draft', queuedAt: null });
+    if (sendProblem(draft, c.id, env)) { state = draft; continue; }
+    return { state: start(draft, c.id, now), id: c.id };
+  }
+  return { state, id: null };
 }
 
 /**
@@ -363,7 +407,10 @@ export function comeBack(state, id, outcome, now) {
   if (!c || c.status !== 'running' || !finite(now)) return state;
   const o = isRecord(outcome) ? outcome : {};
   const status = o.stopped === true ? 'stopped' : o.ok === true ? 'review' : 'failed';
-  return replace(state, id, { status, endedAt: Math.round(now), result: cleanResult(o) });
+  let next = replace(state, id, { status, endedAt: Math.round(now), result: cleanResult(o) });
+  // One that didn't finish stops the queue behind it: they go back to the drafts, to be sent again.
+  if (status !== 'review') for (const w of waiting(next)) next = replace(next, w.id, { status: 'draft', queuedAt: null });
+  return next;
 }
 
 /**
@@ -397,7 +444,7 @@ export function again(state, id, now) {
 // ---------------------------------------------------------------------------
 // What the panel shows
 
-const ORDER = Object.freeze({ running: 0, review: 1, draft: 2, waiting: 2, failed: 3, stopped: 3, done: 4 });
+const ORDER = Object.freeze({ running: 0, waiting: 1, review: 2, draft: 3, failed: 4, stopped: 4, done: 5 });
 
 /** Everything, grouped for the panel: running first, then what's waiting to be read, drafts, and the rest newest first. */
 export function view(state, env = {}) {
@@ -406,8 +453,10 @@ export function view(state, env = {}) {
     ...c,
     whoWord: CREW_WORDS[c.who],
     wardWord: WARD_WORDS[c.ward],
-    canSend: (c.status === 'draft' || c.status === 'waiting') && !sendProblem(state, c.id, env),
-    problem: c.status === 'draft' || c.status === 'waiting' ? sendProblem(state, c.id, env) : '',
+    canSend: c.status === 'draft' && !sendProblem(state, c.id, env),
+    problem: c.status === 'draft' ? sendProblem(state, c.id, env) : '',
+    // With someone out and the Sally Port open, Send puts it in the queue.
+    queues: c.status === 'draft' && Boolean(running(state)) && queueRoom(state) > 0 && !sendProblem(state, c.id, env),
     // A level only counts when files could change: a look or a suggestion builds nothing.
     canProve: canProve(state, c),
     // A building's check, when this commission is for one: what it is and how it last went.
@@ -415,7 +464,7 @@ export function view(state, env = {}) {
     lastCheck: c.source.kind === 'building' ? lastCheck(state, c.source.plotId) : null,
     levelAtStake: c.status === 'review' && c.source.kind === 'building' && wardWrites(c.ward) && c.source.level === levelOf(state, c.source.plotId) + 1,
   })).sort((a, b) => ORDER[a.status] - ORDER[b.status] || (b.endedAt ?? b.sentAt ?? b.createdAt) - (a.endedAt ?? a.sentAt ?? a.createdAt));
-  return { rows, out: rows.find((r) => r.status === 'running') || null, buildable: buildable(state), any: rows.length > 0 };
+  return { rows, out: rows.find((r) => r.status === 'running') || null, buildable: buildable(state), any: rows.length > 0, queueRoom: queueRoom(state) };
 }
 
 /** The brief as it is handed over: what to do, the ward in plain words, and how to answer. */

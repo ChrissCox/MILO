@@ -1165,7 +1165,8 @@ test('choose picks up to three from the roster, never Milo, and not while a figh
   assert.deepEqual(state.party.chosen, ['tollkeeper', 'claude', 'jev']);
   const live = { ...state, expedition: { battle: { v: 2, id: 'x' } } };
   assert.equal(party.choose(live, ['codex'], NOW), live);
-  assert.equal(party.recruit(state, 'rivet', NOW, { content }), state, 'Rivet joins from Phase 5');
+  assert.equal(party.recruit(state, 'nell', NOW, { content }), state, 'Nell joins from Phase 8, once her moves are written');
+  assert.ok(party.recruit(state, 'rivet', NOW, { content }).party.roster.rivet, 'Rivet’s moves are written, so he can join');
   assert.equal(party.recruit(state, 'tollkeeper', NOW, { content }), state, 'already here');
   assert.deepEqual(party.partySpecs(state, opts).map((s) => s.id), ['milo', 'tollkeeper', 'claude', 'jev']);
 });

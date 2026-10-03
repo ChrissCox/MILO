@@ -24,9 +24,6 @@
   "moves": ["holds-the-line", "fall-in", "shift-change", "tools-down"],
   "abilityDefs": [
     {
-      "id": "holds-the-line",
-      "name": "Holds the line",
-      "kind": "passive",
       "circle": 0,
       "attack": false,
       "big": false,
@@ -43,7 +40,17 @@
       "reaction": null,
       "passive": {
         "mods": [],
-        "aura": { "radius": 1, "who": "foes", "mods": [{ "stat": "speed", "by": -1, "until": "fight" }] },
+        "aura": {
+          "radius": 1,
+          "who": "foes",
+          "mods": [
+            {
+              "stat": "speed",
+              "by": -1,
+              "until": "fight"
+            }
+          ]
+        },
         "rules": [],
         "summons": []
       },
@@ -53,25 +60,76 @@
       "effects": null,
       "crit": [],
       "upcast": false,
-      "words": "Holds the line",
-      "text": "At most two foes can stand beside him.",
-      "stub": true,
-      "from": "Phase 5"
+      "stub": false,
+      "from": null,
+      "kind": "passive",
+      "text": "Foes beside him move 1 tile less. Nothing gets past a sergeant at his post.",
+      "id": "holds-the-line",
+      "name": "Holds the line",
+      "words": "Holds the line"
     },
     {
+      "circle": 0,
+      "attack": false,
+      "big": false,
+      "consumes": null,
+      "meets": null,
+      "helpful": true,
+      "cannotMiss": false,
+      "outcome": true,
+      "spoken": false,
+      "costs": [
+        1
+      ],
+      "uses": null,
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": null,
+      "choices": null,
+      "by": null,
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": {
+          "shape": "burst",
+          "size": 6,
+          "at": "self"
+        },
+        "hits": "allies-and-self",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "condition",
+          "id": "brisk"
+        }
+      ],
+      "crit": [],
+      "upcast": false,
+      "stub": false,
+      "from": null,
+      "kind": "move",
+      "text": "His whistle, one action: allies within 6 fall in and are Brisk.",
       "id": "fall-in",
       "name": "Fall in",
-      "kind": "move",
+      "words": "Fall in"
+    },
+    {
       "circle": 0,
       "attack": false,
       "big": false,
       "consumes": null,
       "meets": null,
-      "helpful": false,
+      "helpful": true,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -79,59 +137,44 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "ally",
+        "range": 6,
+        "sight": true,
+        "area": null,
+        "hits": "allies",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "patch",
+          "line": "one"
+        }
+      ],
       "crit": [],
       "upcast": false,
-      "words": "Fall in",
-      "text": "His whistle: allies within 6 step toward him.",
-      "stub": true,
-      "from": "Phase 5"
-    },
-    {
+      "stub": false,
+      "from": null,
+      "kind": "move",
+      "text": "His whistle, one action: an ally within 6 stands down a moment and is patched the 1-action line.",
       "id": "shift-change",
       "name": "Shift change",
-      "kind": "move",
-      "circle": 0,
-      "attack": false,
-      "big": false,
-      "consumes": null,
-      "meets": null,
-      "helpful": false,
-      "cannotMiss": false,
-      "outcome": false,
-      "spoken": false,
-      "costs": [1],
-      "uses": null,
-      "sustained": null,
-      "requires": [],
-      "reaction": null,
-      "passive": null,
-      "choices": null,
-      "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
-      "crit": [],
-      "upcast": false,
-      "words": "Shift change",
-      "text": "His whistle: two allies swap places.",
-      "stub": true,
-      "from": "Phase 5"
+      "words": "Shift change"
     },
     {
-      "id": "tools-down",
-      "name": "Tools down",
-      "kind": "move",
       "circle": 0,
       "attack": false,
       "big": false,
       "consumes": null,
       "meets": null,
-      "helpful": false,
+      "helpful": true,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -139,14 +182,34 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": {
+          "shape": "burst",
+          "size": 6,
+          "at": "self"
+        },
+        "hits": "allies-and-self",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "heat",
+          "by": -30
+        }
+      ],
       "crit": [],
       "upcast": false,
-      "words": "Tools down",
-      "text": "His whistle: everyone within 6 cools down.",
-      "stub": true,
-      "from": "Phase 5"
+      "stub": false,
+      "from": null,
+      "kind": "move",
+      "text": "His whistle, one action: everyone within 6 cools down.",
+      "id": "tools-down",
+      "name": "Tools down",
+      "words": "Tools down"
     },
     {
       "id": "end-of-shift",
@@ -161,7 +224,9 @@
       "cannotMiss": false,
       "outcome": false,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -169,8 +234,21 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "heat",
+          "by": -10
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "End of shift",
