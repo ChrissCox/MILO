@@ -294,6 +294,7 @@ test('content/xp.json: §4.21’s rows, and the code’s defaults are the file',
     ['lantern-travel', 'wayfaring', 25, 10], ['log-chopped', 'woodcutting', 25, null], ['wild-stitch', 'seamcraft', 300, null],
     ['wild-stitch-depth', 'seamcraft', 30, null], ['real-stitch', 'seamcraft', 500, null],
     ['quest-main', 'stewardship', 300, null], ['quest-side', 'stewardship', 150, null],
+    ['commission', 'command', 100, null], ['commission-proved', 'command', 400, null],
   ]);
   assert.deepEqual(DEFAULT_RATES.map((r) => [r.id, r.skill, r.xp, r.perDay ?? null]), xpFile.sources.map((s) => [s.id, s.skill, s.xp, s.perDay ?? null]));
   assert.deepEqual(ratesOf(xpFile), ratesOf(null));

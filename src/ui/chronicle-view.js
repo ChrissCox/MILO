@@ -52,7 +52,7 @@ export const SOURCE_WORDS = Object.freeze({
   focus: 'A focus session', rest: 'An honoured rest', crew: 'Crew sessions watched to the end', answered: 'Needs-you answered',
   stitch: 'Real rifts stitched', design: 'First designs', backlog: 'From before the Kit', wild: 'Stepped into a wild rift',
   rung: 'Went a rung deeper', real: 'Stepped into a real rift', story: 'Stepped into the crack', field: 'Challenged a field boss',
-  cave: 'Went into a cave', chunk: 'Charted new chunks',
+  cave: 'Went into a cave', chunk: 'Charted new chunks', quest: 'Quests finished', commission: 'Commissions read',
 });
 
 /** What a fight came to. */

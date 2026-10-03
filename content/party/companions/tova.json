@@ -32,11 +32,13 @@
       "big": false,
       "consumes": null,
       "meets": null,
-      "helpful": false,
+      "helpful": true,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -44,14 +46,28 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "tile",
+        "range": 1,
+        "sight": true,
+        "area": null,
+        "hits": "all",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "summon",
+          "template": "pop-up-cover",
+          "rounds": 3
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Raise stone",
-      "text": "One action: heavy cover, or low cover on a Graze.",
-      "stub": true,
-      "from": "Phase 6"
+      "text": "One action: she taps the ground and a slab of stone stands up on a tile beside her. It is cover for 3 rounds.",
+      "stub": false,
+      "from": null
     },
     {
       "id": "humming-bridge",
@@ -62,11 +78,13 @@
       "big": false,
       "consumes": null,
       "meets": null,
-      "helpful": false,
+      "helpful": true,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        2
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -74,29 +92,50 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": {
+          "shape": "burst",
+          "size": 2,
+          "at": "self"
+        },
+        "hits": "allies-and-self",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "mod",
+          "stat": "speed",
+          "by": 2,
+          "until": "end-of-round"
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Humming bridge",
-      "text": "Two actions: a span across a gap.",
-      "stub": true,
-      "from": "Phase 6"
+      "text": "Two actions: a span that hums underfoot. Allies within 2 move 2 tiles further this round.",
+      "stub": false,
+      "from": null
     },
     {
       "id": "hammer-tap",
       "name": "Hammer tap",
       "kind": "move",
       "circle": 0,
-      "attack": false,
+      "attack": true,
       "big": false,
       "consumes": null,
-      "meets": null,
+      "meets": "guard",
       "helpful": false,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -104,14 +143,35 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "foe",
+        "range": 1,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "damage",
+          "line": "strike",
+          "kind": "quake"
+        },
+        {
+          "do": "move",
+          "who": "target",
+          "how": "push",
+          "tiles": 1,
+          "min": "hit"
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Hammer tap",
-      "text": "One action: a Strike that knocks the foe back 1.",
-      "stub": true,
-      "from": "Phase 6"
+      "text": "One action: a Strike with her hammer, in quake. On a Hit or better it knocks the foe back 1 tile.",
+      "stub": false,
+      "from": null
     },
     {
       "id": "old-patience",
@@ -126,7 +186,9 @@
       "cannotMiss": false,
       "outcome": false,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -134,8 +196,21 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "heat",
+          "by": -10
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Old Patience",

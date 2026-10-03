@@ -31,27 +31,49 @@
       "attack": false,
       "big": false,
       "consumes": null,
-      "meets": null,
+      "meets": "mind",
       "helpful": false,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
-      "uses": null,
+      "costs": [
+        2
+      ],
+      "uses": {
+        "per": "breather",
+        "n": 1
+      },
       "sustained": null,
       "requires": [],
       "reaction": null,
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "foe",
+        "range": 6,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": [
+          "not-lead"
+        ]
+      },
+      "effects": [
+        {
+          "do": "condition",
+          "id": "beguiled",
+          "n": 1,
+          "min": "hit"
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Jack in",
-      "text": "Two actions, once a Breather: run a construct foe’s next turn.",
-      "stub": true,
-      "from": "Phase 6"
+      "text": "Two actions, once a Breather: a foe within 6, not a Tale-lead, is Beguiled 1 on a Hit or better against mind Resolve.",
+      "stub": false,
+      "from": null
     },
     {
       "id": "read-the-error",
@@ -61,12 +83,14 @@
       "attack": false,
       "big": false,
       "consumes": null,
-      "meets": null,
+      "meets": "mind",
       "helpful": false,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -74,14 +98,33 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "foe",
+        "range": 6,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "condition",
+          "id": "dazed",
+          "n": 1,
+          "min": "hit"
+        },
+        {
+          "do": "reveal",
+          "what": "stats"
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Read the error",
-      "text": "One action: Dazes one foe 1 and shows its weakness.",
-      "stub": true,
-      "from": "Phase 6"
+      "text": "One action: a foe within 6 is Dazed 1 on a Hit or better against mind Resolve, and its weaknesses are shown.",
+      "stub": false,
+      "from": null
     },
     {
       "id": "it-just-had-feelings",
@@ -96,7 +139,9 @@
       "cannotMiss": false,
       "outcome": false,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -104,8 +149,21 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "heat",
+          "by": -10
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "It just had feelings",

@@ -312,8 +312,10 @@ function loadPreload() {
 test('preload: window.milo has §10.4’s keys, and the notebooks say not-loaded until loadState has resolved', async () => {
   const { milo, invoked, answer } = loadPreload();
   assert.deepEqual(Object.keys(milo).sort(), [
-    'alarm', 'architect', 'clock', 'content', 'finishClose', 'loadState', 'notebooks', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction',
+    'alarm', 'architect', 'clock', 'commissions', 'content', 'finishClose', 'loadState', 'notebooks', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction',
   ]);
+  assert.deepEqual(Object.keys(milo.commissions).sort(), ['cancel', 'check', 'env', 'pickFolder', 'run']);
+  assert.ok(Object.isFrozen(milo.commissions));
   assert.deepEqual(Object.keys(milo.notebooks).sort(), ['append', 'dropPrevious', 'read', 'replace', 'restore']);
   assert.deepEqual(Object.keys(milo.alarm).sort(), ['onRing', 'set']);
   for (const part of [milo, milo.notebooks, milo.alarm]) assert.ok(Object.isFrozen(part));

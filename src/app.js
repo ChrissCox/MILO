@@ -615,6 +615,12 @@ function agentCrew(id, now) {
     crewState = 'offline';
     label = 'Nothing yet';
   }
+  // Out on a commission (Phase 6): they've set out from the camp to work.
+  const out = (state.commissions?.list || []).find(c => c.status === 'running' && c.who === id);
+  if (out) {
+    if (crewState !== 'working') { crewState = 'working'; count = Math.max(1, count); label = 'On a commission'; }
+    else label = `${label} · on a commission`;
+  }
   return { id, state: crewState, label, count };
 }
 
@@ -1354,6 +1360,7 @@ function renderBuilding(place, plot) {
     if (canAsk()) html += `<p class="shares-note" data-shares>${esc(sharesText())}</p>`;
   } else {
     html += '<div class="ask-actions">'
+      + (phase4?.commissionFor ? '<button type="button" class="px-btn" data-action="commission" data-focus-key="commission" title="Draft a commission for its next level.">Send the crew</button>' : '')
       + `<button type="button" class="px-btn" data-action="redesign" data-focus-key="redesign"${locked ? ' disabled' : ''}>Redesign</button>`
       + `<button type="button" class="px-btn" data-action="clear" data-focus-key="clear"${job?.plotId === id ? ' disabled' : ''}>Clear plot</button></div>`;
   }
@@ -2009,6 +2016,9 @@ els.panel.addEventListener('click', event => {
       drafts.delete(`${plotId}:rename`);
       refreshPanel({ focus: 'rename' });
       break;
+    case 'commission':
+      phase4?.commissionFor?.(plotId);
+      break;
     case 'redesign':
       plotUi.redesigning = true;
       plotUi.confirming = false;
@@ -2342,6 +2352,8 @@ async function startPhase4(bundle) {
     // The task rifts rest on the Board, so a change to it asks the rift loop for a fresh look.
     let lastBoard = state.board;
     phase4?.shell.on('state', () => { if (state.board !== lastBoard) { lastBoard = state.board; queueRiftLoop(); } });
+    let lastCommissions = state.commissions;
+    phase4?.shell.on('state', () => { if (state.commissions !== lastCommissions) { lastCommissions = state.commissions; queueRiftLoop(); } });
     // The story card and the story panel follow Act I's chapters.
     let lastStory = state.story;
     phase4?.shell.on('state', () => {
@@ -4131,8 +4143,24 @@ function previewSnapshot(next) {
   summarizeStatus();
 }
 
+// When MILO first saw each crew session working without a break, in this run (rifts.js loopSignals).
+// A break, or MILO restarting, starts it again, so only a long unbroken run counts.
+const busySince = new Map();
+function markBusy(next) {
+  const at = Number.isFinite(next.scannedAt) ? next.scannedAt : clockNow();
+  const working = new Set();
+  for (const s of next.sessions) {
+    if (!s || typeof s.id !== 'string' || s.status !== 'working') continue;
+    working.add(s.id);
+    if (!busySince.has(s.id)) busySince.set(s.id, at);
+  }
+  for (const id of [...busySince.keys()]) if (!working.has(id)) busySince.delete(id);
+  return { ...next, sessions: next.sessions.map(s => (s && busySince.has(s.id) ? { ...s, busySince: busySince.get(s.id) } : s)) };
+}
+
 function applySnapshot(next) {
   if (!next || typeof next !== 'object' || !Array.isArray(next.sessions)) return;
+  next = markBusy(next);
   if (!booted) { pendingSnapshot = next; previewSnapshot(next); return; }
   const previous = prevSessions;
   snapshot = next;

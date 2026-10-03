@@ -42,7 +42,7 @@ test('economy.json holds every number the code uses, and the code’s defaults a
   const { version, about, ...numbers } = economy;
   assert.deepEqual(JSON.parse(JSON.stringify(numbers)), JSON.parse(JSON.stringify(DEFAULT_ECONOMY)));
   assert.deepEqual(economyOf(economy), economyOf(null));
-  assert.deepEqual(economy.earn.map((e) => [e.id, e.n, e.perDay ?? null]), [['focus', 10, null], ['rest', 5, null], ['crew', 2, 10], ['answered', 1, 5], ['stitch', 5, null], ['design', 5, null], ['quest-main', 3, null], ['quest-side', 2, null]]);
+  assert.deepEqual(economy.earn.map((e) => [e.id, e.n, e.perDay ?? null]), [['focus', 10, null], ['rest', 5, null], ['crew', 2, 10], ['answered', 1, 5], ['stitch', 5, null], ['design', 5, null], ['quest-main', 3, null], ['quest-side', 2, null], ['commission', 5, 15]]);
 });
 
 test('entry costs follow COMBAT §12: a wild rift 5, +1 per 3 depths up to 10; real 5, story 0, field 5, cave 3, chunk 1', () => {
@@ -521,7 +521,7 @@ function topFunctions(code) {
 }
 
 const lineOf = (source, index) => source.slice(0, index).split('\n').length;
-const EARN_CALLERS = Object.freeze({ 'embers.js': ['payFromSignals', 'payQuest'], 'kindle.js': ['kindleTick'] });
+const EARN_CALLERS = Object.freeze({ 'embers.js': ['payFromSignals', 'payQuest', 'payCommission'], 'kindle.js': ['kindleTick'] });
 
 /** Every way a tree ({ path, source }[], paths under src/) reaches embers.earn other than payFromSignals and kindleTick. */
 function earnScan(files) {

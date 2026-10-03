@@ -17,6 +17,8 @@
     { "id": "wild-stitch-depth", "skill": "seamcraft", "xp": 30, "text": "Each depth of a wild rift stitched" },
     { "id": "real-stitch", "skill": "seamcraft", "xp": 500, "text": "A real rift stitched" },
     { "id": "quest-main", "skill": "stewardship", "xp": 300, "text": "A main quest finished" },
-    { "id": "quest-side", "skill": "stewardship", "xp": 150, "text": "A side quest finished" }
+    { "id": "quest-side", "skill": "stewardship", "xp": 150, "text": "A side quest finished" },
+    { "id": "commission", "skill": "command", "xp": 100, "text": "A commission came back and was read" },
+    { "id": "commission-proved", "skill": "command", "xp": 400, "text": "A commission that proved a building’s level" }
   ]
 }

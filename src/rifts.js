@@ -7,12 +7,14 @@
 import { dayKey, dayNumber, dayStart, toTime, clip, cleanLoot, cleanEveningBell, buildingName, emptyRifts, emptySatchel, STATE_LIMITS } from './model.js';
 import { prologueStatus, markStory, STORY_RIFT_KEY } from './story.js';
 import { taskFacts } from './quests.js';
+import { commissionFacts } from './commissions.js';
 
 export { dayNumber };
 
 export const RIFT_RULES = Object.freeze({
   nightEndsHour: 6, nightRecentMin: 20, nightQuietMin: 45,
   knockHours: 24, patientKnockHours: 48,
+  loopHours: 3,
   capacityPercent: 85, capacityHighPercent: 95,
   brightHours: 72, wardDays: 3, wallsUrgency: 0.9,
 });
@@ -389,6 +391,35 @@ function knockSignals(state, sessions, now, post) {
   return out;
 }
 
+// A crew session MILO has seen busy, without a break, for hours (Watchkeeping, PLAN.md Phase 6):
+// `busySince` is when MILO first saw it working in this run of its own (app.js keeps it, and a
+// break or a restart starts it again), so a long-lived session with pauses never counts. It may
+// be going round in circles; the rift says how long, and asks Chris to look in.
+function loopSignals(sessions, now) {
+  const out = [];
+  for (const session of sessions) {
+    if (session.status !== 'working' || session.archived === true) continue;
+    const since = toTime(session.busySince);
+    if (!since || since > now) continue;
+    const hours = (now - since) / HOUR;
+    if (hours < RIFT_RULES.loopHours) continue;
+    const subject = quoteTitle(session.title);
+    out.push(signal({
+      key: `loop:${session.id}`,
+      kind: 'loop',
+      signals: ['agent-loop'],
+      subject,
+      urgency: Math.min(0.85, 0.45 + ((hours - RIFT_RULES.loopHours) / 12) * 0.4),
+      cause: `${subject} has been working for ${spanText(now - since)} without a break.`,
+      stitch: `Look in on ${agentWord(session.agent)}. If it is going round in circles, stop it.`,
+      since,
+      echo: { place: 'watchtower', icon: 'spark' },
+      sessionId: session.id,
+    }));
+  }
+  return out;
+}
+
 const capacityRefill = (key) => Number(key.slice(CAPACITY_PREFIX.length));
 
 /**
@@ -566,6 +597,43 @@ function taskSignals(state, now) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Commission rifts (PLAN.md Phase 6): a building whose check is failing opens a Neon rift over it
+// until a check passes; commissions that came back without finishing open one Noir rift over the
+// camp until they are read. Found from the state alone, like the task rifts.
+
+function commissionSignals(state, now) {
+  const facts = commissionFacts(state);
+  const open = mapOf(riftsOf(state), 'open');
+  const since = (key, fallback) => {
+    const entry = open[key];
+    if (isRecord(entry) && finite(entry.since) && entry.since <= now) return entry.since;
+    return finite(fallback) && fallback <= now ? fallback : now;
+  };
+  const out = [];
+  for (const f of facts.failing.slice(0, 4)) {
+    const key = `check:${f.plotId}`;
+    out.push(signal({
+      key, kind: 'check', signals: ['check-failing'], subject: f.name,
+      urgency: Math.min(0.8, 0.45 + Math.max(0, now - f.at) / (14 * DAY)),
+      cause: `The check for ${f.name} is failing.`,
+      stitch: 'Send the crew to fix it, then run the check again in The crew.',
+      since: since(key, f.at), echo: { place: f.plotId, icon: 'spark' },
+    }));
+  }
+  if (facts.failed.length) {
+    const n = facts.failed.length;
+    out.push(signal({
+      key: 'failed:crew', kind: 'failed', signals: ['unexplained-failure'], subject: 'the crew',
+      urgency: Math.min(0.6, 0.35 + 0.05 * (n - 1)),
+      cause: n === 1 ? 'A commission came back without finishing.' : `${n} commissions came back without finishing.`,
+      stitch: n === 1 ? 'Read it in The crew, then send it again or put it away.' : 'Read them in The crew, then send them again or put them away.',
+      since: since('failed:crew', facts.failed[0].endedAt), echo: { place: 'camp', icon: 'knocker' },
+    }));
+  }
+  return out;
+}
+
 function storySignal(state, story, now, hasSessions) {
   const status = prologueStatus(state, story, { hasSessions });
   if (status.current !== 'first-crack') return null;
@@ -590,7 +658,7 @@ function storySignal(state, story, now, hasSessions) {
  */
 function restsOn(key, entry, down) {
   if (entry.realKind === 'capacity') return down.has('codex');
-  if (entry.realKind === 'knocking') {
+  if (entry.realKind === 'knocking' || entry.realKind === 'loop') {
     const id = typeof entry.sessionId === 'string' ? entry.sessionId : key.slice(key.indexOf(':') + 1);
     const agent = agentOf({ id });
     return agent !== null && down.has(agent);
@@ -660,6 +728,7 @@ export function deriveSignals({ snapshot = null, state = null, now = Date.now(),
     const night = nocturneSignal(s, sessions, clock, post);
     if (night) out.push(night);
     out.push(...knockSignals(s, sessions, clock, post));
+    out.push(...loopSignals(sessions, clock));
     const capacity = down.has('codex') ? null : capacitySignal(s, snapshot, clock, post);
     if (capacity) out.push(capacity);
     if (down.size) {
@@ -671,6 +740,7 @@ export function deriveSignals({ snapshot = null, state = null, now = Date.now(),
   }
   out.push(...builtSignals(s, clock));
   out.push(...taskSignals(s, clock));
+  out.push(...commissionSignals(s, clock));
   const crack = storySignal(s, story, clock, hasSessions);
   if (crack) out.push(crack);
   return out.sort(bySignalOrder);
@@ -815,7 +885,7 @@ const incomplete = (list) => {
 
 function validSignal(sig) {
   return isRecord(sig) && typeof sig.key === 'string' && sig.key && Array.isArray(sig.signals) && sig.signals.length
-    && finite(sig.urgency) && finite(sig.since) && ['nocturne', 'knocking', 'capacity', 'built', 'story', 'stale', 'crowded', 'vague', 'due'].includes(sig.kind);
+    && finite(sig.urgency) && finite(sig.since) && ['nocturne', 'knocking', 'capacity', 'built', 'story', 'stale', 'crowded', 'vague', 'due', 'check', 'failed', 'loop'].includes(sig.kind);
 }
 
 /**
@@ -1416,6 +1486,9 @@ export function sealedSummary(sealed) {
   else if (only.realKind === 'crowded') which = 'the rift of too much at once';
   else if (only.realKind === 'vague') which = 'the rift over the vague quests';
   else if (only.realKind === 'due') which = 'the deadline rift';
+  else if (only.realKind === 'check') which = subject ? `the rift over ${subject}’s check` : 'the rift over a failing check';
+  else if (only.realKind === 'failed') which = 'the rift over the crew’s unfinished work';
+  else if (only.realKind === 'loop') which = subject ? `the rift over ${subject}` : 'the rift over a long run';
   else if (only.kind === 'story') which = 'the crack past the north gate';
   return `While you were away, ${which} sealed itself.`;
 }

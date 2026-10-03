@@ -11,6 +11,7 @@ import { markJoined } from './world/trail.js';
 import { line, heroIntegrity } from './combat/rules.js';
 import { defencesFor, TEMPERAMENTS } from './combat/bestiary.js';
 import { PARTS } from './world/straygen.js';
+import { FIGHTING_PHASE, movesReady } from './company.js';
 
 export const PHASE4_COMPANIONS = Object.freeze(['milo', 'claude', 'codex', 'jev', 'tollkeeper']);
 
@@ -671,14 +672,13 @@ export function choose(state, ids, now) {
 }
 
 /**
- * A named companion joins the roster (Phase 4: the Tollkeeper; the founders are always there). The
- * trail they end records the join through E's `trail.markJoined`, its one writer (§18.2 item 13),
- * reading trails.json from `content.trails` (or E's own table without it).
+ * A companion joins the roster: the founders always, the Tollkeeper by his trail, and from Phase 6 anyone at camp whose moves are written (company.js).
+ * Joining records the trail through E's `trail.markJoined`, its one writer (§18.2 item 13), from `content.trails` or E's own table.
  */
 export function recruit(state, id, now, { content = null } = {}) {
   if (!isRecord(state) || typeof id !== 'string' || inRoster(state, id)) return state;
   const comp = content ? own(catalog(content).companions, id) : null;
-  if (content ? !(isRecord(comp) && comp.joins?.phase <= 4) : !PHASE4_COMPANIONS.includes(id)) return state;
+  if (content ? !(isRecord(comp) && comp.joins?.phase <= FIGHTING_PHASE && movesReady(comp)) : !PHASE4_COMPANIONS.includes(id)) return state;
   const next = withParty(state, { roster: { ...rosterOf(state), [id]: emptyMember(stamp(now)) } });
   return markJoined(next, isRecord(content) ? content : null, id, now);
 }

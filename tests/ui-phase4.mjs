@@ -4,13 +4,15 @@
 //   node tests/ui-phase4.mjs
 
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createUiKit, makeRoot } from './ui-helpers.mjs';
 import { createWorldgen } from '../src/world/worldgen.js';
 import { lastBridge } from '../src/world/trail.js';
 import { skyAt } from '../src/sky.js';
+import { GOOD_BLUEPRINT } from './fixtures/architect/crew-payloads.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const artifacts = path.join(repo, 'test-results');
@@ -344,6 +346,92 @@ try {
     });
     await noErrors(kit, 'settled');
     await kit.close();
+  }
+
+  // ---- Commissions: the crew sent to look, and to change files, in one folder --------------------
+  {
+    // A made-up project for the test crew to read. Under MILO_TEST no real CLI is ever started.
+    const project = await mkdtemp(path.join(os.tmpdir(), 'milo-ui4-project-'));
+    await writeFile(path.join(project, 'README.md'), 'A made-up project.\n');
+    await mkdir(path.join(project, 'src'));
+    await writeFile(path.join(project, 'src', 'main.js'), 'console.log(1);\n');
+    // A building standing on the Long meadow, with its level tree, for the last check.
+    const kit = await launchWith('commissions', (s) => {
+      const at = Date.now() - 86_400_000;
+      s.plots = { ...s.plots, 'plot-meadow': { ...s.plots['plot-meadow'], status: 'built', suggestions: [], asked: null, idea: null, blueprint: GOOD_BLUEPRINT, designedBy: 'codex', builtAt: at, firstBuiltAt: at, name: null } };
+    }, { MILO_PICK_FOLDER: project });
+    const page = kit.window;
+    const runs = () => kit.application.evaluate(() => globalThis.__miloCommissionRuns.map((r) => [r.who, r.ward, r.folder]));
+    await check('the Crew tab drafts a commission, and it can’t be sent until a folder is picked', async () => {
+      await page.locator('[data-action="hud-tab"][data-tab="crew"]').click();
+      await page.locator('#panel .commissions-view').waitFor({ timeout: 20_000 });
+      assert.equal((await page.locator('#panel-title').textContent()).trim(), 'The crew');
+      await page.locator('#panel [data-form="commission-add"] input').fill('Look over the notes');
+      await page.locator('#panel [data-form="commission-add"] button[type="submit"]').click();
+      await page.locator('#panel [data-action="commission-send"]').waitFor({ timeout: 10_000 });
+      assert.equal(await page.locator('#panel [data-action="commission-send"]').isDisabled(), true);
+      assert.match(await page.locator('#panel .commission-problem').textContent(), /Pick a folder first/);
+      await page.locator('#panel [data-action="commission-folder"]').click();
+      await kit.poll(async () => !(await page.locator('#panel [data-action="commission-send"]').isDisabled()), 'Send to be ready');
+      assert.match(await page.locator('#panel .commission-path').textContent(), /milo-ui4-project-/);
+      assert.match(await page.locator('#panel .shares-note').textContent(), /Sends your brief, and what they read in this folder, to Claude/);
+      assert.deepEqual(await runs(), [], 'nothing has been sent yet');
+    });
+    await check('a Look only commission comes back with a report and changes nothing in the folder', async () => {
+      await page.locator('#panel [data-action="commission-send"]').click();
+      await page.locator('#panel [data-group="review"]').waitFor({ timeout: 20_000 });
+      assert.match(await page.locator('#panel [data-group="review"]').textContent(), /Claude read 2 things in the folder/);
+      assert.deepEqual((await readdir(project)).sort(), ['README.md', 'src']);
+      assert.deepEqual(await runs(), [['claude', 'look', project]]);
+      await page.locator('#panel [data-action="commission-accept"]').click();
+      await page.locator('#panel [data-group="earlier"]').waitFor({ timeout: 10_000 });
+    });
+    await check('a Change files commission asks once more with the folder named, then writes inside it and lists what changed', async () => {
+      await page.locator('#panel [data-action="commission-again"]').first().click();
+      await page.locator('#panel select[data-field="commission-ward"]').selectOption('change');
+      await page.locator('#panel select[data-field="commission-who"]').selectOption('codex');
+      await page.locator('#panel [data-action="commission-send"]').click();
+      await page.locator('#panel [data-action="commission-send-yes"]').waitFor({ timeout: 10_000 });
+      assert.match(await page.locator('#panel .confirm').textContent(), /They may add and edit files in .*milo-ui4-project-.*Nothing else\./);
+      assert.equal((await runs()).length, 1, 'not sent until he says so');
+      await page.locator('#panel [data-action="commission-send-yes"]').click();
+      await page.locator('#panel [data-group="review"]').waitFor({ timeout: 20_000 });
+      assert.match(await page.locator('#panel [data-group="review"] .commission-files').textContent(), /COMMISSION\.txt/);
+      assert.deepEqual((await readdir(project)).sort(), ['COMMISSION.txt', 'README.md', 'src']);
+      assert.deepEqual((await runs())[1], ['codex', 'change', project]);
+      await kit.dismissBubbles(800);
+    });
+    await check('a building’s Send the crew drafts its next level; its check must pass before It works, and then it goes up a level and pays', async () => {
+      await page.keyboard.press('Escape');
+      await kit.openPlacesList();
+      await page.locator('#place-list [data-place="plot-meadow"]').click();
+      await page.locator('#panel [data-action="commission"]').waitFor({ timeout: 20_000 });
+      await page.locator('#panel [data-action="commission"]').click();
+      await page.locator('#panel .commissions-view [data-field="commission-check"]').waitFor({ timeout: 10_000 });
+      assert.match(await page.locator('#panel .commissions-view [data-field="commission-brief"]').inputValue(), new RegExp(`^Build level 1 of ${GOOD_BLUEPRINT.name}`));
+      await page.locator('#panel [data-action="commission-folder"]').click();
+      await kit.poll(async () => /milo-ui4-project-/.test(await page.locator('#panel .commission-path').textContent()), 'the folder to be picked');
+      await page.locator('#panel [data-field="commission-check"]').fill('npm test');
+      await page.locator('#panel select[data-field="commission-ward"]').selectOption('change');
+      await kit.poll(async () => (await page.evaluate(() => window.milo.loadState())).commissions?.checks?.['plot-meadow'] === 'npm test', 'the check to be kept');
+      await page.locator('#panel [data-action="commission-send"]').click();
+      await page.locator('#panel [data-action="commission-send-yes"]').click();
+      await page.locator('#panel [data-action="commission-run-check"]').waitFor({ timeout: 20_000 });
+      assert.equal(await page.locator('#panel [data-action="commission-proved"]').isDisabled(), true, 'not before the check');
+      await page.locator('#panel [data-action="commission-run-check"]').click();
+      await kit.poll(async () => !(await page.locator('#panel [data-action="commission-proved"]').isDisabled()), 'the check to pass');
+      assert.match(await page.locator('#panel .commission-check').textContent(), /The check passed/);
+      const before = (await page.evaluate(() => window.milo.loadState())).embers.lifetime;
+      await page.locator('#panel [data-action="commission-proved"]').click();
+      await kit.poll(async () => (await page.evaluate(() => window.milo.loadState())).commissions?.levels?.['plot-meadow'] === 1, 'the building to reach level 1');
+      await kit.poll(async () => (await page.evaluate(() => window.milo.loadState())).embers.lifetime === before + 5, 'five Embers for it');
+      assert.ok(await kit.application.evaluate(() => globalThis.__miloCommissionRuns.some((r) => r.check === 'npm test')), 'MILO ran the check, through the main process');
+      // and the building remembers its folder for its next level
+      assert.match((await page.evaluate(() => window.milo.loadState())).commissions.folders['plot-meadow'], /milo-ui4-project-/);
+    });
+    await noErrors(kit, 'commissions');
+    await kit.close();
+    await rm(project, { recursive: true, force: true });
   }
 
   // ---- A person on the road --------------------------------------------------------------------

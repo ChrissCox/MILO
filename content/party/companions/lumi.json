@@ -21,7 +21,7 @@
   "weapon": null,
   "personality": "steady",
   "reactions": {},
-  "moves": ["streetlight"],
+  "moves": ["streetlight", "on-her-bicycle"],
   "abilityDefs": [
     {
       "id": "streetlight",
@@ -32,11 +32,13 @@
       "big": false,
       "consumes": null,
       "meets": null,
-      "helpful": false,
+      "helpful": true,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -44,14 +46,33 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": {
+          "shape": "burst",
+          "size": 2,
+          "at": "self"
+        },
+        "hits": "allies-and-self",
+        "count": 1,
+        "need": [
+          "dim-or-dark"
+        ]
+      },
+      "effects": [
+        {
+          "do": "condition",
+          "id": "unseen"
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Streetlight",
-      "text": "Makes darkness where allies are Unseen.",
-      "stub": true,
-      "from": "Phase 6"
+      "text": "One action: she rings her bell and the street goes dark round her. Allies within 2 who stand in dim or dark tiles are Unseen.",
+      "stub": false,
+      "from": null
     },
     {
       "id": "goodnight",
@@ -66,7 +87,9 @@
       "cannotMiss": false,
       "outcome": false,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -74,14 +97,68 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "heat",
+          "by": -10
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Goodnight",
       "text": "Lullaby works on a Tale-lead.",
       "stub": true,
       "from": "Fireside warmth"
+    },
+    {
+      "id": "on-her-bicycle",
+      "name": "On her bicycle",
+      "circle": 0,
+      "attack": false,
+      "big": false,
+      "consumes": null,
+      "meets": null,
+      "helpful": false,
+      "cannotMiss": false,
+      "outcome": false,
+      "spoken": false,
+      "costs": [],
+      "uses": null,
+      "sustained": null,
+      "requires": [],
+      "reaction": null,
+      "passive": {
+        "mods": [
+          {
+            "stat": "speed",
+            "by": 4,
+            "until": "fight"
+          }
+        ],
+        "aura": null,
+        "rules": [],
+        "summons": []
+      },
+      "choices": null,
+      "by": null,
+      "target": null,
+      "effects": null,
+      "crit": [],
+      "upcast": false,
+      "kind": "passive",
+      "text": "She rides. Her Stride goes 4 tiles further.",
+      "words": "On her bicycle",
+      "stub": false,
+      "from": null
     }
   ],
   "heartFeat": "goodnight",

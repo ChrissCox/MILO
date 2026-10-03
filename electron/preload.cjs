@@ -76,6 +76,25 @@ const alarm = Object.freeze({
   },
 });
 
+// Commissions (PLAN.md Phase 6). The renderer hands over what Chris wrote and the folder he picked;
+// the main process checks the folder on the real disk and holds the crew to the ward.
+const WARDS = ['look', 'suggest', 'change'];
+const commissionOf = value => {
+  const v = value && typeof value === 'object' ? value : {};
+  return { title: text(v.title), brief: text(v.brief), folder: text(v.folder), who: v.who === 'codex' ? 'codex' : 'claude', ward: WARDS.includes(v.ward) ? v.ward : 'look' };
+};
+const commissions = Object.freeze({
+  // → { home, own, crew: { claude, codex }, busy }
+  env: () => ipcRenderer.invoke('milo:commission-env'),
+  // Opens the system's folder dialog. → { ok: true, folder } or { ok: false, why }
+  pickFolder: () => ipcRenderer.invoke('milo:commission-folder'),
+  // → { ok, stopped, summary, files, ms, why } when they come back
+  run: value => ipcRenderer.invoke('milo:commission-run', commissionOf(value)),
+  cancel: () => ipcRenderer.invoke('milo:commission-cancel'),
+  // Runs a building's check in its folder. → { ok, tail, ms, why }
+  check: (folder, command) => ipcRenderer.invoke('milo:commission-check', text(folder), text(command)),
+});
+
 const NOTIFY_KINDS = ['gate-bell', 'alert', 'kindle'];
 
 contextBridge.exposeInMainWorld('milo', Object.freeze({
@@ -107,6 +126,7 @@ contextBridge.exposeInMainWorld('milo', Object.freeze({
   onBeforeClose: callback => subscribe('milo:before-close', callback),
   finishClose: () => ipcRenderer.send('milo:finish-close'),
   architect,
+  commissions,
   notebooks,
   alarm,
 }));

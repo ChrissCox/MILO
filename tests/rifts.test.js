@@ -129,7 +129,7 @@ function withTimeZone(zone, run) {
 /* ------------------------------------------------------------------ rules and words */
 
 test('the rules and the ward-post rules are the contract’s, frozen and calm', () => {
-  assert.deepEqual(RIFT_RULES, { nightEndsHour: 6, nightRecentMin: 20, nightQuietMin: 45, knockHours: 24, patientKnockHours: 48, capacityPercent: 85, capacityHighPercent: 95, brightHours: 72, wardDays: 3, wallsUrgency: 0.9 });
+  assert.deepEqual(RIFT_RULES, { nightEndsHour: 6, nightRecentMin: 20, nightQuietMin: 45, knockHours: 24, patientKnockHours: 48, loopHours: 3, capacityPercent: 85, capacityHighPercent: 95, brightHours: 72, wardDays: 3, wallsUrgency: 0.9 });
   assert.ok(Object.isFrozen(RIFT_RULES) && Object.isFrozen(WARD_POST_RULES) && Object.isFrozen(WARD_POST_RULES[0]));
   assert.deepEqual(WARD_POST_RULES.map((r) => r.id), ['nights-off', 'patient-knock', 'capacity-95']);
   for (const rule of WARD_POST_RULES) {
@@ -1523,25 +1523,26 @@ test('raiseHearth spends the materials and raises the tier when ready', () => {
   assert.deepEqual(normalizeState(state, now), state, 'the raised state saves cleanly');
   // The Hold: kinds MILO can't count yet say when they arrive, and never count as met.
   // Phase 4 changes this pin on purpose (CONTRACT-PHASE4 §13, A): Kindle counts focus sessions now.
+  // Phase 6 does again: a building's proven level counts, from its commissions.
   const hold = hearthStatus(state, FORTRESS).next;
   assert.deepEqual(hold.requirements.map((r) => [r.kind, r.have, r.met, r.future, r.note]), [
     ['focus-sessions', 0, false, false, undefined],
-    ['building-level', 0, false, true, 'Arrives with Commissions'],
+    ['building-level', 0, false, false, undefined],
     ['mystery', 0, false, true, 'Arrives later'],
   ]);
   for (const r of hold.requirements.filter((req) => req.future)) assertCalm(r.note, r.kind);
   const focused = { ...state, tally: { ...state.tally, focusSessions: 30 } };
   assert.deepEqual(hearthStatus(focused, FORTRESS).next.requirements[0], { kind: 'focus-sessions', count: 30, have: 30, met: true, text: 'Complete 30 focus sessions', future: false }, 'thirty finished focus sessions meet it');
   assert.deepEqual(hold.materials.map((m) => [m.id, m.have, !!m.future, m.note]), [
-    ['birch', 15, false, undefined], ['stone', 0, true, 'Mined in the vale once the Notice Board arrives'], ['maelstrom-glass', 0, false, undefined],
+    ['birch', 15, false, undefined], ['stone', 0, false, undefined], ['maelstrom-glass', 0, false, undefined],
   ]);
   assert.equal(hold.ready, false);
   // Materials the wilds don't give yet aren't asked for: they're named once, as coming later.
   const holdReason = raiseHearth(state, FORTRESS, now).reason;
-  assert.equal(holdReason, 'Not yet. Still to do: complete 30 focus sessions (0 of 30), prove a building’s level 1 (arrives with Commissions), something new (arrives later), 135 more birch and 1 more Maelstrom glass. Stone comes later.');
+  assert.equal(holdReason, 'Not yet. Still to do: complete 30 focus sessions (0 of 30), prove a building’s level 1 (0 of 1), something new (arrives later), 135 more birch, 200 more stone and 1 more Maelstrom glass.');
   assertCalm(holdReason, 'hold reason');
-  const onlyLater = { tiers: [FORTRESS.tiers[0], { ...FORTRESS.tiers[1], requirements: [], materials: { stone: 5, copperstone: 2 } }] };
-  assert.equal(raiseHearth(createState(), onlyLater, now).reason, 'Not yet. Stone and copperstone come later.');
+  const onlyLater = { tiers: [FORTRESS.tiers[0], { ...FORTRESS.tiers[1], requirements: [], materials: { ironroot: 5, silverstone: 2 } }] };
+  assert.equal(raiseHearth(createState(), onlyLater, now).reason, 'Not yet. Ironroot and silverstone come later.');
   // What stands: the Camp's defences stay standing under the Stockade's.
   assert.deepEqual(hearthStatus(state, FORTRESS).def.defences.map((d) => d.name), ['The Lantern Hook', 'The War Table']);
   assert.equal(FORTRESS.tiers[1].defences.length, 1, 'the plans themselves are left alone');
@@ -1621,13 +1622,11 @@ test('the Hearth with the real fortress.json, and without any', () => {
     assert.ok(!/phase/i.test(reason), reason);
     for (const m of next.materials.filter((x) => x.future)) assert.ok(!reason.includes(` more ${m.name}`), `${m.name} isn’t asked for yet: ${reason}`);
   }
-  // Once the Stockade is raised: everything standing, and the Hold's stone and copperstone come later.
+  // Once the Stockade is raised: everything standing, and the Hold asks for stone and copperstone, which Mining brings.
   const raisedReal = normalizeState({ hearth: { tier: 2 } }, at(24, 12));
   assert.deepEqual(hearthStatus(raisedReal, fortress).def.defences.map((d) => d.name), ['The Lantern Hook', 'The Watchtower', 'The War Table', 'The Gate Bell', 'The first ward-post']);
-  assert.match(raiseHearth(raisedReal, fortress, at(24, 12)).reason, / 150 more birch\. Stone and copperstone come later\.$/);
-  assert.deepEqual(hearthStatus(raisedReal, fortress).next.materials.filter((m) => m.future).map((m) => [m.id, m.note]), [
-    ['stone', 'Mined in the vale once the Notice Board arrives'], ['copperstone', 'Not found in the wilds yet'],
-  ]);
+  assert.match(raiseHearth(raisedReal, fortress, at(24, 12)).reason, / 150 more birch, 200 more stone and 60 more copperstone\.$/);
+  assert.deepEqual(hearthStatus(raisedReal, fortress).next.materials.filter((m) => m.future).map((m) => [m.id, m.note]), []);
   assert.deepEqual(WARD_RADII, [0, 12, 28, 48, 72, 100, 140, 200]);
   for (let tier = 1; tier <= 8; tier += 1) assert.equal(wardRadius({ hearth: { tier } }, null), WARD_RADII[tier - 1]);
   for (const junk of [null, 'x', {}, { tiers: 'x' }, { tiers: [null, 5] }]) {

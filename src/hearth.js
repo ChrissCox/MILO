@@ -15,6 +15,14 @@ const COUNTED = Object.freeze({
   'buildings-designed': (state) => whole(state.tally?.buildingsDesigned),
   'days-with-milo': (state) => whole(state.tally?.daysSeen),
   'focus-sessions': (state) => whole(state.tally?.focusSessions),
+  // Phase 5's Board and people, and Phase 6's commissions: counted from their own sections.
+  'quests-finished': (state) => (Array.isArray(state.board?.quests) ? state.board.quests.filter((q) => isRecord(q) && q.status === 'done').length : 0),
+  residents: (state) => Object.values(isRecord(state.people) ? state.people : {}).filter((p) => isRecord(p) && p.camp).length,
+  'building-level': (state) => Object.values(isRecord(state.commissions?.levels) ? state.commissions.levels : {}).reduce((n, l) => n + whole(l), 0),
+});
+// A requirement that needs a level of its own: buildings at that level or above.
+const COUNTED_AT_LEVEL = Object.freeze({
+  'buildings-at-level': (state, level) => Object.values(isRecord(state.commissions?.levels) ? state.commissions.levels : {}).filter((l) => whole(l) >= level).length,
 });
 
 // Everything else arrives with a later part of MILO (PLAN.md §13).
@@ -37,9 +45,9 @@ const MATERIAL_NAMES = Object.freeze({
   'maelstrom-glass': 'Maelstrom glass', emberheart: 'emberheart', 'essences-of-genres': 'essences of different genres',
 });
 const SINGULAR_NAMES = Object.freeze({ 'diesel-cog': 'diesel cog' });
-const GATHERED_NOW = new Set(['birch', 'ash', 'pine', 'diesel-cog', 'maelstrom-glass', 'essences-of-genres']);
-// Where the rest will come from, where PLAN.md says (Mining in the vale comes with the Notice Board).
-const MATERIAL_NOTES = Object.freeze({ stone: 'Mined in the vale once the Notice Board arrives' });
+// Stone and copper come from Mining while you focus (Phase 5.4); the copper Milo mines is the Hold's copperstone.
+const GATHERED_NOW = new Set(['birch', 'ash', 'pine', 'stone', 'copperstone', 'diesel-cog', 'maelstrom-glass', 'essences-of-genres']);
+const MATERIAL_NOTES = Object.freeze({});
 const NOT_FOUND_YET = 'Not found in the wilds yet';
 const MAELSTROM_GLASS = 'Maelstrom glass';
 // Materials that are a rift's essences (RIFTS.md §6): Iron rifts drop Diesel cogs, a Maelstrom its glass.
@@ -97,6 +105,7 @@ function materialHave(state, id) {
     return whole(Object.hasOwn(essences, name) ? essences[name] : 0);
   }
   if (id === 'essences-of-genres') return essencesByGenre(satchel).size;
+  if (id === 'copperstone') return whole(materials.copperstone) + whole(materials.copper);
   return whole(Object.hasOwn(materials, id) ? materials[id] : 0);
 }
 
@@ -104,7 +113,8 @@ function requirementOf(state, requirement) {
   const kind = typeof requirement.kind === 'string' ? requirement.kind : 'unknown';
   const need = whole(requirement.count) || 1;
   const text = typeof requirement.text === 'string' ? requirement.text : kind;
-  const counter = Object.hasOwn(COUNTED, kind) ? COUNTED[kind] : null;
+  const atLevel = Object.hasOwn(COUNTED_AT_LEVEL, kind) && typeof requirement.level === 'number' ? (s) => COUNTED_AT_LEVEL[kind](s, requirement.level) : null;
+  const counter = Object.hasOwn(COUNTED, kind) ? COUNTED[kind] : atLevel;
   const out = { kind, count: need, have: 0, met: false, text, future: !counter };
   if (typeof requirement.level === 'number') out.level = requirement.level;
   if (counter) {

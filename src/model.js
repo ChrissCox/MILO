@@ -10,6 +10,7 @@ import {
   CREW_AGENTS,
 } from './state4.js';
 import { emptyBoard, cleanBoard, emptyPeople, cleanPeople, emptyCamplife, cleanCamplife } from './state5.js';
+import { emptyCommissions, cleanCommissions } from './commissions.js';
 
 export { toTime, clip, dayKey, dayNumber, dayStart, SESSION_NAME_DAYS, withoutTitle } from './clean.js';
 export { markFact, markFeature, tallyAnswered } from './state4.js';
@@ -60,19 +61,19 @@ const LANTERN_ID = /^lantern:-?\d{1,7},-?\d{1,7}$/;
 const POI_ID = /^poi:[a-z]{2,16}:-?\d{1,7},-?\d{1,7}$/;
 const TREE_ID = /^tree:-?\d{1,7},-?\d{1,7}$/;
 const RIFT_ID = /^rift:[0-9a-z]{1,13}$/;
-const RIFT_KEY = /^(night|knock|capacity|built|story|stale|crowded|vague|due):\S{1,150}$/;
+const RIFT_KEY = /^(night|knock|capacity|built|story|stale|crowded|vague|due|check|failed|loop):\S{1,150}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const GENRE_ID = /^[a-z][a-z-]{1,23}$/;
 const SIGNAL_ID = /^[a-z][a-z0-9-]{1,39}$/;
 const AGENT_ID = /^[a-z][a-z0-9-]{0,19}$/;
-const SIGNAL_KINDS = ['nocturne', 'knocking', 'capacity', 'built', 'story', 'stale', 'crowded', 'vague', 'due'];
-const KIND_BY_PREFIX = { night: 'nocturne', knock: 'knocking', capacity: 'capacity', built: 'built', story: 'story', stale: 'stale', crowded: 'crowded', vague: 'vague', due: 'due' };
+const SIGNAL_KINDS = ['nocturne', 'knocking', 'capacity', 'built', 'story', 'stale', 'crowded', 'vague', 'due', 'check', 'failed', 'loop'];
+const KIND_BY_PREFIX = { night: 'nocturne', knock: 'knocking', capacity: 'capacity', built: 'built', story: 'story', stale: 'stale', crowded: 'crowded', vague: 'vague', due: 'due', check: 'check', failed: 'failed', loop: 'loop' };
 const ECHO_ICONS = ['moon', 'knocker', 'spark', 'star', 'crack'];
 
 // Phase 4's sections come after `story` (CONTRACT-PHASE4 §8.1); a key missing here would be
 // overwritten by its raw copy in `extras`.
 const KNOWN_KEYS = ['version', 'user', 'milo', 'lastSeenAt', 'lastGreetedDay', 'settings', 'skills', 'panel', 'plots',
-  'firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story', ...STATE4_KEYS, 'board', 'people', 'camplife'];
+  'firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story', ...STATE4_KEYS, 'board', 'people', 'camplife', 'commissions'];
 const PLOT_KEYS = ['status', 'suggestions', 'asked', 'idea', 'blueprint', 'designedBy', 'builtAt', 'firstBuiltAt', 'name'];
 const MAX_NAME = 40;
 const MAX_ID = 64;
@@ -723,6 +724,7 @@ export function createState(now = Date.now()) {
     board: emptyBoard(),
     people: emptyPeople(),
     camplife: emptyCamplife(),
+    commissions: emptyCommissions(),
   };
 }
 
@@ -775,6 +777,7 @@ function normalize(input, now) {
     board: phase4Part(() => cleanBoard(source.board, { now }), emptyBoard),
     people: phase4Part(() => cleanPeople(source.people, { now }), emptyPeople),
     camplife: phase4Part(() => cleanCamplife(source.camplife), emptyCamplife),
+    commissions: phase4Part(() => cleanCommissions(source.commissions, { now }), emptyCommissions),
     ...extras,
   };
 }

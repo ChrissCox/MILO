@@ -31,12 +31,14 @@
       "attack": false,
       "big": false,
       "consumes": null,
-      "meets": null,
+      "meets": "mind",
       "helpful": false,
       "cannotMiss": false,
-      "outcome": false,
+      "outcome": true,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -44,14 +46,35 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "foe",
+        "range": 6,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": [
+          "examined"
+        ]
+      },
+      "effects": [
+        {
+          "do": "condition",
+          "id": "exposed",
+          "n": 2,
+          "min": "hit"
+        },
+        {
+          "do": "reveal",
+          "what": "intents"
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "Name it",
-      "text": "One action, at three clues: Exposed 2, and its hidden trick shown.",
-      "stub": true,
-      "from": "Phase 6"
+      "text": "One action, on an examined foe within 6: Exposed 2 on a Hit or better against mind Resolve, and its next moves shown.",
+      "stub": false,
+      "from": null
     },
     {
       "id": "the-reveal",
@@ -66,7 +89,9 @@
       "cannotMiss": false,
       "outcome": false,
       "spoken": false,
-      "costs": [1],
+      "costs": [
+        1
+      ],
       "uses": null,
       "sustained": null,
       "requires": [],
@@ -74,8 +99,21 @@
       "passive": null,
       "choices": null,
       "by": null,
-      "target": { "who": "self", "range": 0, "sight": true, "area": null, "hits": "foes", "count": 1, "need": [] },
-      "effects": [{ "do": "heat", "by": -10 }],
+      "target": {
+        "who": "self",
+        "range": 0,
+        "sight": true,
+        "area": null,
+        "hits": "foes",
+        "count": 1,
+        "need": []
+      },
+      "effects": [
+        {
+          "do": "heat",
+          "by": -10
+        }
+      ],
       "crit": [],
       "upcast": false,
       "words": "The reveal",

@@ -271,7 +271,7 @@ try {
     assert.equal(await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length), 1);
     assert.equal(await page.evaluate(() => typeof require), 'undefined', 'No Node in the renderer');
     assert.deepEqual(await page.evaluate(() => Object.keys(window.milo).sort()),
-      ['alarm', 'architect', 'clock', 'content', 'finishClose', 'loadState', 'notebooks', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction']);
+      ['alarm', 'architect', 'clock', 'commissions', 'content', 'finishClose', 'loadState', 'notebooks', 'notify', 'onBeforeClose', 'onSnapshot', 'saveState', 'scan', 'windowAction']);
     assert.deepEqual(await page.evaluate(() => Object.keys(window.milo.architect).sort()),
       ['cancel', 'design', 'localSuggestions', 'onAsking', 'status', 'suggest']);
     assert.deepEqual(await page.evaluate(() => Object.keys(window.milo.notebooks).sort()),

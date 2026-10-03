@@ -4,7 +4,8 @@
 // over ~/.claude and ~/.codex, Kindle's bell, and gentle desktop notifications. The renderer is
 // sandboxed and only ever receives session summaries.
 
-const { app, BrowserWindow, ipcMain, Menu, Notification, powerMonitor, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, Notification, powerMonitor, session } = require('electron');
+const os = require('node:os');
 const fs = require('node:fs/promises');
 const { mkdirSync, realpathSync } = require('node:fs');
 const path = require('node:path');
@@ -132,6 +133,7 @@ if (IS_TEST) {
   globalThis.__miloNotifyDecisions = [];
   globalThis.__miloBlockedRequests = [];
   globalThis.__miloArchitectCalls = [];
+  globalThis.__miloCommissionRuns = [];
 }
 // Kindle's bell (§10.3): one alarm slot, kept here so it rings on time while MILO is covered. Under
 // MILO_TEST, globalThis.__miloAlarm is the slot ({ id, at } or null) and __miloAlarmRings each ring.
@@ -214,6 +216,7 @@ const fallbackModel = {
       board: { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null },
       people: {},
       camplife: { gather: null, last: null, cooked: {}, places: {} },
+      commissions: { list: [], seq: 0, folders: {}, levels: {}, checks: {}, checked: {} },
     };
   },
   normalizeState(input, at = Date.now()) {
@@ -230,6 +233,7 @@ const fallbackModel = {
     merged.board = { ...base.board, ...record(value.board) };
     merged.people = record(value.people);
     merged.camplife = { ...base.camplife, ...record(value.camplife) };
+    merged.commissions = { ...base.commissions, ...record(value.commissions) };
     return merged;
   },
 };
@@ -598,6 +602,78 @@ function cleanFallback(value) {
 const cleanSkipped = value => (Array.isArray(value) ? [...new Set(value.filter(id => CREW_IDS.has(id)))] : []);
 
 // Tells the renderer who has the brief right now, each time the architect asks a crew member.
+// ---- Commissions (PLAN.md Phase 6): one of the crew, sent to work in one folder Chris picked ----
+// The runner (src/commission/runner.js) checks the folder on the real disk and holds the ward to
+// the CLI's own switches. Under MILO_TEST it never starts a CLI: it answers from the folder itself.
+let commissionRunner = null;
+let commissionLoad = null;
+function loadCommissions() {
+  if (!commissionLoad) {
+    commissionLoad = import(pathToFileURL(path.join(ROOT, 'src', 'commission', 'runner.js')).href).then(mod => {
+      commissionRunner = mod.createRunner({ home: os.homedir(), own: ROOT, mode: IS_TEST || process.env.MILO_COMMISSIONS === 'fake' ? 'fake' : 'auto' });
+      return mod;
+    }).catch(error => {
+      report(`Commissions unavailable: ${error.message}`);
+      commissionLoad = null;
+      return null;
+    });
+  }
+  return commissionLoad;
+}
+const commissionText = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '');
+const NO_CREW = 'MILO can’t send the crew just now.';
+
+async function commissionEnv() {
+  await loadCommissions();
+  return {
+    home: os.homedir(), own: ROOT,
+    crew: commissionRunner ? commissionRunner.crew() : { claude: false, codex: false },
+    busy: Boolean(commissionRunner?.busy),
+  };
+}
+
+// Chris picks the folder himself, in the system's own folder dialog. (Tests name one in MILO_PICK_FOLDER.)
+async function commissionFolder() {
+  const mod = await loadCommissions();
+  if (!mod) return { ok: false, why: NO_CREW };
+  let picked = null;
+  if (IS_TEST) picked = process.env.MILO_PICK_FOLDER || null;
+  else if (isLive(mainWindow)) {
+    const answer = await dialog.showOpenDialog(mainWindow, { title: 'Pick the project’s folder', properties: ['openDirectory'] });
+    picked = answer.canceled ? null : answer.filePaths[0] || null;
+  }
+  if (!picked) return { ok: false, why: '' };
+  return mod.checkFolder(picked, { home: os.homedir(), own: ROOT });
+}
+
+// A building's check, run in its folder (only Chris sets one).
+let checkKill = null;
+async function commissionCheck(folder, command) {
+  const mod = await loadCommissions();
+  if (!mod) return { ok: false, tail: '', ms: 0, why: NO_CREW };
+  if (checkKill) return { ok: false, tail: '', ms: 0, why: 'A check is already running.' };
+  if (IS_TEST) globalThis.__miloCommissionRuns.push({ check: commissionText(command, 200), folder: commissionText(folder, 400), at: Date.now() });
+  try {
+    return await mod.runCheck(commissionText(folder, 400), commissionText(command, 200), {
+      home: os.homedir(), own: ROOT, mode: IS_TEST || process.env.MILO_COMMISSIONS === 'fake' ? 'fake' : 'auto', onKill: kill => { checkKill = kill; },
+    });
+  } finally {
+    checkKill = null;
+  }
+}
+
+async function commissionRun(value) {
+  await loadCommissions();
+  if (!commissionRunner) return { ok: false, stopped: false, summary: '', files: [], ms: 0, why: NO_CREW };
+  const v = value && typeof value === 'object' ? value : {};
+  const commission = {
+    title: commissionText(v.title, 120), brief: commissionText(v.brief, 2000), folder: commissionText(v.folder, 400),
+    who: v.who === 'codex' ? 'codex' : 'claude', ward: ['look', 'suggest', 'change'].includes(v.ward) ? v.ward : 'look',
+  };
+  if (IS_TEST) globalThis.__miloCommissionRuns.push({ who: commission.who, ward: commission.ward, folder: commission.folder, title: commission.title, at: Date.now() });
+  return commissionRunner.run(commission);
+}
+
 function tellAsking(id) {
   if (!CREW_IDS.has(id) || !isLive(mainWindow) || mainWindow.webContents.isLoadingMainFrame()) return;
   mainWindow.webContents.send('milo:architect-asking', id);
@@ -804,6 +880,11 @@ function installIPC() {
     if (!trustedSender(event)) return failure('unavailable', "This window can't ask the crew.");
     return architectDesign(plotId, idea, tweak);
   });
+  ipcMain.handle('milo:commission-env', event => (trustedSender(event) ? commissionEnv() : null));
+  ipcMain.handle('milo:commission-folder', event => (trustedSender(event) ? commissionFolder() : { ok: false, why: '' }));
+  ipcMain.handle('milo:commission-run', (event, value) => (trustedSender(event) ? commissionRun(value) : { ok: false, stopped: false, summary: '', files: [], ms: 0, why: NO_CREW }));
+  ipcMain.handle('milo:commission-cancel', event => (trustedSender(event) && commissionRunner ? commissionRunner.cancel() : false));
+  ipcMain.handle('milo:commission-check', (event, folder, command) => (trustedSender(event) ? commissionCheck(folder, command) : { ok: false, tail: '', ms: 0, why: NO_CREW }));
   ipcMain.handle('milo:architect-cancel', event => {
     if (!trustedSender(event)) return { ok: false, cancelled: false };
     return architectCancel();
@@ -902,6 +983,8 @@ if (!ownsInstance) {
 } else {
   app.on('second-instance', focusMain);
   app.on('before-quit', event => {
+    // Nobody is left out working after MILO closes.
+    try { commissionRunner?.cancel(); checkKill?.('cancelled'); } catch (error) { report(error); }
     if (allowQuit) return;
     event.preventDefault();
     if (quitting) return;

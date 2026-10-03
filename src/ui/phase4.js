@@ -185,6 +185,7 @@ export async function setupPhase4(env) {
       notebooks: env.bridge?.notebooks ?? null,
       alarm: env.bridge?.alarm ?? null,
       notify: env.bridge?.notify ?? null,
+      commissions: env.bridge?.commissions ?? null,
     },
     settings: {
       get: (key) => env.getState()?.settings?.[key],
@@ -221,13 +222,14 @@ export async function setupPhase4(env) {
   const names = {};
   const modules = [
     ['wallet', './wallet.js'], ['chronicle', './chronicle-view.js'], ['kindle', './kindle-view.js'], ['skills', './skills-view.js'],
-    ['trail', './trail-view.js'], ['board', './board-view.js'], ['people', './people-view.js'], ['fire', './fire-view.js'], ['satchel', './satchel-view.js'], ['examine', './examine.js'], ['hud', './hud.js'], ['log', './log.js'],
+    ['trail', './trail-view.js'], ['board', './board-view.js'], ['people', './people-view.js'], ['fire', './fire-view.js'], ['commissions', './commissions-view.js'], ['satchel', './satchel-view.js'], ['examine', './examine.js'], ['hud', './hud.js'], ['log', './log.js'],
     ['menus', './menus.js'], ['muster', './muster.js'], ['camp', './camp-view.js'], ['company', './company-view.js'],
     ['notebook', './notebook-view.js'], ['levelup', './levelup.js'], ['dialogue', './dialogue.js'],
   ];
   await Promise.all(modules.map(async ([key, path]) => { names[key] = await load(path); }));
 
   let logHandle = null;
+  let commissionsHandle = null;
   let menusHandle = null;
   let combatHandle = null;
   let fight = null;
@@ -242,6 +244,7 @@ export async function setupPhase4(env) {
     mount('board', names.board);
     mount('people', names.people);
     mount('fire', names.fire);
+    commissionsHandle = mount('commissions', names.commissions);
     mount('satchel', names.satchel);
     mount('examine', names.examine);
     mount('hud', names.hud);
@@ -526,12 +529,33 @@ export async function setupPhase4(env) {
       const pose = day.part === 'asleep' ? 'sleep' : day.part === 'evening' || day.part === 'night' ? 'talk' : 'sit';
       for (const r of peopleMod?.residents?.(state, bundle) || []) {
         if (seat >= 8) break;
+        // Someone who has joined the company already has a seat with them.
+        if (state?.party?.roster?.[r.id]) continue;
         members.push({ id: r.id, look: r.look, seat, pose, bubble: false });
         seat += 1;
       }
       env.worldCall('setCamp', { night: ['evening', 'night', 'asleep'].includes(day.part), members, props: [] });
     } catch (error) { console.error('[MILO] the world’s sync', error); }
   }
+  // ---- the company grows (PLAN.md Phase 6): a companion who came to camp and can fight joins the roster ----
+  let lastResidents = '';
+  function joinResidents() {
+    try {
+      if (!party?.recruit || !peopleMod?.residents) return;
+      const state = env.getState();
+      const here = peopleMod.residents(state, bundle).map((r) => r.id);
+      const sig = here.join(',');
+      if (sig === lastResidents) return;
+      lastResidents = sig;
+      let next = state;
+      for (const id of here) next = party.recruit(next, id, env.clockNow(), { content: bundle });
+      if (next !== state) {
+        shell.set(next, { save: 300 });
+        for (const id of here) if (!state?.party?.roster?.[id] && next.party?.roster?.[id]) shell.log?.({ tab: 'milo', text: `${peopleMod.personOf(bundle, id)?.name?.split(' ')[0] || id} joined the company.`, at: env.clockNow(), detail: null, action: null });
+      }
+    } catch (error) { console.error('[MILO] joining', error); }
+  }
+
   // ---- errands: a step that waits on a visit or on the fire is marked when it happens ----
   function errandHappened(event) {
     try {
@@ -568,6 +592,7 @@ export async function setupPhase4(env) {
     } catch (error) { console.error('[MILO] Act I', error); }
   }
   offs.push(bus.on('state', () => settleActs()));
+  offs.push(bus.on('state', () => joinResidents()));
   setTimeout(settleActs, 0);
 
   offs.push(bus.on('state', () => syncWorld()));
@@ -651,6 +676,8 @@ export async function setupPhase4(env) {
     },
     hamletAge: (poi) => { try { return folkMod?.ageLine ? folkMod.ageLine(poi, bundle.people?.folk) : ''; } catch { return ''; } },
     camps: () => campsNow.map((c) => ({ id: c.id, stage: c.stage, parts: c.parts.map((p) => p.part) })),
+    // A building's own panel asks for a draft to take it to its next level.
+    commissionFor: (plotId) => { try { return commissionsHandle?.draftFor?.(plotId) === true; } catch { return false; } },
     hamletWelcome: (poi) => { try { return welcomeMod?.welcomeLine ? welcomeMod.welcomeLine(welcomeOf(poi)) : ''; } catch { return ''; } },
     restAtHamlet,
     hamletParts: (poi) => { try { const parts = partsOf(poi); return parts.length && settlementMod?.partsLine ? settlementMod.partsLine(parts) : ''; } catch { return ''; } },

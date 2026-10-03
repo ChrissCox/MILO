@@ -31,6 +31,8 @@ export const DEFAULT_RATES = Object.freeze([
   { id: 'real-stitch', skill: 'seamcraft', xp: 500 },
   { id: 'quest-main', skill: 'stewardship', xp: 300 },
   { id: 'quest-side', skill: 'stewardship', xp: 150 },
+  { id: 'commission', skill: 'command', xp: 100 },
+  { id: 'commission-proved', skill: 'command', xp: 400 },
 ].map(Object.freeze));
 
 // The curve: xpForLevel(L) = floor(¼ × Σ_{l=1}^{L−1} floor(l + 300 × 2^(l/7))); level 99 = 13,034,431.

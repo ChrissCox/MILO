@@ -18,6 +18,7 @@ export const DEFAULT_ECONOMY = Object.freeze({
   earn: Object.freeze([
     { id: 'focus', n: 10 }, { id: 'rest', n: 5 }, { id: 'crew', n: 2, perDay: 10 }, { id: 'answered', n: 1, perDay: 5 },
     { id: 'stitch', n: 5 }, { id: 'design', n: 5 }, { id: 'quest-main', n: 3 }, { id: 'quest-side', n: 2 },
+    { id: 'commission', n: 5, perDay: 15 },
   ].map(Object.freeze)),
   spend: Object.freeze({ wild: Object.freeze({ base: 5, every: 3, offset: 1, max: 10 }), real: 5, story: 0, field: 5, cave: 3, chunk: 1 }),
 });
@@ -130,6 +131,22 @@ export function payQuest(state, { kind, key = null } = {}, now, economy) {
   const paidToday = ledgerOf(embersOf(state)).filter((e) => isRecord(e) && e.source === 'quest' && finite(e.at) && dayKey(e.at) === today).length;
   const amount = paidToday >= QUEST_FULL_PER_DAY ? Math.max(1, Math.ceil(full / 4)) : full;
   return earn(state, { source: 'quest', key, n: amount, text: side ? 'A side quest finished' : 'A main quest finished' }, now, economy);
+}
+
+/**
+ * A commission read after it came back (PLAN.md Phase 6): economy.json's `commission` Embers,
+ * once for each (its key is the moment it was sent), up to its daily cap.
+ */
+export function payCommission(state, { sentAt, proved = false } = {}, now, economy) {
+  if (!isRecord(state) || !finite(now) || !finite(sentAt) || sentAt <= 0) return { state, entry: null };
+  const row = economyOf(economy).earn.commission;
+  if (!row?.n) return { state, entry: null };
+  const today = dayKey(now);
+  const paidToday = ledgerOf(embersOf(state)).filter((e) => isRecord(e) && e.source === 'commission' && finite(e.at) && dayKey(e.at) === today).reduce((n, e) => n + (finite(e.n) ? e.n : 0), 0);
+  const room = finite(row.perDay) ? Math.max(0, row.perDay - paidToday) : row.n;
+  const amount = Math.min(row.n, room);
+  if (!amount) return { state, entry: null };
+  return earn(state, { source: 'commission', key: `commission:${Math.round(sentAt)}`, n: amount, text: proved ? 'A commission that proved a level' : 'A commission came back' }, now, economy);
 }
 
 const plural = (n, one, many) => (n === 1 ? one : `${n} ${many}`);

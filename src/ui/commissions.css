@@ -1,0 +1,27 @@
+/* Commissions (Phase 6): the crew, what is out, what is back to read, and the drafts. */
+.commissions-view { display: flex; flex-direction: column; gap: 10px; }
+.commission-crew { display: flex; gap: 12px; flex-wrap: wrap; margin: 0; font-size: 12px; }
+.commission-who[data-ready="false"] { opacity: 0.6; }
+.commission-meta { font-size: 11px; color: var(--muted); font-weight: normal; }
+.commission-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.commission { padding: 6px 8px; background: var(--cream-2); border: 2px solid var(--line); }
+.commission[data-status="running"] { border-style: dashed; }
+.commission-head { display: block; width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.commission-head:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.commission-title { margin: 0; }
+.commission-body { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.commission-body textarea { width: 100%; font: inherit; font-size: 12px; resize: vertical; }
+.commission-ward-hint { margin: 0; font-size: 11.5px; color: var(--muted); }
+.commission-folder { margin: 0; font-size: 12px; }
+.commission-path { word-break: break-all; }
+.commission-folder[data-folder="none"] .commission-path { color: var(--muted); }
+.commission-problem, .commission-said { margin: 0; }
+.commission-result { margin: 6px 0; max-height: 260px; overflow: auto; }
+.commission-text { margin: 0 0 6px; font-size: 12px; line-height: 1.45; }
+.commission-files { margin: 0; padding-left: 16px; font-size: 11.5px; color: var(--muted); word-break: break-all; }
+.commission-buildable { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
+.commissions-view .shares-note { margin-top: 4px; padding-top: 6px; }
+.commissions-view .confirm { margin-top: 4px; }
+.commission-check { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin: 4px 0; }
+.commission-check[data-check="failed"] .commission-meta { color: var(--ink); }
+.commission-tail pre { max-height: 160px; overflow: auto; margin: 4px 0 0; font-size: 11px; white-space: pre-wrap; }

@@ -823,7 +823,7 @@ test('each HUD tab opens its panel', () => {
   const panel = (id, opts = {}) => ({ kind: 'panel', panel: id, opts });
   const expected = {
     skills: panel('skills'), quests: panel('board'), satchel: panel('satchel'), company: panel(`company:${state.party.chosen[0]}`),
-    grimoire: { kind: 'say', title: 'The Grimoire', lines: [hud.GRIMOIRE_LINE] }, crew: { kind: 'log', tab: 'crew' },
+    grimoire: { kind: 'say', title: 'The Grimoire', lines: [hud.GRIMOIRE_LINE] }, crew: panel('commissions'),
     chronicle: panel('chronicle'), settings: panel('camp', { section: 'settings', focus: 'setting-motion' }),
   };
   assert.deepEqual(hud.HUD_TABS.map((t) => t.id), Object.keys(expected));
@@ -848,7 +848,7 @@ test('each HUD tab opens its panel', () => {
     handle.dispose();
   } finally { restore(); }
   assert.deepEqual(clicks, Object.keys(expected));
-  assert.deepEqual(calls.panels.map(([idOf]) => idOf), ['skills', 'board', 'satchel', 'company:claude', 'chronicle', 'camp']);
+  assert.deepEqual(calls.panels.map(([idOf]) => idOf), ['skills', 'board', 'satchel', 'company:claude', 'commissions', 'chronicle', 'camp']);
   assert.deepEqual(calls.bubbles.map((b) => b.title), ['The Grimoire']);
 });
 

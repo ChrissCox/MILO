@@ -129,9 +129,10 @@ test('createState has the contract shape and calm defaults', () => {
     board: { quests: [], projects: [], thoughts: [], seq: 0, nudgedDay: null },
     people: {},
     camplife: { gather: null, last: null, cooked: {}, places: {} },
+    commissions: { list: [], seq: 0, folders: {}, levels: {}, checks: {}, checked: {} },
   });
   assert.deepEqual(Object.keys(state).slice(9), ['firstSeenAt', 'tally', 'hearth', 'satchel', 'wilds', 'rifts', 'story',
-    'embers', 'xp', 'kindle', 'chronicle', 'road', 'party', 'expedition', 'board', 'people', 'camplife'], 'new keys come after plots, Phase 4’s after story, and Phase 5’s last');
+    'embers', 'xp', 'kindle', 'chronicle', 'road', 'party', 'expedition', 'board', 'people', 'camplife', 'commissions'], 'new keys come after plots, Phase 4’s after story, and Phase 5’s last');
   assert.notEqual(createState().plots['plot-meadow'], createState().plots['plot-meadow'], 'plots are not shared between states');
   assert.notEqual(createState().settings, createState().settings, 'settings are not shared between states');
   assert.ok(Object.isFrozen(DEFAULT_SETTINGS));

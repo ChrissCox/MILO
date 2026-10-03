@@ -44,7 +44,7 @@ export function hudTabTarget(tab, { state = null } = {}) {
       return { kind: 'panel', panel: `company:${chosen[0] || 'milo'}`, opts: {} };
     }
     case 'grimoire': return { kind: 'say', title: 'The Grimoire', lines: [GRIMOIRE_LINE] };
-    case 'crew': return { kind: 'log', tab: 'crew' };
+    case 'crew': return { kind: 'panel', panel: 'commissions', opts: {} };
     case 'chronicle': return { kind: 'panel', panel: 'chronicle', opts: {} };
     case 'settings': return { kind: 'panel', panel: 'camp', opts: { section: 'settings', focus: 'setting-motion' } };
     default: return null;

@@ -34,7 +34,7 @@ const PENDING_NAMES = [
   'Ability up', 'Bench: tool belt', 'Bench: workshop', 'Big candle hush', 'Big clock in', 'Big fast hands', 'Big fold in', 'Big ground shake',
   'Big hunch', 'Big into the shadows', 'Big static snap', 'Brew of clear morning', 'Bridge: all cross', 'Bridge: hold fast', 'Candle hush',
   'Clock in', 'Courier: express', 'Courier: return post', 'Device', 'Fast hands', 'Fold in', 'Footnote: appendix', 'Footnote: small print',
-  'Gavel: last word', 'Gavel: ruling', 'Ground shake', 'Hearthberry cordial', 'High tide', 'Hunch', 'Into the shadows', 'Name it', 'Quick feet',
+  'Gavel: last word', 'Gavel: ruling', 'Ground shake', 'Hearthberry cordial', 'High tide', 'Hunch', 'Into the shadows', 'Name it', 'On her bicycle', 'Quick feet',
   'Slate: a clean slate', 'Slate: clean build', 'Static snap', 'Steady second', 'Steady third', 'Swipe strike', 'The toll',
   'Three Pens: fair copy', 'Three Pens: second draft', 'Troll-kin: old stories', 'Troll-kin: stone at dawn', 'Two at once', 'Two drones',
   'Wayward step',
@@ -570,7 +570,9 @@ test('all fifteen companion files exist with the fields §9.6 asks for, and none
   for (const id of COMPANION_IDS.slice(5)) {
     assert.ok(companions[id].joins.phase > 4, `${id} joins after Phase 4`);
     assert.ok(['rift', 'hearth', 'story', 'bell'].includes(companions[id].joins.how), `${id} joins by ${companions[id].joins.how}`);
-    for (const a of companions[id].abilityDefs) assert.equal(a.stub, true, `${id}’s ${a.id} is a stub`);
+    // Phase 6's four fight now: their moves are real and only their heart feats wait. Everyone later is still a stub.
+    const phase6 = companions[id].joins.phase === 6;
+    for (const a of companions[id].abilityDefs) assert.equal(a.stub, phase6 ? a.id === companions[id].heartFeat : true, `${id}’s ${a.id} is ${phase6 && a.id !== companions[id].heartFeat ? 'real' : 'a stub'}`);
   }
   // The Scribe's own reaction defaults (COMBAT §3.7 plays her Shoulder on Always).
   assert.deepEqual(companions.claude.reactions, { shoulder: 'always', proofread: 'ask' });

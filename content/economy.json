@@ -11,7 +11,8 @@
     { "id": "stitch", "n": 5 },
     { "id": "design", "n": 5 },
     { "id": "quest-main", "n": 3 },
-    { "id": "quest-side", "n": 2 }
+    { "id": "quest-side", "n": 2 },
+    { "id": "commission", "n": 5, "perDay": 15 }
   ],
   "spend": {
     "wild": { "base": 5, "every": 3, "offset": 1, "max": 10 },
